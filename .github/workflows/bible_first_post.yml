@@ -55,20 +55,54 @@ jobs:
           print(out.read_text(encoding="utf-8"))
           PY
 
-      - name: Render first video
+      - name: Set up native MoneyPrinterTurbo config
         if: ${{ inputs.render_video }}
         env:
-          MPT_CONFIG_TOML: ${{ secrets.MPT_CONFIG_TOML }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
         run: |
           set -euo pipefail
 
-          if [ -z "${MPT_CONFIG_TOML:-}" ]; then
-            echo "MPT_CONFIG_TOML is not configured."
-            echo "The Bible content test passed, but video rendering cannot start yet."
+          if [ -z "${PIXABAY_API_KEY:-}" ]; then
+            echo "PIXABAY_API_KEY is not configured."
             exit 1
           fi
 
-          printf "%s" "$MPT_CONFIG_TOML" > config.toml
+          if [ -z "${MOONSHOT_API_KEY:-}" ]; then
+            echo "MOONSHOT_API_KEY is not configured."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          template = Path("config.example.toml").read_text(encoding="utf-8")
+
+          replacements = {
+              'video_source = "pexels"': 'video_source = "pixabay"',
+              'pixabay_api_keys = []': f'pixabay_api_keys = [{json.dumps(os.environ["PIXABAY_API_KEY"])}]',
+              'llm_provider = "moonshot"': 'llm_provider = "moonshot"',
+              'moonshot_api_key = ""': f'moonshot_api_key = {json.dumps(os.environ["MOONSHOT_API_KEY"])}',
+          }
+
+          for old, new in replacements.items():
+              if old not in template:
+                  raise RuntimeError(f"Expected MPT config entry not found: {old}")
+              template = template.replace(old, new, 1)
+
+          Path("config.toml").write_text(template, encoding="utf-8")
+          print("Created native MoneyPrinterTurbo config.toml from config.example.toml.")
+          print("Video source: pixabay")
+          print("LLM provider: moonshot")
+          print("API key values were supplied from GitHub Secrets and were not printed.")
+          PY
+
+      - name: Render first video
+        if: ${{ inputs.render_video }}
+        run: |
+          set -euo pipefail
 
           uv sync --frozen
           python cli.py \

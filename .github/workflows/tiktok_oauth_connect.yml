@@ -18,6 +18,7 @@ jobs:
           CALLBACK_URL: ${{ inputs.callback_url }}
           CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
           CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          GH_SECRETS_TOKEN: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -26,13 +27,20 @@ jobs:
             exit 1
           fi
 
-          # Mask the one-time callback URL before it can appear in logs.
+          if [ -z "${GH_SECRETS_TOKEN}" ]; then
+            echo "::error::Missing GH_SECRETS_WRITE_TOKEN."
+            echo "Create a fine-grained GitHub token with repository Secrets: Read and write, then save it as GH_SECRETS_WRITE_TOKEN."
+            exit 1
+          fi
+
           echo "::add-mask::${CALLBACK_URL}"
+          echo "::add-mask::${GH_SECRETS_TOKEN}"
+
+          export CALLBACK_URL CLIENT_KEY CLIENT_SECRET
 
           python3 - <<'PY'
           import json
           import os
-          import sys
           import urllib.parse
           import urllib.request
           import urllib.error
@@ -58,7 +66,6 @@ jobs:
           if not code:
               raise SystemExit("Callback URL does not contain an authorization code.")
 
-          # The existing Night Files callback uses the fixed state value.
           if state != "nightfiles":
               raise SystemExit("Unexpected OAuth state. Expected 'nightfiles'.")
 
@@ -92,19 +99,37 @@ jobs:
           if missing:
               raise SystemExit("TikTok response is missing: " + ", ".join(missing))
 
-          # Register generated credentials as masked values for this job.
           for key in required:
               print(f"::add-mask::{data[key]}")
+
+          with open("/tmp/tiktok_tokens.json", "w") as f:
+              json.dump(data, f)
 
           print("TikTok OAuth exchange succeeded.")
           print(f"open_id: {data['open_id']}")
           print(f"scope: {data.get('scope', '')}")
           print(f"access token expires in: {data.get('expires_in')} seconds")
           print(f"refresh token expires in: {data.get('refresh_expires_in')} seconds")
-          print("")
-          print("The three resulting credentials are intentionally NOT printed.")
-          print("Add them to GitHub Actions Secrets as:")
-          print("TIKTOK_ACCESS_TOKEN")
-          print("TIKTOK_REFRESH_TOKEN")
-          print("TIKTOK_OPEN_ID")
           PY
+
+      - name: Save TikTok tokens to GitHub Actions Secrets
+        env:
+          GH_TOKEN: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          ACCESS_TOKEN="$(python3 -c 'import json; print(json.load(open("/tmp/tiktok_tokens.json"))["access_token"])')"
+          REFRESH_TOKEN="$(python3 -c 'import json; print(json.load(open("/tmp/tiktok_tokens.json"))["refresh_token"])')"
+          OPEN_ID="$(python3 -c 'import json; print(json.load(open("/tmp/tiktok_tokens.json"))["open_id"])')"
+
+          echo "::add-mask::${ACCESS_TOKEN}"
+          echo "::add-mask::${REFRESH_TOKEN}"
+          echo "::add-mask::${OPEN_ID}"
+
+          gh secret set TIKTOK_ACCESS_TOKEN --repo "${GITHUB_REPOSITORY}" --body "${ACCESS_TOKEN}"
+          gh secret set TIKTOK_REFRESH_TOKEN --repo "${GITHUB_REPOSITORY}" --body "${REFRESH_TOKEN}"
+          gh secret set TIKTOK_OPEN_ID --repo "${GITHUB_REPOSITORY}" --body "${OPEN_ID}"
+
+          rm -f /tmp/tiktok_tokens.json
+
+          echo "Saved TIKTOK_ACCESS_TOKEN, TIKTOK_REFRESH_TOKEN, and TIKTOK_OPEN_ID to GitHub Actions Secrets."

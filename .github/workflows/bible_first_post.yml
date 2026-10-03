@@ -94,7 +94,7 @@ jobs:
               end = duration if i == len(cues) else cursor + duration*w/total
               rows.append(f"{i}\n{ts(cursor)} --> {ts(end)}\n{cue}\n")
               if i <= len(data["scenes"]):
-                  ref_rows.append(f"{i}\n{ts(cursor)} --> {ts(end)}\n{data["scenes"][i-1]["overlay"]}\n")
+                  ref_rows.append(f"{i}\n{ts(cursor)} --> {ts(end)}\n{data['scenes'][i-1]['overlay']}\n")
               else:
                   ref_rows.append(f"{i}\n{ts(cursor)} --> {ts(end)}\n\n")
               cursor=end

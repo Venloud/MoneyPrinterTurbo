@@ -131,7 +131,7 @@ jobs:
             --video-fit-mode cover \
             --video-transition-mode fade-in \
             --bgm-type none \
-            --subtitle-enabled=true \
+            --subtitle-enabled \
             --stop-at video
 
       - name: Add Kindled Iron cinematic polish

@@ -112,11 +112,22 @@ jobs:
           p.write_text(s, encoding="utf-8")
           PY
           echo "Configured local Kokoro TTS at http://127.0.0.1:8880/v1 with Whisper subtitle timing."
+      - name: Build scene matched music bed
+        if: ${{ inputs.render_video }}
+        run: |
+          set -euo pipefail
+          mkdir -p storage/bgm storage/bible/audio
+          python scripts/kindled_iron_audio.py \
+            --scene-file content/bible/episodes/001_creation_scenes.json \
+            --duration 180 \
+            --music-out storage/bgm/creation_cinematic.wav \
+            --sfx-out storage/bible/audio/creation_sfx.wav
+          echo "Built local cinematic music bed and scene SFX."
+
       - name: Render base video with native MoneyPrinterTurbo
         if: ${{ inputs.render_video }}
         run: |
           set -euo pipefail
-          uv sync --frozen
           uv sync --frozen
           uv run python cli.py \
             --video-subject "Creation: In the Beginning" \
@@ -124,17 +135,28 @@ jobs:
             --video-language en-US \
             --video-aspect 9:16 \
             --video-source pixabay \
-            --video-terms "creation, earth, ocean, sky, stars, nature, animals, sunrise" \
-            --video-clip-duration 8 \
-            --voice-name kokoro:af_heart \
+            --video-terms "primordial earth, dark ocean waters, Spirit over waters, divine light breaking darkness, sky and gathered waters, dry land and vegetation, sun moon stars, sea creatures birds land animals, man and woman" \
+            --video-clip-duration 7 \
+            --video-concat-mode sequential \
+            --match-materials-to-script \
+            --voice-name kokoro:am_michael \
             --voice-rate 1.0 \
             --video-fit-mode cover \
             --video-transition-mode fade-in \
-            --bgm-type none \
+            --bgm-type custom \
+            --bgm-file storage/bgm/creation_cinematic.wav \
+            --bgm-volume 0.16 \
             --subtitle-enabled \
+            --subtitle-display-mode word_by_word \
+            --subtitle-animation pop_spring \
+            --subtitle-position two_thirds_bottom \
+            --text-fore-color "#FFFFFF" \
+            --stroke-color "#1A0D05" \
+            --stroke-width 3 \
+            --font-size 64 \
             --stop-at video
 
-      - name: Add Kindled Iron cinematic polish
+      - name: Add scene SFX and Kindled Iron cinematic polish
         if: ${{ inputs.render_video }}
         run: |
           set -euo pipefail
@@ -143,9 +165,17 @@ jobs:
             echo "MoneyPrinterTurbo did not produce an MP4."
             exit 1
           fi
-          ffmpeg -y -i "$BASE" \
+          DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wr1:nokey=1 "$BASE")"
+          python scripts/kindled_iron_audio.py \
+            --scene-file content/bible/episodes/001_creation_scenes.json \
+            --duration "$DURATION" \
+            --music-out storage/bible/audio/creation_cinematic_final.wav \
+            --sfx-out storage/bible/audio/creation_sfx_final.wav
+          ffmpeg -y -i "$BASE" -i storage/bible/audio/creation_sfx_final.wav \
+            -filter_complex "[1:a]volume=0.65[sfx];[0:a][sfx]amix=inputs=2:duration=first:dropout_transition=2[mix]" \
+            -map 0:v:0 -map "[mix]" \
             -vf "colorbalance=rs=0.02:gs=0.008:bs=-0.012:rm=0.018:gm=0.004:bm=-0.01:rh=0.025:gh=0.006:bh=-0.015,eq=contrast=1.035:saturation=1.03,drawbox=x=0:y=0:w=iw:h=116:color=black@0.30:t=fill,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='KINDLED IRON':fontcolor=white@0.92:fontsize=40:x=(w-text_w)/2:y=30" \
-            -map 0:v:0 -map 0:a? -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k \
+            -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k \
             storage/bible/kindled-iron-episode-001.mp4
 
       - name: Stop local Kokoro TTS

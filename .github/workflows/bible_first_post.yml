@@ -59,17 +59,11 @@ jobs:
         if: ${{ inputs.render_video }}
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
         run: |
           set -euo pipefail
 
           if [ -z "${PIXABAY_API_KEY:-}" ]; then
             echo "PIXABAY_API_KEY is not configured."
-            exit 1
-          fi
-
-          if [ -z "${MOONSHOT_API_KEY:-}" ]; then
-            echo "MOONSHOT_API_KEY is not configured."
             exit 1
           fi
 
@@ -83,8 +77,6 @@ jobs:
           replacements = {
               'video_source = "pexels"': 'video_source = "pixabay"',
               'pixabay_api_keys = []': f'pixabay_api_keys = [{json.dumps(os.environ["PIXABAY_API_KEY"])}]',
-              'llm_provider = "moonshot"': 'llm_provider = "moonshot"',
-              'moonshot_api_key = ""': f'moonshot_api_key = {json.dumps(os.environ["MOONSHOT_API_KEY"])}',
           }
 
           for old, new in replacements.items():
@@ -95,7 +87,7 @@ jobs:
           Path("config.toml").write_text(template, encoding="utf-8")
           print("Created native MoneyPrinterTurbo config.toml from config.example.toml.")
           print("Video source: pixabay")
-          print("LLM provider: moonshot")
+          print("LLM provider: not required for this prepared-script test")
           print("API key values were supplied from GitHub Secrets and were not printed.")
           PY
 
@@ -110,6 +102,8 @@ jobs:
             --video-script "$(cat storage/bible/episode_001_script.txt)" \
             --video-language en-US \
             --video-aspect 9:16 \
+            --video-source pixabay \
+            --video-terms "creation,earth,sky,water,land,plants,sun,moon,stars,birds,animals,humanity" \
             --stop-at video
 
       - name: Upload first episode artifacts

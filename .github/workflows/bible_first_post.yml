@@ -61,20 +61,12 @@ jobs:
           cp config.example.toml config.toml
           echo "Created native MoneyPrinterTurbo config.toml."
 
-      - name: Generate Cloudflare narration and cinematic scenes
+      - name: Use native MoneyPrinterTurbo stock footage flow
         if: ${{ inputs.render_video }}
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_IMAGE_MODEL: "@cf/black-forest-labs/flux-2-dev"
-          CLOUDFLARE_TTS_SPEAKER: "atlas"
         run: |
           set -euo pipefail
-          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required."
-            exit 1
-          fi
-          python scripts/kindled_iron_cloudflare.py
+          cp config.example.toml config.toml
+          echo "Using native MoneyPrinterTurbo stock footage flow."
 
       - name: Measure narration and build captions
         if: ${{ inputs.render_video }}

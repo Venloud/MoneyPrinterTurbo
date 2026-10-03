@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       render_video:
-        description: "Render episode 1 with MoneyPrinterTurbo"
+        description: "Render upgraded Genesis 1 episode"
         required: true
         default: false
         type: boolean
@@ -32,24 +32,14 @@ jobs:
         run: |
           python scripts/bible_content_engine.py --episode 1
 
-      - name: Build first episode script
+      - name: Build scene based Bible story
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-
-          src = Path("content/bible/episodes/001_creation.json")
+          data = json.loads(Path("content/bible/episodes/001_creation_scenes.json").read_text(encoding="utf-8"))
+          lines = [s["narration"] for s in data["scenes"]] + [data["cta"]]
           out = Path("storage/bible/episode_001_script.txt")
-          data = json.loads(src.read_text(encoding="utf-8"))
-          s = data["script"]
-
-          lines = [
-              s["hook"],
-              s["intro"],
-              *s["body"],
-              s["cta"],
-              s["end_card"],
-          ]
           out.parent.mkdir(parents=True, exist_ok=True)
           out.write_text("\n\n".join(lines) + "\n", encoding="utf-8")
           print(out.read_text(encoding="utf-8"))
@@ -57,54 +47,96 @@ jobs:
 
       - name: Set up native MoneyPrinterTurbo config
         if: ${{ inputs.render_video }}
-        env:
-          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
           set -euo pipefail
+          cp config.example.toml config.toml
+          echo "Created native MoneyPrinterTurbo config.toml."
 
-          if [ -z "${PIXABAY_API_KEY:-}" ]; then
-            echo "PIXABAY_API_KEY is not configured."
+      - name: Generate Cloudflare narration and cinematic scenes
+        if: ${{ inputs.render_video }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_IMAGE_MODEL: "@cf/black-forest-labs/flux-2-dev"
+          CLOUDFLARE_TTS_SPEAKER: "atlas"
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID are required."
             exit 1
           fi
+          python scripts/kindled_iron_cloudflare.py
 
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-
-          template = Path("config.example.toml").read_text(encoding="utf-8")
-
-          replacements = {
-              'video_source = "pexels"': 'video_source = "pixabay"',
-              'pixabay_api_keys = []': f'pixabay_api_keys = [{json.dumps(os.environ["PIXABAY_API_KEY"])}]',
-          }
-
-          for old, new in replacements.items():
-              if old not in template:
-                  raise RuntimeError(f"Expected MPT config entry not found: {old}")
-              template = template.replace(old, new, 1)
-
-          Path("config.toml").write_text(template, encoding="utf-8")
-          print("Created native MoneyPrinterTurbo config.toml from config.example.toml.")
-          print("Video source: pixabay")
-          print("LLM provider: not required for this prepared-script test")
-          print("API key values were supplied from GitHub Secrets and were not printed.")
-          PY
-
-      - name: Render first video
+      - name: Measure narration and build captions
         if: ${{ inputs.render_video }}
         run: |
           set -euo pipefail
+          DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 storage/bible/episode_001/narration.mp3)"
+          python - "$DURATION" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          duration = float(sys.argv[1])
+          data = json.loads(Path("content/bible/episodes/001_creation_scenes.json").read_text(encoding="utf-8"))
+          cues = [s["narration"] for s in data["scenes"]] + [data["cta"]]
+          weights = [max(1, len(x.split())) for x in cues]
+          total = sum(weights)
+          def ts(v):
+              ms = int(round(v * 1000))
+              h, ms = divmod(ms, 3600000)
+              m, ms = divmod(ms, 60000)
+              s, ms = divmod(ms, 1000)
+              return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+          rows=[]
+          cursor=0.0
+          for i,(cue,w) in enumerate(zip(cues,weights),1):
+              end = duration if i == len(cues) else cursor + duration*w/total
+              rows.append(f"{i}\n{ts(cursor)} --> {ts(end)}\n{cue}\n")
+              cursor=end
+          Path("storage/bible/episode_001/captions.srt").write_text("\n".join(rows),encoding="utf-8")
+          print(f"Created {len(cues)} caption cues for {duration:.2f}s narration.")
+          PY
 
+      - name: Render base video with native MoneyPrinterTurbo
+        if: ${{ inputs.render_video }}
+        run: |
+          set -euo pipefail
           uv sync --frozen
+          MATERIALS="$(find storage/bible/episode_001 -maxdepth 1 -type f -name 'scene_*.png' | sort | paste -sd, -)"
+          if [ -z "$MATERIALS" ]; then
+            echo "No generated scene images found."
+            exit 1
+          fi
           uv run python cli.py \
             --video-subject "Creation: In the Beginning" \
             --video-script "$(cat storage/bible/episode_001_script.txt)" \
             --video-language en-US \
             --video-aspect 9:16 \
-            --video-source pixabay \
-            --video-terms "creation,earth,sky,water,land,plants,sun,moon,stars,birds,animals,humanity" \
+            --video-source local \
+            --video-materials "$MATERIALS" \
+            --video-concat-mode sequential \
+            --video-clip-duration 8 \
+            --video-fit-mode cover \
+            --video-transition-mode fade-in \
+            --voice-name no-voice \
+            --custom-audio-file "storage/bible/episode_001/narration.mp3" \
+            --bgm-type none \
+            --subtitle-enabled=false \
             --stop-at video
+
+      - name: Add Kindled Iron cinematic polish
+        if: ${{ inputs.render_video }}
+        run: |
+          set -euo pipefail
+          BASE="$(find storage/tasks -type f -name '*.mp4' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
+          if [ -z "$BASE" ] || [ ! -f "$BASE" ]; then
+            echo "MoneyPrinterTurbo did not produce an MP4."
+            exit 1
+          fi
+          ffmpeg -y -i "$BASE" -i storage/bible/episode_001/narration.mp3 \
+            -vf "colorbalance=rs=0.02:gs=0.008:bs=-0.012:rm=0.018:gm=0.004:bm=-0.01:rh=0.025:gh=0.006:bh=-0.015,eq=contrast=1.035:saturation=1.03,drawbox=x=0:y=0:w=iw:h=116:color=black@0.30:t=fill,drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='KINDLED IRON':fontcolor=white@0.92:fontsize=40:x=(w-text_w)/2:y=30,subtitles=storage/bible/episode_001/captions.srt:force_style='FontName=DejaVu Sans,FontSize=17,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,Outline=2,Shadow=1,Alignment=2,MarginV=115'" \
+            -map 0:v:0 -map 1:a:0 -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest \
+            storage/bible/kindled-iron-episode-001.mp4
 
       - name: Upload first episode artifacts
         uses: actions/upload-artifact@v4
@@ -113,5 +145,7 @@ jobs:
           path: |
             storage/bible/episode_001.json
             storage/bible/episode_001_script.txt
+            storage/bible/episode_001/**
+            storage/bible/kindled-iron-episode-001.mp4
             storage/tasks/**
           if-no-files-found: warn

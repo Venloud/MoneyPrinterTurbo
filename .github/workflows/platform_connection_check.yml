@@ -96,15 +96,14 @@ jobs:
                   headers={"Content-Type": "application/x-www-form-urlencoded"},
               )
               if token_data and token_data.get("access_token"):
-                  channel = request(
-                      "YouTube Data API",
-                      "https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true",
-                      headers={"Authorization": f"Bearer {token_data['access_token']}"},
-                  )
-                  if channel and channel.get("items"):
-                      print(f"  OK: {channel['items'][0]['snippet'].get('title', 'unknown')}")
-                  elif channel is not None:
-                      failures.append("YouTube: token worked but no channel was returned")
+                  granted_scopes = set((token_data.get("scope") or "").split())
+                  required_scope = "https://www.googleapis.com/auth/youtube.upload"
+                  if required_scope in granted_scopes:
+                      print("  OK: youtube.upload scope granted")
+                  else:
+                      failures.append(
+                          "YouTube: refresh token does not grant youtube.upload scope"
+                      )
 
           print("Checking Instagram...")
           if require("INSTAGRAM_ACCESS_TOKEN"):

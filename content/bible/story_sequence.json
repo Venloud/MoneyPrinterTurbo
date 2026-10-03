@@ -1,0 +1,39 @@
+{
+  "sequence_version": 1,
+  "mode": "biblical_story_progression",
+  "rule": "Follow the biblical storyline in order. Do not randomly select characters.",
+  "opening": [
+    {"order": 1, "type": "story", "title": "Creation", "references": ["Genesis 1"], "next": "Adam"},
+    {"order": 2, "type": "character", "title": "Adam", "references": ["Genesis 1-5"], "next": "Eve"},
+    {"order": 3, "type": "character", "title": "Eve", "references": ["Genesis 2-4"], "next": "Cain"},
+    {"order": 4, "type": "character", "title": "Cain", "references": ["Genesis 4"], "next": "Abel"},
+    {"order": 5, "type": "character", "title": "Abel", "references": ["Genesis 4"], "next": "Seth"},
+    {"order": 6, "type": "character", "title": "Seth", "references": ["Genesis 4-5"], "next": "Noah"},
+    {"order": 7, "type": "character", "title": "Noah", "references": ["Genesis 5-9"], "next": "Abraham"},
+    {"order": 8, "type": "character", "title": "Abraham", "references": ["Genesis 11-25"], "next": "Sarah"},
+    {"order": 9, "type": "character", "title": "Sarah", "references": ["Genesis 11-23"], "next": "Isaac"},
+    {"order": 10, "type": "character", "title": "Isaac", "references": ["Genesis 17-35"], "next": "Rebekah"},
+    {"order": 11, "type": "character", "title": "Rebekah", "references": ["Genesis 24-27"], "next": "Jacob"},
+    {"order": 12, "type": "character", "title": "Jacob", "references": ["Genesis 25-50"], "next": "Esau"},
+    {"order": 13, "type": "character", "title": "Esau", "references": ["Genesis 25-36"], "next": "Joseph"},
+    {"order": 14, "type": "character", "title": "Joseph", "references": ["Genesis 30-50"], "next": "Moses"}
+  ],
+  "new_testament_disciple_series": {
+    "rule": "Give each of Jesus' Twelve disciples a separate episode. Use only what the 66 books establish. Do not fill gaps with later tradition.",
+    "disciples": [
+      "Peter",
+      "Andrew",
+      "James son of Zebedee",
+      "John",
+      "Philip",
+      "Bartholomew",
+      "Thomas",
+      "Matthew",
+      "James son of Alphaeus",
+      "Thaddaeus / Judas son of James",
+      "Simon the Zealot",
+      "Judas Iscariot"
+    ],
+    "additional_episode": "Matthias"
+  }
+}

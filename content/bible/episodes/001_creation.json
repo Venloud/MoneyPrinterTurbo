@@ -1,0 +1,29 @@
+{
+  "episode": 1,
+  "type": "story",
+  "title": "Creation: In the Beginning",
+  "references": ["Genesis 1"],
+  "next_episode": "Adam",
+  "claim_policy": "Every biblical claim must be traceable to the listed Scripture.",
+  "visual_policy": {
+    "source": "Genesis 1",
+    "rule": "Show creation events described in the passage. Do not invent biblical character appearance details that Scripture does not provide."
+  },
+  "script": {
+    "hook": "Before Adam. Before Noah. Before Abraham. The Bible starts with this: In the beginning, God created the heavens and the earth.",
+    "intro": "So what happened at the beginning?",
+    "body": [
+      "Genesis 1 says the earth was formless and empty, darkness covered the deep, and the Spirit of God was over the waters.",
+      "Then God spoke, and light appeared. God separated the light from the darkness.",
+      "He made the sky, gathered the waters, brought forth dry land and vegetation, made the sun, moon, and stars, filled the waters with living creatures, and filled the sky with birds.",
+      "Then God created the land animals and humanity in His image, male and female.",
+      "Genesis 1:31 says that God saw everything He had made, and it was very good."
+    ],
+    "cta": "Follow Kindled Iron. Next, we meet Adam.",
+    "end_card": "READ IT YOURSELF: Genesis 1"
+  },
+  "target_duration_seconds": {
+    "min": 40,
+    "max": 55
+  }
+}

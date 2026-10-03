@@ -105,7 +105,7 @@ jobs:
           set -euo pipefail
 
           uv sync --frozen
-          python cli.py \
+          uv run python cli.py \
             --video-subject "Creation: In the Beginning" \
             --video-script "$(cat storage/bible/episode_001_script.txt)" \
             --video-language en-US \

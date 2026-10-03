@@ -1,0 +1,36 @@
+{
+  "categories": {
+    "bible_topics": [
+      "Heaven",
+      "Hell",
+      "Angels",
+      "Marriage",
+      "Prayer",
+      "Forgiveness",
+      "Money",
+      "Sin",
+      "Faith",
+      "Suffering",
+      "Death",
+      "Salvation",
+      "The Holy Spirit",
+      "Satan",
+      "Demons",
+      "The Kingdom of God"
+    ],
+    "jesus_teachings": [
+      "Teachings in Matthew",
+      "Teachings in Mark",
+      "Teachings in Luke",
+      "Teachings in John"
+    ],
+    "hard_bible_questions": [
+      "How was humanity repopulated after Noah?",
+      "How can Friday to Sunday be described as three days?",
+      "Why did Old Testament practices change in the New Testament?",
+      "What does Scripture actually say about heaven?",
+      "What does Scripture actually say about hell?"
+    ]
+  },
+  "rule": "Topic videos are separate from the chronological character progression and must be grounded only in the 66 canonical books."
+}

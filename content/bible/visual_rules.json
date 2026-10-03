@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "source_scope": "66 canonical Bible books only",
+  "rules": [
+    "Use physical appearance details only when the supplied canonical passage actually gives them.",
+    "Use clothing, objects, locations, creatures, and events only when supported by the supplied passage or clearly marked as neutral cinematic representation.",
+    "If Scripture does not describe a person's appearance, do not invent a specific appearance and label it biblical.",
+    "If Scripture gives no useful appearance details, a neutral or minimally specified character design is valid.",
+    "Do not import traditional paintings, later religious art, folklore, apocryphal descriptions, or popular culture as biblical descriptions.",
+    "For angels and other heavenly beings, use the description of the specific canonical passage instead of a generic angel design.",
+    "Visual prompts must carry the same Scripture references used by the script."
+  ],
+  "claim_boundary": "A visual choice is not evidence that Scripture described that feature."
+}

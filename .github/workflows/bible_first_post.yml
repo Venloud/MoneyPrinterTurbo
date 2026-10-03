@@ -1,0 +1,84 @@
+name: Bible First Post
+
+on:
+  workflow_dispatch:
+    inputs:
+      render_video:
+        description: "Render episode 1 with MoneyPrinterTurbo"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate 66-book Bible rules
+        run: |
+          python scripts/bible_content_engine.py --episode 1
+
+      - name: Build first episode script
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          src = Path("content/bible/episodes/001_creation.json")
+          out = Path("storage/bible/episode_001_script.txt")
+          data = json.loads(src.read_text(encoding="utf-8"))
+          s = data["script"]
+
+          lines = [
+              s["hook"],
+              s["intro"],
+              *s["body"],
+              s["cta"],
+              s["end_card"],
+          ]
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text("\n\n".join(lines) + "\n", encoding="utf-8")
+          print(out.read_text(encoding="utf-8"))
+          PY
+
+      - name: Render first video
+        if: ${{ inputs.render_video }}
+        env:
+          MPT_CONFIG_TOML: ${{ secrets.MPT_CONFIG_TOML }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${MPT_CONFIG_TOML:-}" ]; then
+            echo "MPT_CONFIG_TOML is not configured."
+            echo "The Bible content test passed, but video rendering cannot start yet."
+            exit 1
+          fi
+
+          printf "%s" "$MPT_CONFIG_TOML" > config.toml
+
+          uv sync --frozen
+          python cli.py \
+            --video-subject "Creation: In the Beginning" \
+            --video-script "$(cat storage/bible/episode_001_script.txt)" \
+            --video-language en-US \
+            --video-aspect 9:16 \
+            --stop-at video
+
+      - name: Upload first episode artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindled-iron-bible-episode-001
+          path: |
+            storage/bible/episode_001.json
+            storage/bible/episode_001_script.txt
+            storage/tasks/**
+          if-no-files-found: warn

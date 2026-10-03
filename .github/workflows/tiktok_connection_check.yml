@@ -1,0 +1,21 @@
+name: TikTok Connection Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check required TikTok secrets
+        env:
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          TIKTOK_OPEN_ID: ${{ secrets.TIKTOK_OPEN_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$TIKTOK_ACCESS_TOKEN" || { echo "Missing TIKTOK_ACCESS_TOKEN"; exit 1; }
+          test -n "$TIKTOK_REFRESH_TOKEN" || { echo "Missing TIKTOK_REFRESH_TOKEN"; exit 1; }
+          test -n "$TIKTOK_OPEN_ID" || { echo "Missing TIKTOK_OPEN_ID"; exit 1; }
+          echo "TikTok credentials are present in GitHub Actions."
+          echo "This check does not print token values."

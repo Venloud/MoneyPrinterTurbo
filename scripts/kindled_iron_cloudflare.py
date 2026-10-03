@@ -87,7 +87,7 @@ def main():
     ROOT.mkdir(parents=True, exist_ok=True)
     data = json.loads(SCENES_FILE.read_text(encoding="utf-8"))
     style = data["style"]
-    parts = [data["narration"]] + [s["narration"] for s in data["scenes"]] + [data["cta"], data["end_card"]]
+    parts = [s["narration"] for s in data["scenes"]] + [data["cta"]]
     full_script = "\n\n".join(parts)
     (ROOT / "episode_001_story.txt").write_text(full_script + "\n", encoding="utf-8")
 

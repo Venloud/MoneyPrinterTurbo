@@ -1,0 +1,110 @@
+name: TikTok OAuth Connect
+
+on:
+  workflow_dispatch:
+    inputs:
+      callback_url:
+        description: "Paste the full TikTok callback URL from the Night Files callback page"
+        required: true
+        type: string
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Exchange TikTok authorization code
+        env:
+          CALLBACK_URL: ${{ inputs.callback_url }}
+          CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CLIENT_KEY}" ] || [ -z "${CLIENT_SECRET}" ]; then
+            echo "::error::Missing TIKTOK_CLIENT_KEY or TIKTOK_CLIENT_SECRET."
+            exit 1
+          fi
+
+          # Mask the one-time callback URL before it can appear in logs.
+          echo "::add-mask::${CALLBACK_URL}"
+
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.parse
+          import urllib.request
+          import urllib.error
+
+          redirect_uri = "https://venloud.github.io/nightfiles/tiktok-callback.html"
+          callback = os.environ["CALLBACK_URL"]
+
+          parsed = urllib.parse.urlparse(callback)
+          base = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+          if base != redirect_uri:
+              raise SystemExit("Callback URL does not match the registered TikTok redirect URI.")
+
+          params = urllib.parse.parse_qs(parsed.query)
+
+          error = params.get("error", [None])[0]
+          if error:
+              desc = params.get("error_description", [""])[0]
+              raise SystemExit(f"TikTok authorization failed: {error}: {desc}")
+
+          code = params.get("code", [None])[0]
+          state = params.get("state", [None])[0]
+
+          if not code:
+              raise SystemExit("Callback URL does not contain an authorization code.")
+
+          # The existing Night Files callback uses the fixed state value.
+          if state != "nightfiles":
+              raise SystemExit("Unexpected OAuth state. Expected 'nightfiles'.")
+
+          payload = urllib.parse.urlencode({
+              "client_key": os.environ["CLIENT_KEY"],
+              "client_secret": os.environ["CLIENT_SECRET"],
+              "code": code,
+              "grant_type": "authorization_code",
+              "redirect_uri": redirect_uri,
+          }).encode()
+
+          request = urllib.request.Request(
+              "https://open.tiktokapis.com/v2/oauth/token/",
+              data=payload,
+              headers={"Content-Type": "application/x-www-form-urlencoded"},
+              method="POST",
+          )
+
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  data = json.loads(response.read().decode())
+          except urllib.error.HTTPError as exc:
+              detail = exc.read().decode(errors="replace")
+              raise SystemExit(f"TikTok token exchange failed: {detail}")
+
+          if data.get("error"):
+              raise SystemExit(json.dumps(data))
+
+          required = ("access_token", "refresh_token", "open_id")
+          missing = [key for key in required if not data.get(key)]
+          if missing:
+              raise SystemExit("TikTok response is missing: " + ", ".join(missing))
+
+          # Register generated credentials as masked values for this job.
+          for key in required:
+              print(f"::add-mask::{data[key]}")
+
+          print("TikTok OAuth exchange succeeded.")
+          print(f"open_id: {data['open_id']}")
+          print(f"scope: {data.get('scope', '')}")
+          print(f"access token expires in: {data.get('expires_in')} seconds")
+          print(f"refresh token expires in: {data.get('refresh_expires_in')} seconds")
+          print("")
+          print("The three resulting credentials are intentionally NOT printed.")
+          print("Add them to GitHub Actions Secrets as:")
+          print("TIKTOK_ACCESS_TOKEN")
+          print("TIKTOK_REFRESH_TOKEN")
+          print("TIKTOK_OPEN_ID")
+          PY

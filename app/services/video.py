@@ -1072,7 +1072,7 @@ def combine_videos(
                 f"processing clip {index + 1}: {subclipped_item.width}x{subclipped_item.height}, "
                 f"source: {os.path.basename(subclipped_item.source_file_path)}"
             )
-            source_clip = _open_video_clip_quietly(subclipped_item.file_path)
+            source_clip = _open_video_clip_quietly(subclipped_item.file_path, audio=True)
             clip = source_clip.subclipped(
                 subclipped_item.start_time, subclipped_item.end_time
             )
@@ -1733,13 +1733,19 @@ def generate_video(
     # 视频写入失败等路径都能释放 FFmpeg 子进程，尤其避免 Windows 文件被占用。
     with ExitStack() as clip_stack:
         source_video_clip = clip_stack.enter_context(
-            _open_video_clip_quietly(video_path)
+            _open_video_clip_quietly(video_path, audio=True)
         )
         voice_source_clip = clip_stack.enter_context(AudioFileClip(audio_path))
         video_clip = source_video_clip
         audio_clip = voice_source_clip.with_effects(
             [afx.MultiplyVolume(params.voice_volume)]
         )
+        source_ambient_clip = None
+        if source_video_clip.audio is not None:
+            source_ambient_clip = source_video_clip.audio.with_effects(
+                [afx.MultiplyVolume(0.10), afx.AudioFadeOut(1.0)]
+            )
+            audio_clip = CompositeAudioClip([audio_clip, source_ambient_clip])
 
         def make_textclip(text):
             return TextClip(

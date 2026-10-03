@@ -83,6 +83,35 @@ jobs:
           PY
           echo "Configured MoneyPrinterTurbo to use Pixabay stock footage."
 
+      - name: Start local Kokoro TTS
+        if: ${{ inputs.render_video }}
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/remsky/kokoro-fastapi-cpu:v0.8.0
+          docker run -d --name kindled-iron-kokoro -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:v0.8.0
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8880/health >/dev/null 2>&1; then
+              echo "Kokoro TTS is healthy."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Kokoro TTS failed to become healthy."
+          docker logs kindled-iron-kokoro || true
+          exit 1
+
+      - name: Configure Kokoro voice and Whisper subtitles
+        if: ${{ inputs.render_video }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p = Path("config.toml")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace('subtitle_provider = "edge"', 'subtitle_provider = "whisper"')
+          p.write_text(s, encoding="utf-8")
+          PY
+          echo "Configured local Kokoro TTS at http://127.0.0.1:8880/v1 with Whisper subtitle timing."
       - name: Render base video with native MoneyPrinterTurbo
         if: ${{ inputs.render_video }}
         run: |
@@ -97,6 +126,8 @@ jobs:
             --video-source pixabay \
             --video-terms "creation, earth, ocean, sky, stars, nature, animals, sunrise" \
             --video-clip-duration 8 \
+            --voice-name kokoro:af_heart \
+            --voice-rate 1.0 \
             --video-fit-mode cover \
             --video-transition-mode fade-in \
             --bgm-type none \
@@ -117,6 +148,11 @@ jobs:
             -map 0:v:0 -map 0:a? -c:v libx264 -preset medium -crf 18 -pix_fmt yuv420p -c:a aac -b:a 192k \
             storage/bible/kindled-iron-episode-001.mp4
 
+      - name: Stop local Kokoro TTS
+        if: ${{ always() && inputs.render_video }}
+        run: |
+          docker logs kindled-iron-kokoro || true
+          docker rm -f kindled-iron-kokoro || true
       - name: Upload first episode artifacts
         uses: actions/upload-artifact@v4
         with:

@@ -28,6 +28,15 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install FFmpeg
+        if: ${{ inputs.render_video }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version
+          ffprobe -version
+
       - name: Validate 66-book Bible rules
         run: |
           python scripts/bible_content_engine.py --episode 1

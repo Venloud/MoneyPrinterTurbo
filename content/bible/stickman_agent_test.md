@@ -5,7 +5,7 @@ This is test #1 for the new visual direction.
 Repository under test:
 https://github.com/chrisaswain/stickman-animation-agent
 
-The upstream project uses deterministic SVG and GSAP characters, structured Scene Definition JSON, Kokoro TTS, timestamps, camera movement, subtitles, and HyperFrames rendering. It supports a whiteboard template. citeturn0search0turn0search1
+The upstream project uses deterministic SVG and GSAP characters, structured Scene Definition JSON, Kokoro TTS, timestamps, camera movement, subtitles, and HyperFrames rendering. It supports a whiteboard template.
 
 ## Exact visual brief
 

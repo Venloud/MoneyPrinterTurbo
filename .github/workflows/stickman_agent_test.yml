@@ -1,0 +1,84 @@
+name: Kindled Iron Stickman Agent Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout MoneyPrinterTurbo
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg chromium-browser
+          node --version
+          npm --version
+          ffmpeg -version
+
+      - name: Run Stickman Animation Agent
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            Work inside the current GitHub repository. This is a TEST ONLY.
+            Do not publish or upload the video anywhere.
+
+            Read content/bible/stickman_agent_test.md first.
+
+            Clone https://github.com/chrisaswain/stickman-animation-agent.git into
+            /tmp/stickman-animation-agent and inspect its current README, skills,
+            templates/whiteboard, compositor, and orchestrator.
+
+            Use the upstream Stickman Animation Agent architecture as the renderer.
+            Create a temporary project for the Genesis 1 test described in the brief.
+            Use its whiteboard style, but enforce the Kindled Iron visual rules:
+            off white board, dark ink, burnt orange accents, no visible hand,
+            self drawing, actual character movement, camera pans and zooms, vertical 9:16.
+
+            Use Kokoro for narration if the upstream project supports it locally.
+            Keep the narration summarized, not verse by verse.
+
+            Run the minimum required setup and render the final MP4.
+            Put the final test artifact at:
+            storage/bible/stickman-agent/genesis-1-test.mp4
+
+            Also write:
+            storage/bible/stickman-agent/test-report.md
+
+            The report must state exactly what worked, what failed, required dependencies,
+            and whether the output demonstrated moving characters, self drawing, camera
+            movement, narration sync, captions, and 9:16 output.
+
+            If a dependency cannot be installed on the GitHub runner, do not fake success.
+            Explain the blocker in the report and leave all partial artifacts available.
+
+          claude_args: |
+            --max-turns 20
+            --allowedTools "Bash(git clone *),Bash(cd *),Bash(npm *),Bash(npx *),Bash(python *),Bash(ffmpeg *),Bash(ffprobe *),Bash(node *),Bash(mkdir *),Bash(cp *),Bash(find *),Bash(ls *),Bash(cat *),Bash(test *),Bash(pwd *),Read,Write,Edit,Glob,Grep"
+
+      - name: Validate test artifact
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p storage/bible/stickman-agent
+          if [ -f storage/bible/stickman-agent/genesis-1-test.mp4 ]; then
+            ffprobe -v error               -show_entries format=duration,size               -of default=noprint_wrappers=1               storage/bible/stickman-agent/genesis-1-test.mp4
+          else
+            echo "No MP4 was produced."
+          fi
+
+      - name: Upload Stickman Agent test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindled-iron-stickman-agent-test
+          path: |
+            storage/bible/stickman-agent/**
+          if-no-files-found: warn
+          retention-days: 14

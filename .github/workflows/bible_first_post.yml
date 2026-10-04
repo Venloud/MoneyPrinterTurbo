@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,15 +55,56 @@ jobs:
           print(out.read_text(encoding="utf-8"))
           PY
 
-      - name: Set up native MoneyPrinterTurbo config
+      - name: Restore latest video checkpoint
+        id: restore_checkpoint
         if: ${{ inputs.render_video }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p storage/checkpoint
+          ARTIFACTS="$(curl -fsSL -H "Accept: application/vnd.github+json" -H "Authorization: Bearer ${GH_TOKEN}" -H "X-GitHub-Api-Version: 2026-03-10" "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=kindled-iron-bible-checkpoint&per_page=100")"
+          RUN_ID="$(printf '%s' "$ARTIFACTS" | jq -r '[.artifacts[] | select(.expired == false) | select(.name == "kindled-iron-bible-checkpoint")] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty')"
+          if [ -z "$RUN_ID" ]; then
+            echo "No video checkpoint found. Starting a fresh render."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Checkpoint found from workflow run $RUN_ID."
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download video checkpoint
+        if: ${{ steps.restore_checkpoint.outputs.found == 'true' }}
+        uses: actions/download-artifact@v5
+        with:
+          name: kindled-iron-bible-checkpoint
+          path: storage/checkpoint
+          run-id: ${{ steps.restore_checkpoint.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate restored checkpoint
+        if: ${{ steps.restore_checkpoint.outputs.found == 'true' }}
+        run: |
+          set -euo pipefail
+          if [ ! -f storage/checkpoint/base.mp4 ]; then
+            echo "Checkpoint artifact was found but base.mp4 is missing."
+            exit 1
+          fi
+          mkdir -p storage/tasks
+          cp storage/checkpoint/base.mp4 storage/tasks/checkpoint-restored.mp4
+          echo "Restored base video checkpoint. MPT generation will be skipped."
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 storage/tasks/checkpoint-restored.mp4
+
+      - name: Set up native MoneyPrinterTurbo config
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
         run: |
           set -euo pipefail
           cp config.example.toml config.toml
           echo "Created native MoneyPrinterTurbo config.toml."
 
       - name: Configure native Pixabay stock footage flow
-        if: ${{ inputs.render_video }}
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
         env:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
@@ -84,7 +126,7 @@ jobs:
           echo "Configured MoneyPrinterTurbo to use Pixabay stock footage."
 
       - name: Start local Kokoro TTS
-        if: ${{ inputs.render_video }}
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
         run: |
           set -euo pipefail
           docker pull ghcr.io/remsky/kokoro-fastapi-cpu:v0.8.0
@@ -101,7 +143,7 @@ jobs:
           exit 1
 
       - name: Configure Kokoro voice and Whisper subtitles
-        if: ${{ inputs.render_video }}
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -113,7 +155,7 @@ jobs:
           PY
           echo "Configured local Kokoro TTS at http://127.0.0.1:8880/v1 with Whisper subtitle timing."
       - name: Build scene matched music bed
-        if: ${{ inputs.render_video }}
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
         run: |
           set -euo pipefail
           mkdir -p storage/bgm storage/bible/audio
@@ -125,7 +167,7 @@ jobs:
           echo "Built local cinematic music bed and scene SFX."
 
       - name: Render base video with native MoneyPrinterTurbo
-        if: ${{ inputs.render_video }}
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
         run: |
           set -euo pipefail
           uv sync --frozen
@@ -156,6 +198,38 @@ jobs:
             --font-size 64 \
             --stop-at video
 
+      - name: Save MPT video checkpoint
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
+        run: |
+          set -euo pipefail
+          BASE="$(find storage/tasks -type f -name '*.mp4' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
+          if [ -z "$BASE" ] || [ ! -f "$BASE" ]; then
+            echo "Cannot save checkpoint because MoneyPrinterTurbo produced no MP4."
+            exit 1
+          fi
+          mkdir -p storage/checkpoint
+          cp "$BASE" storage/checkpoint/base.mp4
+          cat > storage/checkpoint/checkpoint.json <<JSON
+          {
+            "checkpoint_version": 1,
+            "episode": "001_creation",
+            "stage": "moneyprinterturbo_base_video",
+            "source_run_id": "${GITHUB_RUN_ID}",
+            "source_sha": "${GITHUB_SHA}"
+          }
+          JSON
+          echo "Saved MPT checkpoint: storage/checkpoint/base.mp4"
+
+      - name: Upload MPT video checkpoint
+        if: ${{ inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindled-iron-bible-checkpoint
+          path: storage/checkpoint/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
       - name: Add scene SFX and Kindled Iron cinematic polish
         if: ${{ inputs.render_video }}
         run: |
@@ -179,7 +253,7 @@ jobs:
             storage/bible/kindled-iron-episode-001.mp4
 
       - name: Stop local Kokoro TTS
-        if: ${{ always() && inputs.render_video }}
+        if: ${{ always() && inputs.render_video && steps.restore_checkpoint.outputs.found != 'true' }}
         run: |
           docker logs kindled-iron-kokoro || true
           docker rm -f kindled-iron-kokoro || true

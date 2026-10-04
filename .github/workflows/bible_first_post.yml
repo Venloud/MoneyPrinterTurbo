@@ -165,7 +165,7 @@ jobs:
             echo "MoneyPrinterTurbo did not produce an MP4."
             exit 1
           fi
-          DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wr1:nokey=1 "$BASE")"
+          DURATION="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$BASE")"
           python scripts/kindled_iron_audio.py \
             --scene-file content/bible/episodes/001_creation_scenes.json \
             --duration "$DURATION" \

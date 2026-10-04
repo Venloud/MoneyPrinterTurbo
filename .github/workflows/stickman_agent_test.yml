@@ -16,7 +16,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg chromium-browser
+          sudo apt-get install -y --no-install-recommends ffmpeg chromium
           node --version
           npm --version
           ffmpeg -version

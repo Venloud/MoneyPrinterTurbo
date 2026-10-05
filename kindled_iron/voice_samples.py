@@ -34,7 +34,7 @@ def main() -> None:
     joined = []
     for v in a.voices.split(","):
         lang = "b" if v.startswith("b") else "a"   # British voices need the British G2P
-        audio = kokoro_tts.synthesize(SAMPLE, voice=v, speed=a.speed, lang=lang)
+        audio = kokoro_tts.synth_text(SAMPLE, voice=v, speed=a.speed, lang=lang)
         wav = out / f"{v}.wav"
         sf.write(wav, audio, kokoro_tts.SAMPLE_RATE)
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(wav), "-b:a", "128k", str(wav.with_suffix(".mp3"))], check=True)

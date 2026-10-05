@@ -1,0 +1,51 @@
+{
+  "_comment": "Per-channel voice settings. Settings are sent per request only; the ElevenLabs voice itself is never edited. Only kindled_iron is wired into render.py for now.",
+  "kindled_iron": {
+    "description": "warm, calm, clear, kid-friendly",
+    "tts_provider": "elevenlabs",
+    "beat_gap": 0.35,
+    "elevenlabs": {
+      "voice_id": "jRFiEvaIrFDZO8HLTCKI",
+      "model_id": "eleven_multilingual_v2",
+      "output_format": "mp3_44100_128",
+      "voice_settings": {"stability": 0.55, "similarity_boost": 0.8, "style": 0.15, "use_speaker_boost": true, "speed": 0.95},
+      "monthly_char_budget": 40000,
+      "min_remaining_fraction": 0.10
+    },
+    "chatterbox": {"reference_clip": "kindled_iron_ref_1.wav", "exaggeration": 0.45, "cfg_weight": 0.5, "temperature": 0.8},
+    "kokoro": {"voice": "am_fenrir", "speed": 0.95, "lang": "a"},
+    "eq": "highpass=f=70,equalizer=f=3200:t=q:w=1.2:g=1.5"
+  },
+  "night_files": {
+    "description": "slow, serious, tense",
+    "tts_provider": "elevenlabs",
+    "beat_gap": 0.45,
+    "elevenlabs": {
+      "voice_id": "jRFiEvaIrFDZO8HLTCKI",
+      "model_id": "eleven_multilingual_v2",
+      "output_format": "mp3_44100_128",
+      "voice_settings": {"stability": 0.7, "similarity_boost": 0.8, "style": 0.1, "use_speaker_boost": true, "speed": 0.88},
+      "monthly_char_budget": 40000,
+      "min_remaining_fraction": 0.10
+    },
+    "chatterbox": {"reference_clip": "night_files_ref.wav", "exaggeration": 0.35, "cfg_weight": 0.35, "temperature": 0.7},
+    "kokoro": {"voice": "am_michael", "speed": 0.95, "lang": "a"},
+    "eq": "highpass=f=60,equalizer=f=180:t=q:w=1:g=2"
+  },
+  "bouriko": {
+    "description": "upbeat, curious, faster",
+    "tts_provider": "elevenlabs",
+    "beat_gap": 0.25,
+    "elevenlabs": {
+      "voice_id": "jRFiEvaIrFDZO8HLTCKI",
+      "model_id": "eleven_multilingual_v2",
+      "output_format": "mp3_44100_128",
+      "voice_settings": {"stability": 0.4, "similarity_boost": 0.8, "style": 0.45, "use_speaker_boost": true, "speed": 1.08},
+      "monthly_char_budget": 40000,
+      "min_remaining_fraction": 0.10
+    },
+    "chatterbox": {"reference_clip": "bouriko_ref.wav", "exaggeration": 0.7, "cfg_weight": 0.4, "temperature": 0.85},
+    "kokoro": {"voice": "am_puck", "speed": 1.08, "lang": "a"},
+    "eq": null
+  }
+}

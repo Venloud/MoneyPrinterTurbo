@@ -1,0 +1,60 @@
+name: Kindled Iron Voice Bootstrap (one-time)
+
+# ONE-TIME, manual. Uses ElevenLabs (~5,000 characters) to make 5 reference clips (25-30 s) + one
+# ~3-minute reserve clip of the owner's voice, and stores them ONLY in the owner's private repo
+# (release "voice-refs"). Nothing is committed here, released here or uploaded as an artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type GENERATE to spend ~5,000 ElevenLabs characters'
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  VOICE_REPO: ${{ vars.KI_VOICE_REPO || 'Venloud/kindled-iron-voice' }}
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Confirm
+        if: ${{ inputs.confirm != 'GENERATE' }}
+        run: |
+          echo "Type GENERATE in the confirm box to run this."
+          exit 1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Check the private repo
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "$GH_TOKEN" ] || { echo "FAIL: secret VOICE_REPO_TOKEN is missing"; exit 1; }
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is missing or not private"; exit 1; }
+          echo "private repo OK"
+      - name: Generate clips with ElevenLabs
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: python -m kindled_iron.voice_bootstrap --out "$RUNNER_TEMP/voice_refs"
+      - name: Upload to the private repo, then delete
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ls "$RUNNER_TEMP"/voice_refs/*.wav >/dev/null 2>&1; then
+            gh release view voice-refs --repo "$VOICE_REPO" >/dev/null 2>&1 || \
+              gh release create voice-refs --repo "$VOICE_REPO" --title "Voice reference clips" --notes "Private. Never publish."
+            gh release upload voice-refs --repo "$VOICE_REPO" --clobber "$RUNNER_TEMP"/voice_refs/*.wav
+            echo "Stored in https://github.com/$VOICE_REPO/releases/tag/voice-refs"
+          fi
+          rm -rf "$RUNNER_TEMP/voice_refs"

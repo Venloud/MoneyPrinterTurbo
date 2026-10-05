@@ -5,8 +5,67 @@ Scene JSON in, 1080x1920 MP4 out. Linux, CPU, no AI agent at render time.
 ```
 python -m kindled_iron.render kindled_iron/scenes/genesis-1.json --out storage/kindled_iron/genesis-1.mp4
 python -m kindled_iron.render <scene> --reuse-audio --frames-only 1,5,10 --safe-box   # stills + safe-box overlay
-python -m kindled_iron.voice_samples        # same lines in 6 calm voices (storage/kindled_iron/voices)
+python -m kindled_iron.render <scene> --tts kokoro --debug-copy   # + <name>_safebox.mp4 with the safe box drawn on
+python -m kindled_iron.voice_samples        # same lines in 6 calm Kokoro voices (storage/kindled_iron/voices)
 ```
+
+Outputs next to the MP4: `.srt`, `_meta.json` (duration, words, voice used, fallback flag, insets),
+`_sources.json` (every footage clip: source page, file URL, licence), and with `--debug-copy`
+`_safebox.mp4`. The work dir keeps `checks.json`, `timings.json`, `stills/`.
+
+## Hook + retention rules
+- First 2 seconds: the question/hook is fully on screen at frame 0 (`"instant": true` draws), with
+  motion from frame 1 (camera pull-back, wiggle). No slow fade-in.
+- Something new or moving at least every 1.5-2 s: `PACING WARNING` if no event for over 2 s
+  (ambient motion keeps running anyway: sun turning, waves, drifting clouds, birds, swimming fish,
+  swaying trees/plants, twinkling stars, blinking characters).
+- A small `DAY n` counter with progress dots (`{"do": "counter", "day": 3}`, `day: 0` hides it).
+
+## Voice (tts.py)
+Providers with one interface: `elevenlabs_tts.py` (owner's cloned voice), `chatterbox_tts.py`
+(MIT, clones from a private reference clip), `kokoro_tts.py`. `--tts` picks one (default: the voice
+profile's `tts_provider`); fallback is chosen -> chatterbox -> kokoro with a `WARNING` and
+`"voice_label": "fallback voice"` in `_meta.json`. A missing `ELEVENLABS_API_KEY` is normal.
+Settings live in `voice_profiles.json` (kindled_iron wired in; night_files / bouriko ready) and are
+sent per request; the ElevenLabs voice is never edited. Before each ElevenLabs call the
+remaining quota is read (`/v1/user/subscription`, needs the key's "User: read" permission), capped by
+`monthly_char_budget` 40,000; under 10 % left it is skipped. Audio is cached by
+hash(provider + script + voice + model + settings) in `KI_TTS_CACHE`, so re-renders cost 0 credits.
+Word timings always come from whisper on the audio actually used.
+
+### One-time private setup for the cloned voice (this repo is a public fork)
+1. Create a **private** repo, `Venloud/kindled-iron-voice` (empty is fine). Another name: set the
+   repo variable `KI_VOICE_REPO` in MoneyPrinterTurbo.
+2. Create a fine-grained token: Resource owner Venloud, only that repo, permission
+   **Contents: Read and write**. Save it in MoneyPrinterTurbo secrets as `VOICE_REPO_TOKEN`.
+3. `ELEVENLABS_API_KEY` (already there). Give the key "Text to Speech" + "User: read" access.
+4. Run **Kindled Iron Voice Bootstrap** once (type GENERATE): 5 reference clips (25-30 s) + a
+   ~3-minute reserve, ~5,000 characters, stored only in the private repo's `voice-refs` release.
+5. Run **Kindled Iron Voice Compare**: the Genesis narration in ElevenLabs, Chatterbox x 5 clips and
+   Kokoro, in the private repo's `voice-compare` release. Pick a default; set `tts_provider` and
+   `chatterbox.reference_clip` in `voice_profiles.json`.
+6. **Kindled Iron Test Render** with `my_voice`: videos go to the private repo's `test-renders`
+   release (never a public artifact). Chatterbox downloads its clip at run time and deletes it.
+
+## Footage insets (insets.py, fetched before the render)
+`{"do": "draw", "type": "inset", "query": "...", "sources": ["nasa", "pexels", "pixabay"],
+"pin": {"nasa": "<nasa_id>"}, "start": 12.0, "clip_dur": 2.2, "crop": [x, y, w, h], "w": 340, "h": 230,
+"rotate": -4}`: a 1.5-3 s real clip in a tilted hand-drawn frame that pops in and out on top of the
+drawing. NASA (public domain), Pexels and Pixabay (no attribution needed; keys `PEXELS_API_KEY`,
+`PIXABAY_API_KEY`). Never CC BY. Max 6 a video; no clip found = the inset is silently left out.
+NASA search results are mixed (press conferences...), so pin NASA clips after checking frames.
+
+## Reactions (use sparingly)
+`{"do": "reaction", "who": "guide", "face": "side_eye", "dur": 1.2}`: faces `shocked`, `mind_blown`,
+`side_eye`, `crying_laughing`, `thinking`, `wait_what`, drawn in our style and swapped onto the head
+(head pops bigger) for under 1.5 s. Own images: `reactions_inbox/`. Hard limits (extra ones are
+dropped with a WARNING): max 2 a video, 15 s apart, never on the word "God" or on a beat marked
+`"serious": true`.
+
+## Sound effects
+Kenney CC0 sounds in `vendor/sfx` (licence file there): pops on drawings, scratch on strikes, ding on
+the check mark and the DAY counter, whoosh on insets, boing on reactions, sparkle on sparkles. Mixed
+at about -13 dB under the voice, at most one every 0.3 s.
 
 ## Writing rules (every script)
 - The hook (first line) is explained in the next 1-2 lines.
@@ -26,11 +85,14 @@ drawings in the upper zone (y 180-660, full width), figures stand on y 1170 in x
 under the feet (centred at x 450, y ~1255-1360). Every render checks this every 0.2 s and logs
 `LAYOUT WARNING` lines (also `checks.json`): outside the box, in the button column, a character over
 key text, a walking character passing through another. After the video it logs `EMPTY-SCREEN WARNING`
-for any stretch over 1 s with under 2.5 % ink in the art area. Warnings never fail the render.
-Moving to a new panel fades the earlier panels' words/rays, so the walking guide never crosses text;
+for any stretch over 1 s with under 2.5 % ink in the art area. Also `object A overlaps B` (bounding
+boxes; declare intended ones with `"over": ["B"]`; backdrops like darkness/frame/line/insets are
+exempt). Warnings never fail the render, with one exception: a character walking the opposite way to
+the one it faces **fails the render** (characters turn first, then walk). Captions shrink to fit the
+box (then wrap). Moving to a new panel fades everything on earlier panels, so the walking guide never crosses text;
 a walking character is always drawn in front, and characters not yet drawn take no space.
 
-Pipeline: `kokoro_tts.py` (Kokoro voices each beat; needs `espeak-ng`) ->
+Pipeline: `tts.py` (ElevenLabs / Chatterbox / Kokoro) ->
 `whisper_transcribe.py` (faster-whisper word timings, aligned to the script words) ->
 `render.py` resolves every event to an absolute time -> `runtime/page.html` + `runtime/runtime.js`
 build the board, rigs and one paused GSAP timeline -> headless Chrome (Playwright) seeks it
@@ -56,8 +118,8 @@ Keep to the safe area above.
 {
   "id": "genesis-1",
   "exact_narration": false,
-  "voice": {"name": "am_michael", "speed": 1.0, "lang": "a"},
-  "beat_gap": 0.3, "end_hold": 1.6, "ground": 1170, "camera_y": 960,
+  "voice_profile": "kindled_iron",
+  "end_hold": 1.4, "ground": 1170, "camera_y": 960,
   "cast": {"guide": {"panel": 0, "x": 190, "scale": 1.5, "facing": 1, "accent": true}},
   "beats": [
     {"id": "hook", "panel": 0, "narration": "...", "captions": true, "camera_start": false,
@@ -78,8 +140,11 @@ camera to the beat's own events (e.g. a walk with `"camera": true`).
 `hill` (w, h), `cloud`, `light` (r), `voice`, `sun`, `moon`, `star`, `stars` (w, h, n), `tree`,
 `plant` (flower), `fish`, `birds` (n), `animal`, `globe` (r), `check` (k), `arrow` (dx, dy, bend),
 `figure` (tiny person icon), `cross` (orange X over `target`), `frame` (empty page, w, h), `dot` (r).
-Common: `x`, `y`, `scale`, `rotate`, `dur`, `pop`. Strokes draw themselves; text wipes in.
-Also `fade` (`ids`, `opacity`), `pulse` (`id`).
+Also `sparkle` (n, r), `inset` (above). Common: `x`, `y`, `scale`, `rotate`, `dur`, `pop` (bounce, default
+on for small things), `instant` (fully drawn at once), `sparkle` (burst as it lands), `marker` (word:
+highlighter band), `over` (intended overlaps). Strokes draw themselves; text wipes in.
+Also `fade` (`ids`, `opacity`), `pulse` / `wiggle` (`id`), `move` (`id`, `dx`, `dy`, `dur`),
+`counter` (`day`), `shake` (no `who` = camera shake).
 
 ### Characters (`who` = a cast id)
 `enter` (draws the stickman in), `exit`, `walk` (`to`, `speed`, `camera`, `camY`, `camZoom`, `face`),
@@ -94,4 +159,4 @@ short-tufts), `dress`, `accent` (orange collar), `scale`, `facing`.
 
 Upstream credit and what was vendored: `vendor/stickman-animation-agent/NOTICE.md`.
 
-Voices: British voices (`bf_*`, `bm_*`) need `"lang": "b"` in the scene's `voice`.
+Kokoro British voices (`bf_*`, `bm_*`) need `"lang": "b"` in the profile's `kokoro` block.

@@ -1,0 +1,76 @@
+name: Kindled Iron Voice Compare
+
+# The Genesis 1 narration in ElevenLabs, in Chatterbox with each of the 5 reference clips, and in
+# Kokoro, so the owner can pick the default. Results go ONLY to the private repo (release
+# "voice-compare"). Run after the bootstrap. ElevenLabs audio is cached: the test render reuses it.
+on:
+  workflow_dispatch:
+    inputs:
+      scene:
+        description: "Scene JSON"
+        required: true
+        default: "kindled_iron/scenes/genesis-1.json"
+
+permissions:
+  contents: read
+
+env:
+  VOICE_REPO: ${{ vars.KI_VOICE_REPO || 'Venloud/kindled-iron-voice' }}
+  KI_TTS_CACHE: ${{ github.workspace }}/.ki-cache/tts
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install system packages
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kindled-iron-models-v2
+      - uses: actions/cache@v4
+        with:
+          path: .ki-cache
+          key: ki-media-${{ hashFiles('kindled_iron/scenes/**', 'kindled_iron/voice_profiles.json') }}
+          restore-keys: ki-media-
+      - name: Install Kokoro + Chatterbox (separate venv)
+        run: |
+          set -euo pipefail
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install kokoro soundfile
+          python -m spacy download en_core_web_sm
+          python -m venv "$RUNNER_TEMP/cbx"
+          "$RUNNER_TEMP/cbx/bin/pip" install -q chatterbox-tts --extra-index-url https://download.pytorch.org/whl/cpu
+          echo "KI_CHATTERBOX_PYTHON=$RUNNER_TEMP/cbx/bin/python" >> "$GITHUB_ENV"
+      - name: Fetch the reference clips from the private repo
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/voice_refs"
+          gh release download voice-refs --repo "$VOICE_REPO" --pattern "kindled_iron_ref_*.wav" --dir "$RUNNER_TEMP/voice_refs"
+          echo "KI_VOICE_REF_DIR=$RUNNER_TEMP/voice_refs" >> "$GITHUB_ENV"
+      - name: Voice the narration every way
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: python -m kindled_iron.voice_compare "${{ inputs.scene }}" --out "$RUNNER_TEMP/voice_compare"
+      - name: Upload to the private repo, then delete
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/voice_refs"
+          if ls "$RUNNER_TEMP"/voice_compare/*.mp3 >/dev/null 2>&1; then
+            gh release view voice-compare --repo "$VOICE_REPO" >/dev/null 2>&1 || \
+              gh release create voice-compare --repo "$VOICE_REPO" --title "Voice comparison" --notes "Private."
+            gh release upload voice-compare --repo "$VOICE_REPO" --clobber "$RUNNER_TEMP"/voice_compare/*.mp3
+            echo "Listen at https://github.com/$VOICE_REPO/releases/tag/voice-compare"
+          fi
+          rm -rf "$RUNNER_TEMP/voice_compare"

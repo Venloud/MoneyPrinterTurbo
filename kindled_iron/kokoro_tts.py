@@ -38,7 +38,7 @@ def _trim(audio: np.ndarray, threshold: float = 0.01) -> np.ndarray:
     return audio[max(0, loud[0] - pad): loud[-1] + pad]
 
 
-def synthesize(text: str, voice: str = "am_michael", speed: float = 1.0, lang: str = "a") -> np.ndarray:
+def synth_text(text: str, voice: str = "am_michael", speed: float = 1.0, lang: str = "a") -> np.ndarray:
     """Return mono float32 audio at 24 kHz for one piece of text."""
     chunks = [np.asarray(audio, dtype=np.float32)
               for _, _, audio in _pipeline(lang)(text, voice=voice, speed=speed)
@@ -58,7 +58,7 @@ def synthesize_beats(texts: list[str], out_wav: Path, voice: str = "am_michael",
     spans: list[tuple[float, float]] = []
     t = lead
     for i, text in enumerate(texts):
-        audio = synthesize(text, voice, speed, lang)
+        audio = synth_text(text, voice, speed, lang)
         dur = len(audio) / SAMPLE_RATE
         spans.append((round(t, 3), round(t + dur, 3)))
         parts.append(audio)
@@ -69,6 +69,20 @@ def synthesize_beats(texts: list[str], out_wav: Path, voice: str = "am_michael",
     out_wav.parent.mkdir(parents=True, exist_ok=True)
     sf.write(out_wav, np.concatenate(parts), SAMPLE_RATE)
     return spans
+
+
+def available(profile: dict, chars: int = 0) -> tuple[bool, str, dict]:
+    if shutil.which("espeak-ng") is None:
+        return False, "espeak-ng missing", {}
+    return True, "local", {}
+
+
+def synthesize(beats: list[str], out_wav: Path, profile: dict) -> dict:
+    """Common provider interface (same as elevenlabs_tts / chatterbox_tts)."""
+    k = profile.get("kokoro") or {}
+    synthesize_beats(beats, out_wav, k.get("voice", "am_michael"), k.get("speed", 1.0), k.get("lang", "a"),
+                     gap=profile.get("beat_gap", 0.3))
+    return {"model": "kokoro-82m", "voice": k.get("voice", "am_michael"), "chars": sum(len(b) for b in beats)}
 
 
 def main() -> None:

@@ -2,7 +2,8 @@
 
     python -m kindled_iron.render kindled_iron/scenes/genesis-1.json --out storage/kindled_iron/genesis-1.mp4
 
-Steps: Kokoro voices every beat -> faster-whisper word timings -> every event's
+Steps: the voice provider (ElevenLabs / Chatterbox / Kokoro, see tts.py) voices the beats ->
+faster-whisper word timings on that audio -> every event's
 "at" (a word of its beat, or seconds) becomes an absolute time -> page.html +
 runtime.js build the board, stickmen and one GSAP timeline -> headless Chrome
 (Playwright) seeks the timeline frame by frame and screenshots it -> FFmpeg
@@ -36,12 +37,15 @@ PALETTE = {
     # flat, light "hand-coloured" fills (captions stay ink + accent)
     "water": "#A9CCE6", "waterLine": "#3D7DB0", "green": "#AED39A", "greenLine": "#4E8A3A", "leaf": "#93C47D",
     "trunk": "#9A6A43", "wool": "#F3EBD7", "woolGray": "#9C9C98", "fishBody": "#EBCF7E", "fishBelly": "#BDBDBA",
-    "cloud": "#FFFFFF",
+    "cloud": "#FFFFFF", "cloudShade": "#D7E7F3", "page": "#FBF6E8", "moon": "#F3E4A2", "starFill": "#F6D66A",
+    "shadow": "#DCD5C8", "leafDark": "#5C9A4C", "marker": "#F7D3AE",
 }
+HUD = {"x": 300, "y": 248, "scale": 1.25}   # DAY counter badge (top-left of the safe box: x 148-452, y 188-313)
+NO_POP = {"darkness", "line", "frame", "waves", "hill", "rays", "strike", "cross", "inset", "sparkle"}
 # TikTok safe area (owner's template). Important art + captions stay inside the box and out of the
 # right-hand button column; the top 160 px and bottom 480 px are decoration only.
 SAFE = {"x0": 120, "x1": 960, "y0": 160, "y1": 1440, "column": {"x0": 780, "x1": 960, "y0": 840, "y1": 1440}}
-CAPTION = {"x": 450, "y": 1255, "w": 660, "size": 100}   # centred in x 120-780, below the feet
+CAPTION = {"x": 450, "y": 1255, "w": 600, "size": 100}   # text box x 150-750 (outline stays < 780), shrinks to fit
 TARGET_LEN = (61.0, 68.0)
 MIN_WORDS = 120
 EXPRESSIONS = ["neutral", "happy", "surprised", "thinking", "speaking", "focused"]
@@ -130,7 +134,9 @@ def srt(chunks: list[dict]) -> str:
 
 
 # --------------------------------------------------------------- scene -> page data
-def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[list[dict]], duration: float) -> dict:
+def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[list[dict]], duration: float,
+               insets: dict | None = None) -> dict:
+    insets = insets or {}
     ground = scene.get("ground", 1170)
     cast = {cid: {**c, "x": c["x"] + PANEL_W * c.get("panel", 0)} for cid, c in scene["cast"].items()}
     objects, events, captions = [], [], []
@@ -159,12 +165,23 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             if kind == "draw":
                 if e["id"] in ids:
                     raise SystemExit(f"duplicate object id {e['id']!r}")
+                if e.get("type") == "inset":
+                    if e["id"] not in insets:
+                        continue                      # no clip found: the inset is simply left out
+                    e.update(insets[e["id"]])
                 ids.add(e["id"])
-                obj = {k: v for k, v in e.items() if k not in ("t", "do", "dur", "pop")}
+                obj = {k: v for k, v in e.items() if k not in ("t", "do", "dur", "pop", "sparkle", "hold", "instant")}
                 obj["x"] = obj.get("x", 540) + off
                 obj["y"] = obj.get("y", 900)
                 objects.append(obj)
-                events.append({"t": e["t"], "do": "draw", "id": e["id"], "dur": e.get("dur"), "pop": e.get("pop")})
+                pop = e.get("pop", obj["type"] not in NO_POP)
+                events.append({"t": e["t"], "do": "draw", "id": e["id"], "dur": e.get("dur"), "pop": pop, "hold": e.get("hold"),
+                               "instant": e.get("instant")})
+                if e.get("sparkle"):                  # a burst of little stars as it lands
+                    sid = e["id"] + "_spk"
+                    objects.append({"id": sid, "type": "sparkle", "x": obj["x"], "y": obj["y"], "r": e.get("sparkle_r", 120),
+                                    "n": 6})
+                    events.append({"t": round(e["t"] + 0.25, 3), "do": "draw", "id": sid, "dur": 0.3, "pop": False})
                 continue
             if kind == "walk":
                 e["to"] = e["to"] + off
@@ -179,21 +196,21 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 e["tx"] += off
             events.append(e)
     events.sort(key=lambda e: e["t"])
-    # Moving to a new panel: the words of earlier panels fade out, so the walking guide
-    # never passes in front of key text (drawings stay; they slide off with the camera).
+    # Moving to a new panel: everything on earlier panels fades out as the guide sets off, so he
+    # never walks over key text and no half-cut drawing edge slides across the screen.
     panel_of = {o["id"]: int(o["x"] // PANEL_W) for o in objects}
     faded: set[str] = set()
     for e in [e for e in events if e["do"] == "walk" and e.get("camera")]:
         new_panel = int(e["camX"] // PANEL_W)
-        old = [o["id"] for o in objects if o["type"] in ("word", "strike", "cross", "rays")
-               and panel_of[o["id"]] < new_panel and o["id"] not in faded]
+        old = [o["id"] for o in objects if panel_of[o["id"]] < new_panel and o["id"] not in faded]
         if old:
             faded.update(old)
             events.append({"t": max(0.0, e["t"] - 0.15), "do": "fade", "ids": old, "opacity": 0, "dur": 0.25})
     events.sort(key=lambda e: e["t"])
     return {"width": WIDTH, "height": HEIGHT, "fps": FPS, "duration": duration, "ground": ground,
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
-            "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False}
+            "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
+            "captionSize": CAPTION["size"], "hud": HUD, "paper": None, "inboxReactions": []}
 
 
 def write_page(data: dict, work: Path) -> Path:
@@ -242,8 +259,27 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
     (work / "checks.json").write_text(json.dumps(out, indent=1))
     for x in out:
         log(f"LAYOUT WARNING {x['from']:.1f}-{x['to']:.1f} s: {x['issue']}")
-    log(f"layout check: {len(out)} warning(s)" if out else "layout check: OK (safe box, text, walks)")
+    log(f"layout check: {len(out)} warning(s)" if out else "layout check: OK (safe box, text, walks, overlaps)")
+    backwards = [x for x in out if x["issue"].startswith("WALK-FACING")]
+    if backwards:
+        raise SystemExit("FAIL: a character walks backwards: " + "; ".join(
+            f"{x['issue']} at {x['from']:.1f}-{x['to']:.1f} s" for x in backwards))
     return out
+
+
+VISUAL_EVENTS = {"move", "wiggle", "draw", "walk", "point", "reach", "wave", "cheer", "react", "shrug", "present", "look", "shake",
+                 "camera", "pulse", "enter", "reaction", "counter", "inset", "sparkle", "kneel"}
+
+
+def pacing_check(events: list[dict], duration: float, max_gap: float = 2.0) -> list[tuple[float, float]]:
+    """Something new or moving at least every ~2 s (ambient motion not counted)."""
+    times = sorted({round(e["t"], 2) for e in events if e["do"] in VISUAL_EVENTS} | {0.0, duration})
+    gaps = [(a, b) for a, b in zip(times, times[1:]) if b - a > max_gap]
+    for a, b in gaps:
+        log(f"PACING WARNING {a:.1f}-{b:.1f} s: nothing new for {b - a:.1f} s")
+    if not gaps:
+        log(f"pacing check: OK (something new at least every {max_gap:.0f} s)")
+    return gaps
 
 
 def empty_check(mp4: Path) -> list[tuple[float, float]]:
@@ -259,6 +295,18 @@ def empty_check(mp4: Path) -> list[tuple[float, float]]:
     if not spans:
         log("empty-screen check: OK (no stretch over 1 s)")
     return spans
+
+
+def safe_overlay(src: Path, dst: Path) -> None:
+    """Second copy of the final video with the safe box drawn on (the final file stays clean)."""
+    s, c = SAFE, SAFE["column"]
+    vf = ",".join([
+        f"drawbox=x=0:y=0:w=iw:h={s['y0']}:color=black@0.18:t=fill",
+        f"drawbox=x=0:y={s['y1']}:w=iw:h=ih-{s['y1']}:color=black@0.18:t=fill",
+        f"drawbox=x={c['x0']}:y={c['y0']}:w={c['x1'] - c['x0']}:h={c['y1'] - c['y0']}:color=red@0.22:t=fill",
+        f"drawbox=x={s['x0']}:y={s['y0']}:w={s['x1'] - s['x0']}:h={s['y1'] - s['y0']}:color=0x00AA00@0.9:t=4"])
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vf", vf, "-c:v", "libx264", "-crf", "21",
+                    "-preset", "veryfast", "-c:a", "copy", str(dst)], check=True)
 
 
 def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration: float, chrome: str | None,
@@ -316,7 +364,10 @@ def main() -> None:
     ap.add_argument("--reuse-audio", action="store_true")
     ap.add_argument("--chrome", default=None)
     ap.add_argument("--whisper-model", default="base.en")
+    ap.add_argument("--tts", choices=["elevenlabs", "chatterbox", "kokoro"], default=None,
+                    help="voice provider (default: the voice profile's tts_provider)")
     ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
+    ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
     a = ap.parse_args()
 
     scene_path = Path(a.scene)
@@ -333,20 +384,35 @@ def main() -> None:
 
     if a.reuse_audio and timing_file.exists() and json.loads(timing_file.read_text())["texts"] == texts:
         t = json.loads(timing_file.read_text())
-        spans, beat_words = [tuple(s) for s in t["spans"]], t["words"]
+        spans, beat_words, voice_meta = [tuple(s) for s in t["spans"]], t["words"], t.get("voice", {})
         log("reusing narration + timings")
     else:
-        from kindled_iron import kokoro_tts, whisper_transcribe as wt
+        from kindled_iron import tts, whisper_transcribe as wt
 
-        voice = scene.get("voice", {})
-        spans = kokoro_tts.synthesize_beats(texts, wav, voice.get("name", "am_michael"), voice.get("speed", 1.0),
-                                            voice.get("lang", "a"), gap=scene.get("beat_gap", 0.3))
-        log(f"narration {spans[-1][1]:.2f} s, voice {voice.get('name', 'am_michael')}")
+        profile = tts.load_profile(scene.get("voice_profile", "kindled_iron"))
+        if scene.get("voice", {}).get("kokoro"):          # per-scene Kokoro override (voice, speed, lang)
+            profile["kokoro"] = {**profile.get("kokoro", {}), **scene["voice"]["kokoro"]}
+        provider = a.tts or profile.get("tts_provider", "kokoro")
+        voice_meta = tts.voice(texts, wav, profile, provider, log)
+        audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                                                   "-of", "csv=p=0", str(wav)]).decode().strip())
+        # Word timings always come from the audio that was actually used.
         heard = wt.transcribe(wav, a.whisper_model)
-        log(f"whisper heard {len(heard)} words")
-        beat_words = [wt.align(words_of(txt), heard, span) for txt, span in zip(texts, spans)]
-        timing_file.write_text(json.dumps({"texts": texts, "spans": spans, "words": beat_words, "heard": heard}, indent=1))
+        log(f"narration {audio_len:.2f} s, whisper heard {len(heard)} of {sum(len(words_of(x)) for x in texts)} words")
+        flat = [w for txt in texts for w in words_of(txt)]
+        aligned = wt.align(flat, heard, (0.0, audio_len))
+        beat_words, k = [], 0
+        for txt in texts:
+            n = len(words_of(txt))
+            beat_words.append(aligned[k:k + n])
+            k += n
+        spans = [(bw[0]["start"], bw[-1]["end"]) for bw in beat_words]
+        timing_file.write_text(json.dumps({"texts": texts, "spans": spans, "words": beat_words, "heard": heard,
+                                           "voice": voice_meta}, indent=1))
 
+    from kindled_iron import effects, insets as insets_mod
+
+    clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
     duration = round(spans[-1][1] + scene.get("end_hold", 1.8), 3)
     lo, hi = TARGET_LEN
     log(f"Length: {duration:.1f} s (target {lo:.0f}-{hi:.0f})")
@@ -354,8 +420,12 @@ def main() -> None:
         log(f"WARNING: under {lo:.0f} s. Fine only if the story is complete; never pad it.")
     elif duration > hi:
         log(f"WARNING: over {hi:.0f} s")
-    data = build_data(scene, spans, beat_words, duration)
+    data = build_data(scene, spans, beat_words, duration, clips)
+    data["inboxReactions"] = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log)
+    data["events"] = [e for e in data["events"] if not e.get("_drop")]
+    data["paper"] = effects.paper_texture(work, PALETTE["board"])
     data["debugSafe"] = a.safe_box
+    pacing_check(data["events"], duration)
     (work / "captions.srt").write_text(srt(data["captions"]), encoding="utf-8")
     page = write_page(data, work)
     log(f"{len(data['objects'])} objects, {len(data['events'])} events, {len(data['captions'])} caption chunks, {duration:.2f} s")
@@ -366,10 +436,23 @@ def main() -> None:
         log(f"stills in {work / 'stills'}")
         return
     out.parent.mkdir(parents=True, exist_ok=True)
-    capture(page, out, wav, duration, a.chrome)
+    cues = effects.plan_sfx(data["events"], data["objects"])
+    effects.mix(wav, cues, work / "mix.wav", duration)
+    log(f"sound effects: {len(cues)} cues (Kenney CC0), under the voice")
+    capture(page, out, work / "mix.wav", duration, a.chrome)
     shutil.copy(work / "captions.srt", out.with_suffix(".srt"))
-    empty_check(out)
-    log(f"wrote {out}")
+    shutil.copy(work / "sources.json", out.with_name(out.stem + "_sources.json"))
+    empty = empty_check(out)
+    words = sum(len(words_of(x)) for x in texts)
+    meta = {"scene": sid, "duration": duration, "words": words, "voice": voice_meta,
+            "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues), "empty_stretches": empty}
+    out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
+    if a.debug_copy:
+        dbg = out.with_name(out.stem + "_safebox.mp4")
+        safe_overlay(out, dbg)
+        log(f"debug copy with the safe box: {dbg}")
+    log(f"wrote {out} ({duration:.1f} s, {words} words, voice {voice_meta.get('provider_used', '?')}"
+        f"{' = fallback voice' if voice_meta.get('fallback') else ''})")
 
 
 if __name__ == "__main__":

@@ -25,7 +25,8 @@ WRITING_RULES = """Writing rules:
 
 
 def word_count(scene: dict) -> int:
-    return sum(len(b["narration"].split()) for b in scene["beats"])
+    from kindled_iron.pacing import words_of
+    return sum(len(words_of(b["narration"])) for b in scene["beats"])
 
 
 def _anchors_ok(scene: dict) -> bool:
@@ -33,7 +34,7 @@ def _anchors_ok(scene: dict) -> bool:
         words = {re.sub(r"[^a-z0-9]", "", w.lower()) for w in beat["narration"].split()}
         for ev in beat.get("events", []):
             at = ev.get("at")
-            if isinstance(at, str) and at != "end":
+            if isinstance(at, str) and at != "end" and not at.startswith("pause"):
                 w = re.sub(r"[^a-z0-9]", "", re.split(r"[#+-]", at)[0].lower())
                 if w not in words:
                     return False

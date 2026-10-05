@@ -207,7 +207,7 @@
    "id": "first_words",
    "panel": 1,
    "camera_start": false,
-   "narration": "The very first words are: In the beginning, God.",
+   "narration": "The very first words are: [pause 0.5] In the beginning, God.",
    "events": [
     {
      "at": 0,
@@ -266,6 +266,13 @@
      "y": 900,
      "zoom": 1.04,
      "dur": 1.0
+    },
+    {
+     "at": "first",
+     "do": "point",
+     "who": "guide",
+     "toward": "book",
+     "hold": 0.9
     }
    ]
   },
@@ -401,7 +408,7 @@
    "id": "light",
    "panel": 3,
    "camera_start": false,
-   "narration": "The earth was empty and dark, covered in deep water. Then God said four words: Let there be light. And light broke the dark.",
+   "narration": "The earth was empty and dark, covered in deep water. Then God said four words: [pause 0.5] Let there be light. And light broke the dark.",
    "events": [
     {
      "at": 0,
@@ -532,7 +539,7 @@
      "speed": 950
     },
     {
-     "at": "two",
+     "at": 0.05,
      "do": "counter",
      "day": 2
     },
@@ -594,7 +601,7 @@
      ]
     },
     {
-     "at": "three",
+     "at": "pause",
      "do": "counter",
      "day": 3
     },
@@ -676,7 +683,7 @@
      "speed": 950
     },
     {
-     "at": "four",
+     "at": 0.05,
      "do": "counter",
      "day": 4
     },
@@ -746,7 +753,7 @@
      "hold": 1.0
     },
     {
-     "at": "five",
+     "at": "pause",
      "do": "counter",
      "day": 5
     },
@@ -808,7 +815,7 @@
      "id": "birds",
      "type": "birds",
      "x": 640,
-     "y": 450,
+     "y": 490,
      "n": 3
     },
     {
@@ -841,7 +848,7 @@
      "speed": 950
     },
     {
-     "at": "six",
+     "at": 0.05,
      "do": "counter",
      "day": 6
     },
@@ -963,6 +970,14 @@
      "at": "earth",
      "do": "wiggle",
      "id": "sheep"
+    },
+    {
+     "at": "Then",
+     "do": "camera",
+     "x": 540,
+     "y": 930,
+     "zoom": 1.03,
+     "dur": 1.2
     }
    ]
   },
@@ -1114,7 +1129,7 @@
      "who": "guide"
     },
     {
-     "at": "next-0.2",
+     "at": "pause",
      "do": "draw",
      "id": "end_next",
      "type": "word",
@@ -1123,6 +1138,16 @@
      "y": 790,
      "size": 68,
      "dur": 0.5
+    },
+    {
+     "at": "That",
+     "do": "pulse",
+     "id": "end_book"
+    },
+    {
+     "at": "next",
+     "do": "pulse",
+     "id": "end_gen"
     }
    ]
   }

@@ -65,7 +65,7 @@ def main() -> None:
         p = copy.deepcopy(profile)
         p["elevenlabs"]["voice_settings"].update(settings)
         wav = out / name
-        elevenlabs_tts.synthesize([text], wav, p)
+        elevenlabs_tts.synthesize([(text, 0.0)], wav, p)
         dur = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                              "-of", "csv=p=0", str(wav)]).decode().strip())
         print(f"[bootstrap] {name}: {label}, {dur:.1f} s, {len(text)} characters")

@@ -81,12 +81,15 @@ def vendor_parts() -> dict:
 
 # --------------------------------------------------------------- timing
 def words_of(text: str) -> list[str]:
-    return text.split()
+    from kindled_iron.pacing import words_of as _w
+    return _w(text)                      # [pause x] tags are never spoken or captioned
 
 
-def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, used: dict) -> float:
-    """`at` = seconds after the beat starts, "end", or a word of this beat
-    ("God", "God#2" = second "God", "God+0.3" = 0.3 s after it starts)."""
+def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, used: dict,
+               beat_pauses: list | None = None) -> float:
+    """`at` = seconds after the beat starts, "end", a word of this beat ("God", "God#2" = second
+    "God", "God+0.3" = 0.3 s after it starts), or "pause" / "pause#2" = inside the 1st / 2nd pause
+    of this beat (after its 1st / 2nd sentence), so a drawing lands in the silence."""
     if at is None:
         return beat_start
     if isinstance(at, (int, float)):
@@ -94,6 +97,12 @@ def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, u
     s = str(at).strip()
     if s == "end":
         return beat_end
+    pm = re.fullmatch(r"pause(?:#(\d+))?([+-][\d.]+)?", s)
+    if pm:
+        n = int(pm.group(1) or 1)
+        if not beat_pauses or len(beat_pauses) < n:
+            raise ValueError(f"this beat has no pause #{n}")
+        return beat_pauses[n - 1][0] + 0.06 + float(pm.group(2) or 0)
     m = re.fullmatch(r"(.+?)(?:#(\d+))?([+-][\d.]+)?", s)
     word, nth, off = m.group(1), int(m.group(2) or 1), float(m.group(3) or 0)
     key = re.sub(r"[^a-z0-9]", "", word.lower())
@@ -135,8 +144,9 @@ def srt(chunks: list[dict]) -> str:
 
 # --------------------------------------------------------------- scene -> page data
 def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[list[dict]], duration: float,
-               insets: dict | None = None) -> dict:
+               insets: dict | None = None, pauses: list | None = None) -> dict:
     insets = insets or {}
+    pauses = pauses or []                     # [(start, end, beat)] silences between sentences
     ground = scene.get("ground", 1170)
     cast = {cid: {**c, "x": c["x"] + PANEL_W * c.get("panel", 0)} for cid, c in scene["cast"].items()}
     objects, events, captions = [], [], []
@@ -158,7 +168,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         for ev in beat.get("events", []):
             e = dict(ev)
             try:
-                e["t"] = round(resolve_at(e.pop("at", None), words, start, end, used), 3)
+                e["t"] = round(resolve_at(e.pop("at", None), words, start, end, used,
+                                          [p for p in pauses if p[2] == b]), 3)
             except ValueError as err:
                 raise SystemExit(f"beat {beat.get('id', b)}: {err}")
             kind = e.get("do")
@@ -169,6 +180,11 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                     if e["id"] not in insets:
                         continue                      # no clip found: the inset is simply left out
                     e.update(insets[e["id"]])
+                    # a real clip lands in the nearest pause (within 1.5 s before / 0.5 s after)
+                    near = [p for p in pauses if p[1] - p[0] >= 0.3 and e["t"] - 1.5 <= p[0] <= e["t"] + 0.5]
+                    if near:
+                        p0 = min(near, key=lambda p: abs(p[0] - e["t"]))
+                        e["t"] = round(p0[0] + 0.05, 3)
                 ids.add(e["id"])
                 obj = {k: v for k, v in e.items() if k not in ("t", "do", "dur", "pop", "sparkle", "hold", "instant")}
                 obj["x"] = obj.get("x", 540) + off
@@ -381,46 +397,69 @@ def main() -> None:
     work.mkdir(parents=True, exist_ok=True)
     wav, timing_file = work / "narration.wav", work / "timings.json"
     texts = [b["narration"] for b in scene["beats"]]
+    end_hold = float(scene.get("end_hold", 1.4))
 
-    if a.reuse_audio and timing_file.exists() and json.loads(timing_file.read_text())["texts"] == texts:
+    if a.reuse_audio and timing_file.exists() and json.loads(timing_file.read_text())["texts"] == texts \
+            and "pauses" in json.loads(timing_file.read_text()):
         t = json.loads(timing_file.read_text())
         spans, beat_words, voice_meta = [tuple(s) for s in t["spans"]], t["words"], t.get("voice", {})
+        pauses = [tuple(p) for p in t["pauses"]]
         log("reusing narration + timings")
     else:
-        from kindled_iron import tts, whisper_transcribe as wt
+        import soundfile as sf
+
+        from kindled_iron import pacing, tts, whisper_transcribe as wt
 
         profile = tts.load_profile(scene.get("voice_profile", "kindled_iron"))
         if scene.get("voice", {}).get("kokoro"):          # per-scene Kokoro override (voice, speed, lang)
             profile["kokoro"] = {**profile.get("kokoro", {}), **scene["voice"]["kokoro"]}
+        profile["_end_hold"] = end_hold
         provider = a.tts or profile.get("tts_provider", "kokoro")
-        voice_meta = tts.voice(texts, wav, profile, provider, log)
+        segs = pacing.plan(texts, profile)
+        raw = work / "narration_raw.wav"
+        voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                                                   "-of", "csv=p=0", str(wav)]).decode().strip())
+                                                   "-of", "csv=p=0", str(raw)]).decode().strip())
         # Word timings always come from the audio that was actually used.
-        heard = wt.transcribe(wav, a.whisper_model)
-        log(f"narration {audio_len:.2f} s, whisper heard {len(heard)} of {sum(len(words_of(x)) for x in texts)} words")
+        heard = wt.transcribe(raw, a.whisper_model)
         flat = [w for txt in texts for w in words_of(txt)]
+        log(f"voice audio {audio_len:.2f} s, whisper heard {len(heard)} of {len(flat)} words")
         aligned = wt.align(flat, heard, (0.0, audio_len))
+        # Pauses: every sentence gap is set to its target on the final audio; timings shift with it.
+        audio, sr = sf.read(raw, dtype="float32")
+        audio, aligned, pace_stats = pacing.enforce(audio, sr, aligned, segs, profile, log)
+        sf.write(wav, audio, sr)
         beat_words, k = [], 0
         for txt in texts:
             n = len(words_of(txt))
             beat_words.append(aligned[k:k + n])
             k += n
-        spans = [(bw[0]["start"], bw[-1]["end"]) for bw in beat_words]
+        pauses, k = [], 0
+        for i, sg in enumerate(segs[:-1]):
+            k += sg.n_words
+            pauses.append((aligned[k - 1]["end"], aligned[k]["start"], sg.beat))
+        # a beat starts in the pause before it, so its first drawing / walk lands in the silence
+        spans = [((beat_words[b - 1][-1]["end"] + 0.1) if b else 0.0, bw[-1]["end"]) for b, bw in enumerate(beat_words)]
+        voice_meta["pacing"] = {**pace_stats, "segments": [{"text": sg.text, "pause": sg.pause, "why": sg.why} for sg in segs]}
         timing_file.write_text(json.dumps({"texts": texts, "spans": spans, "words": beat_words, "heard": heard,
-                                           "voice": voice_meta}, indent=1))
+                                           "pauses": pauses, "voice": voice_meta}, indent=1))
 
     from kindled_iron import effects, insets as insets_mod
 
     clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
-    duration = round(spans[-1][1] + scene.get("end_hold", 1.8), 3)
+    duration = round(spans[-1][1] + end_hold, 3)
     lo, hi = TARGET_LEN
-    log(f"Length: {duration:.1f} s (target {lo:.0f}-{hi:.0f})")
+    n_words = sum(len(words_of(x)) for x in texts)
+    wpm = n_words / duration * 60
+    voice_meta["wpm"] = round(wpm, 1)
+    log(f"Length: {duration:.1f} s (target {lo:.0f}-{hi:.0f}); pace {wpm:.0f} words/min over {n_words} words (target 140-150)")
+    if not 140 <= wpm <= 150:
+        log(f"WARNING: pace {wpm:.0f} wpm is outside 140-150 (pauses already scaled to their limit)")
     if duration < lo:
         log(f"WARNING: under {lo:.0f} s. Fine only if the story is complete; never pad it.")
     elif duration > hi:
         log(f"WARNING: over {hi:.0f} s")
-    data = build_data(scene, spans, beat_words, duration, clips)
+    data = build_data(scene, spans, beat_words, duration, clips, pauses)
     data["inboxReactions"] = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log)
     data["events"] = [e for e in data["events"] if not e.get("_drop")]
     data["paper"] = effects.paper_texture(work, PALETTE["board"])

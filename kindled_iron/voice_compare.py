@@ -15,7 +15,7 @@ import os
 import subprocess
 from pathlib import Path
 
-from kindled_iron import chatterbox_tts, tts
+from kindled_iron import chatterbox_tts, pacing, tts
 
 
 def _mp3(wav: Path) -> None:
@@ -29,8 +29,8 @@ def main() -> None:
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     scene = json.loads(Path(a.scene).read_text(encoding="utf-8"))
-    beats = [b["narration"] for b in scene["beats"]]
     profile = tts.load_profile(scene.get("voice_profile", "kindled_iron"))
+    beats = pacing.provider_text(pacing.plan([b["narration"] for b in scene["beats"]], profile))  # with pauses
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     log = lambda m: print(f"[compare] {m}", flush=True)  # noqa: E731

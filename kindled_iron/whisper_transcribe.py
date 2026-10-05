@@ -45,10 +45,18 @@ def align(script_words: list[str], heard: list[dict], span: tuple[float, float])
     a = [norm(w) for w in script_words]
     b = [norm(w["word"]) for w in heard]
     times: list[tuple[float, float] | None] = [None] * len(a)
-    for block in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_matching_blocks():
-        for k in range(block.size):
-            h = heard[block.b + k]
-            times[block.a + k] = (max(lo, h["start"]), min(hi, h["end"]))
+    for op, a0, a1, b0, b1 in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
+        # equal words, and same-length substitutions (whisper heard "In" for "And"): take whisper's times
+        if op == "equal" or (op == "replace" and a1 - a0 == b1 - b0):
+            for k in range(a1 - a0):
+                h = heard[b0 + k]
+                times[a0 + k] = (max(lo, h["start"]), min(hi, h["end"]))
+        elif op == "replace":
+            # different word counts ("That is" heard as "That's"): spread the heard span evenly
+            s0, s1 = max(lo, heard[b0]["start"]), min(hi, heard[b1 - 1]["end"])
+            step = max(0.0, s1 - s0) / (a1 - a0)
+            for k in range(a1 - a0):
+                times[a0 + k] = (s0 + step * k, s0 + step * (k + 1))
     # Interpolate the gaps (numbers spoken as words, contractions split differently...)
     i = 0
     while i < len(a):

@@ -52,17 +52,19 @@ def sentences(text: str) -> list[str]:
     return out
 
 
-def synthesize(beats: list[str], out_wav: Path, profile: dict, ref: Path | None = None, keep_ref: bool = False) -> dict:
+def synthesize(segments: list[tuple[str, float]], out_wav: Path, profile: dict, ref: Path | None = None,
+               keep_ref: bool = False) -> dict:
+    """One sentence at a time (long ones split), joined with each sentence's pause."""
     ref = ref or _ref_path(profile)
     cfg = profile.get("chatterbox") or {}
-    job = {"beats": [sentences(b) for b in beats], "out": str(out_wav), "ref": str(ref),
-           "gap": profile.get("beat_gap", 0.35), "settings": {k: cfg[k] for k in ("exaggeration", "cfg_weight", "temperature") if k in cfg}}
+    job = {"segments": [[sentences(t), p] for t, p in segments], "out": str(out_wav), "ref": str(ref),
+           "settings": {k: cfg[k] for k in ("exaggeration", "cfg_weight", "temperature") if k in cfg}}
     try:
         subprocess.run([_python() or sys.executable, __file__, "--worker", json.dumps(job)], check=True)
     finally:
         if not keep_ref and ref and Path(ref).exists():
             Path(ref).unlink()            # the clip only lives for this run
-    return {"model": "chatterbox", "reference_clip": cfg.get("reference_clip"), "chars": sum(len(b) for b in beats)}
+    return {"model": "chatterbox", "reference_clip": cfg.get("reference_clip"), "chars": sum(len(t) for t, _ in segments)}
 
 
 def _worker(job: dict) -> None:            # runs inside the Chatterbox venv
@@ -73,13 +75,13 @@ def _worker(job: dict) -> None:            # runs inside the Chatterbox venv
     torch.manual_seed(7)
     model = ChatterboxTTS.from_pretrained(device="cuda" if torch.cuda.is_available() else "cpu")
     sr = model.sr
-    pieces = []
-    for b, sents in enumerate(job["beats"]):
-        for s in sents:
-            wav = model.generate(s, audio_prompt_path=job["ref"], **job["settings"])
-            pieces += [wav, torch.zeros(1, int(0.18 * sr))]
-        if b < len(job["beats"]) - 1:
-            pieces.append(torch.zeros(1, int(job["gap"] * sr)))
+    pieces = [torch.zeros(1, int(0.15 * sr))]
+    for chunks, pause in job["segments"]:
+        for j, s in enumerate(chunks):
+            pieces.append(model.generate(s, audio_prompt_path=job["ref"], **job["settings"]))
+            if j < len(chunks) - 1:
+                pieces.append(torch.zeros(1, int(0.12 * sr)))
+        pieces.append(torch.zeros(1, int(pause * sr)))
     torchaudio.save(job["out"], torch.cat(pieces, dim=1), sr)
     print(f"[chatterbox] wrote {job['out']}", flush=True)
 

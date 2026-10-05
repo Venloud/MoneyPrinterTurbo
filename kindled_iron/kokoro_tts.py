@@ -77,12 +77,18 @@ def available(profile: dict, chars: int = 0) -> tuple[bool, str, dict]:
     return True, "local", {}
 
 
-def synthesize(beats: list[str], out_wav: Path, profile: dict) -> dict:
-    """Common provider interface (same as elevenlabs_tts / chatterbox_tts)."""
+def synthesize(segments: list[tuple[str, float]], out_wav: Path, profile: dict) -> dict:
+    """Common provider interface: one sentence at a time, joined with each sentence's pause."""
     k = profile.get("kokoro") or {}
-    synthesize_beats(beats, out_wav, k.get("voice", "am_michael"), k.get("speed", 1.0), k.get("lang", "a"),
-                     gap=profile.get("beat_gap", 0.3))
-    return {"model": "kokoro-82m", "voice": k.get("voice", "am_michael"), "chars": sum(len(b) for b in beats)}
+    speed = max(0.92, float(k.get("speed", 1.0)))       # never slower than 0.92 (pauses give length)
+    parts = [np.zeros(int(0.15 * SAMPLE_RATE), np.float32)]
+    for text, pause in segments:
+        parts += [synth_text(text, k.get("voice", "am_michael"), speed, k.get("lang", "a")),
+                  np.zeros(int(pause * SAMPLE_RATE), np.float32)]
+    out_wav.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(out_wav, np.concatenate(parts), SAMPLE_RATE)
+    return {"model": "kokoro-82m", "voice": k.get("voice", "am_michael"), "speed": speed,
+            "chars": sum(len(t) for t, _ in segments)}
 
 
 def main() -> None:

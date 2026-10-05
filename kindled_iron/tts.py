@@ -1,7 +1,7 @@
 """Voice the narration with the chosen provider, falling back chosen -> chatterbox -> kokoro.
 
 Every provider has the same interface: available(profile, chars) -> (ok, reason, info) and
-synthesize(beats, out_wav, profile) -> meta. Audio is cached by
+synthesize(segments, out_wav, profile) -> meta (segments = [(sentence, pause)]). Audio is cached by
 hash(provider + script + voice + model + settings), so a re-render of the same script costs
 no ElevenLabs credits. Cache dir: KI_TTS_CACHE (default ~/.cache/kindled_iron/tts).
 """
@@ -30,10 +30,9 @@ def _cache_dir() -> Path:
     return d
 
 
-def cache_key(provider: str, beats: list[str], profile: dict) -> str:
+def cache_key(provider: str, segments: list, profile: dict) -> str:
     cfg = profile.get(provider) or {}
-    blob = json.dumps({"provider": provider, "beats": beats, "cfg": cfg, "gap": profile.get("beat_gap"),
-                       "eq": profile.get("eq")}, sort_keys=True)
+    blob = json.dumps({"provider": provider, "segments": segments, "cfg": cfg, "eq": profile.get("eq")}, sort_keys=True)
     return hashlib.sha256(blob.encode()).hexdigest()[:24]
 
 
@@ -45,9 +44,11 @@ def _eq(wav: Path, eq: str | None) -> None:
     tmp.replace(wav)
 
 
-def voice(beats: list[str], out_wav: Path, profile: dict, provider: str, log) -> dict:
+def voice(segments: list[tuple[str, float]], out_wav: Path, profile: dict, provider: str, log) -> dict:
+    """segments = [(sentence, pause after)] from pacing.plan()."""
+    beats = [list(s) for s in segments]
     order = [provider] + [p for p in ("chatterbox", "kokoro") if p != provider]
-    chars = sum(len(b) for b in beats)
+    chars = sum(len(t) for t, _ in segments)
     reasons: list[str] = []
     for p in order:
         key = cache_key(p, beats, profile)
@@ -69,7 +70,7 @@ def voice(beats: list[str], out_wav: Path, profile: dict, provider: str, log) ->
         if why and p == "elevenlabs" and "unreadable" in why:
             log(f"WARNING: ElevenLabs {why}")
         try:
-            meta = mod.synthesize(beats, out_wav, profile)
+            meta = mod.synthesize(segments, out_wav, profile)
         except Exception as e:  # noqa: BLE001 - never let one provider stop the render
             reasons.append(f"{p}: {str(e)[:120]}")
             log(f"WARNING: voice {p} failed ({str(e)[:120]})")

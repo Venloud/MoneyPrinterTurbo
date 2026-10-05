@@ -21,6 +21,24 @@ Outputs next to the MP4: `.srt`, `_meta.json` (duration, words, voice used, fall
   swaying trees/plants, twinkling stars, blinking characters).
 - A small `DAY n` counter with progress dots (`{"do": "counter", "day": 3}`, `day: 0` hides it).
 
+## Pacing (pacing.py): pauses between sentences, every voice
+- The script is split into sentences. Silence after each: `pause_sentence` (0.35 s) normally,
+  `pause_beat` (0.7 s) after the hook, a question, a 1-2 word punch line ("Wrong."), a "Day N" line,
+  and before the last line. Per channel in `voice_profiles.json` (`pause_sentence`, `pause_beat`,
+  `max_pause`). A manual tag sets one exactly: `The very first words are: [pause 0.5] In the beginning, God.`
+  Tags are never spoken or captioned.
+- Kokoro / Chatterbox voice one sentence at a time and join with the pauses. ElevenLabs gets the whole
+  script in ONE request (consistent tone) with `<break time="0.7s" />` tags on models that support
+  them (`use_break_tags`; tags add ~400 characters a video).
+- Then, for every provider, the pauses are enforced on the final audio: each sentence gap is measured
+  (word timings refined from the audio's own silences) and silence is inserted or trimmed to hit the
+  target. Pauses are scaled (0.6x-1.8x, max `max_pause`) to aim at **140-150 words a minute**; the voice
+  is never slowed below 0.92. Log: `pauses: ...` and `Length: X s ...; pace N words/min`.
+- Captions and every animation follow the final audio. A beat starts inside the pause before it, so
+  its walk / first drawing lands in the silence; footage insets snap into the nearest pause; and
+  `"at": "pause"` / `"pause#2"` puts any event in the 1st / 2nd pause of its beat (the DAY counter ticks
+  in the pause before each "Day N" line).
+
 ## Voice (tts.py)
 Providers with one interface: `elevenlabs_tts.py` (owner's cloned voice), `chatterbox_tts.py`
 (MIT, clones from a private reference clip), `kokoro_tts.py`. `--tts` picks one (default: the voice

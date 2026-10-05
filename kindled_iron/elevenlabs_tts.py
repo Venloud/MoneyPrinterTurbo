@@ -16,6 +16,9 @@ import urllib.request
 from pathlib import Path
 
 API = "https://api.elevenlabs.io/v1"
+# Models that honour <break time="0.7s" /> (max 3 s). Others get sentence cuts + silence afterwards.
+BREAK_MODELS = {"eleven_multilingual_v2", "eleven_turbo_v2", "eleven_turbo_v2_5", "eleven_flash_v2",
+                "eleven_flash_v2_5", "eleven_monolingual_v1", "eleven_english_sts_v2"}
 
 
 def _key() -> str | None:
@@ -65,12 +68,29 @@ def available(profile: dict, chars: int = 0) -> tuple[bool, str, dict]:
     return True, f"{q['remaining']}/{q['budget']} characters left this month", q
 
 
-def synthesize(beats: list[str], out_wav: Path, profile: dict) -> dict:
-    """One request for the whole narration (keeps the delivery continuous); beats become paragraphs."""
+def script_text(segments: list[tuple[str, float]], model: str) -> str:
+    if model not in BREAK_MODELS:
+        return " ".join(t for t, _ in segments)
+    out = []
+    for t, p in segments:
+        out.append(t)
+        if p >= 0.05:
+            out.append(f'<break time="{min(3.0, p):g}s" />')
+    return " ".join(out)
+
+
+def synthesize(segments: list[tuple[str, float]], out_wav: Path, profile: dict) -> dict:
+    """ONE request for the whole script (consistent tone). Pauses: <break> tags when the model
+    supports them; either way pacing.enforce() fixes every gap on the final audio afterwards."""
     cfg = profile["elevenlabs"]
-    text = "\n\n".join(b.strip() for b in beats)
-    body = {"text": text, "model_id": cfg.get("model_id", "eleven_multilingual_v2"),
-            "voice_settings": cfg.get("voice_settings", {})}
+    model = cfg.get("model_id", "eleven_multilingual_v2")
+    # break tags add characters (credits); use_break_tags: false sends plain text and lets
+    # pacing.enforce() cut at the sentence edges and insert the silence instead
+    text = script_text(segments, model if cfg.get("use_break_tags", True) else "")
+    settings = dict(cfg.get("voice_settings", {}))
+    if "speed" in settings:
+        settings["speed"] = max(0.92, float(settings["speed"]))
+    body = {"text": text, "model_id": model, "voice_settings": settings}
     fmt = cfg.get("output_format", "mp3_44100_128")
     req = urllib.request.Request(f"{API}/text-to-speech/{cfg['voice_id']}?output_format={fmt}",
                                  data=json.dumps(body).encode(), method="POST",
@@ -94,4 +114,4 @@ def synthesize(beats: list[str], out_wav: Path, profile: dict) -> dict:
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp3, "-ac", "1", "-ar", "44100", str(out_wav)], check=True)
     finally:
         os.unlink(mp3)
-    return {"model": body["model_id"], "voice_id": cfg["voice_id"], "chars": len(text)}
+    return {"model": model, "voice_id": cfg["voice_id"], "chars": len(text), "break_tags": model in BREAK_MODELS}

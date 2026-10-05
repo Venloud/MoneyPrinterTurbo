@@ -33,10 +33,10 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: kindled-iron-models-v2
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: .ki-cache
-          key: ki-media-${{ hashFiles('kindled_iron/scenes/**', 'kindled_iron/voice_profiles.json') }}
+          key: ki-media-${{ github.run_id }}
           restore-keys: ki-media-
       - name: Install Kokoro + Chatterbox (separate venv)
         run: |
@@ -60,6 +60,12 @@ jobs:
         env:
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         run: python -m kindled_iron.voice_compare "${{ inputs.scene }}" --out "$RUNNER_TEMP/voice_compare"
+      - name: Save voice audio cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .ki-cache
+          key: ki-media-${{ github.run_id }}
       - name: Upload to the private repo, then delete
         if: always()
         env:
@@ -68,6 +74,10 @@ jobs:
           set -euo pipefail
           rm -rf "$RUNNER_TEMP/voice_refs"
           if ls "$RUNNER_TEMP"/voice_compare/*.mp3 >/dev/null 2>&1; then
+            # an empty repo can't hold releases: give it a first commit (a README) once
+            gh api "repos/$VOICE_REPO/commits?per_page=1" >/dev/null 2>&1 || \
+              gh api -X PUT "repos/$VOICE_REPO/contents/README.md" -f message="Initialize private voice repo" \
+                -f content="$(printf '# Kindled Iron voice (private)\n\nReference clips, voice comparisons and test renders. Never publish.\n' | base64 -w0)" >/dev/null
             gh release view voice-compare --repo "$VOICE_REPO" >/dev/null 2>&1 || \
               gh release create voice-compare --repo "$VOICE_REPO" --title "Voice comparison" --notes "Private."
             gh release upload voice-compare --repo "$VOICE_REPO" --clobber "$RUNNER_TEMP"/voice_compare/*.mp3

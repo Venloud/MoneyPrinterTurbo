@@ -56,11 +56,11 @@ jobs:
           path: ~/.cache/huggingface
           key: kindled-iron-models-v2
 
-      - name: Cache voice audio + clips (re-renders cost 0 ElevenLabs credits)
-        uses: actions/cache@v4
+      - name: Restore voice audio + clips cache (re-renders cost 0 ElevenLabs credits)
+        uses: actions/cache/restore@v4
         with:
           path: .ki-cache
-          key: ki-media-${{ hashFiles('kindled_iron/scenes/**', 'kindled_iron/voice_profiles.json') }}
+          key: ki-media-${{ github.run_id }}
           restore-keys: ki-media-
 
       - name: Install Python packages
@@ -77,6 +77,10 @@ jobs:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
         run: |
           set -euo pipefail
+          if ! gh release view voice-refs --repo "$VOICE_REPO" >/dev/null 2>&1; then
+            echo "::notice::No reference clips yet (run Kindled Iron Voice Bootstrap once). Chatterbox fallback skipped."
+            exit 0
+          fi
           python -m venv "$RUNNER_TEMP/cbx"
           "$RUNNER_TEMP/cbx/bin/pip" install -q chatterbox-tts --extra-index-url https://download.pytorch.org/whl/cpu
           clip=$(python -c "import json;print(json.load(open('kindled_iron/voice_profiles.json'))['kindled_iron']['chatterbox']['reference_clip'])")
@@ -101,6 +105,13 @@ jobs:
       - name: Delete the reference clip
         if: always()
         run: rm -rf "$RUNNER_TEMP/voice_refs"
+
+      - name: Save voice audio + clips cache (even if a later step fails)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .ki-cache
+          key: ki-media-${{ github.run_id }}
 
       - name: Check the MP4 with ffprobe
         run: |
@@ -137,6 +148,10 @@ jobs:
         run: |
           set -euo pipefail
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
+          # an empty repo can't hold releases: give it a first commit (a README) once
+          gh api "repos/$VOICE_REPO/commits?per_page=1" >/dev/null 2>&1 || \
+            gh api -X PUT "repos/$VOICE_REPO/contents/README.md" -f message="Initialize private voice repo" \
+              -f content="$(printf '# Kindled Iron voice (private)\n\nReference clips, voice comparisons and test renders. Never publish.\n' | base64 -w0)" >/dev/null
           gh release view test-renders --repo "$VOICE_REPO" >/dev/null 2>&1 || \
             gh release create test-renders --repo "$VOICE_REPO" --title "Kindled Iron test renders" --notes "Private test renders. Not published."
           stamp=$(date -u +%Y%m%d-%H%M)

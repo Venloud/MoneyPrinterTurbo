@@ -10,6 +10,7 @@ encodes the frames with the narration. Captions are part of the page, so they
 are burned into every frame.
 
 Options: --frames-only T1,T2,...  write PNG stills at those seconds (quick check)
+         --safe-box               overlay the TikTok safe box (use with --frames-only)
          --reuse-audio            keep work/narration.wav + timings from the last run
          --chrome PATH            Chrome/Chromium binary (else CHROME_PATH / auto-detect)
 """
@@ -30,7 +31,19 @@ UPSTREAM = VENDOR / "stickman-animation-agent" / "components" / "characters"
 
 WIDTH, HEIGHT, FPS = 1080, 1920, 30
 PANEL_W = 1080
-PALETTE = {"board": "#F4F1EA", "ink": "#222222", "inkSoft": "#55524C", "accent": "#CC5500"}
+PALETTE = {
+    "board": "#F4F1EA", "ink": "#222222", "inkSoft": "#55524C", "accent": "#CC5500",
+    # flat, light "hand-coloured" fills (captions stay ink + accent)
+    "water": "#A9CCE6", "waterLine": "#3D7DB0", "green": "#AED39A", "greenLine": "#4E8A3A", "leaf": "#93C47D",
+    "trunk": "#9A6A43", "wool": "#F3EBD7", "woolGray": "#9C9C98", "fishBody": "#EBCF7E", "fishBelly": "#BDBDBA",
+    "cloud": "#FFFFFF",
+}
+# TikTok safe area (owner's template). Important art + captions stay inside the box and out of the
+# right-hand button column; the top 160 px and bottom 480 px are decoration only.
+SAFE = {"x0": 120, "x1": 960, "y0": 160, "y1": 1440, "column": {"x0": 780, "x1": 960, "y0": 840, "y1": 1440}}
+CAPTION = {"x": 450, "y": 1255, "w": 660, "size": 100}   # centred in x 120-780, below the feet
+TARGET_LEN = (61.0, 68.0)
+MIN_WORDS = 120
 EXPRESSIONS = ["neutral", "happy", "surprised", "thinking", "speaking", "focused"]
 HAIRS = ["long-straight", "short-tufts"]
 
@@ -51,7 +64,9 @@ def _svg_inner(path: Path) -> str:
 
 
 def vendor_parts() -> dict:
-    head = _svg_inner(UPSTREAM / "tier1" / "heads" / "front.svg")
+    # the head's paper-coloured fill only appears once the head is drawn
+    head = _svg_inner(UPSTREAM / "tier1" / "heads" / "front.svg").replace(
+        f'fill="{PALETTE["board"]}"', f'fill="{PALETTE["board"]}" data-fill="1" fill-opacity="0"')
     exprs = {n: _svg_inner(UPSTREAM / "tier1" / "expressions" / f"{n}.svg") for n in EXPRESSIONS
              if (UPSTREAM / "tier1" / "expressions" / f"{n}.svg").exists()}
     # faint guide strands (opacity < 1) would show through the face; keep the outer strands only
@@ -84,7 +99,7 @@ def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, u
     return hits[nth - 1]["start"] + off
 
 
-def caption_chunks(words: list[dict], max_words: int = 3, max_chars: int = 16) -> list[dict]:
+def caption_chunks(words: list[dict], max_words: int = 3, max_chars: int = 13) -> list[dict]:
     chunks, cur = [], []
     for i, w in enumerate(words):
         cur.append(w)
@@ -116,11 +131,11 @@ def srt(chunks: list[dict]) -> str:
 
 # --------------------------------------------------------------- scene -> page data
 def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[list[dict]], duration: float) -> dict:
-    ground = scene.get("ground", 1250)
+    ground = scene.get("ground", 1170)
     cast = {cid: {**c, "x": c["x"] + PANEL_W * c.get("panel", 0)} for cid, c in scene["cast"].items()}
     objects, events, captions = [], [], []
     ids = set()
-    cam_y = scene.get("camera_y", 900)
+    cam_y = scene.get("camera_y", 960)
     for b, beat in enumerate(scene["beats"]):
         start, end = spans[b]
         off = PANEL_W * beat.get("panel", 0)
@@ -164,16 +179,29 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 e["tx"] += off
             events.append(e)
     events.sort(key=lambda e: e["t"])
+    # Moving to a new panel: the words of earlier panels fade out, so the walking guide
+    # never passes in front of key text (drawings stay; they slide off with the camera).
+    panel_of = {o["id"]: int(o["x"] // PANEL_W) for o in objects}
+    faded: set[str] = set()
+    for e in [e for e in events if e["do"] == "walk" and e.get("camera")]:
+        new_panel = int(e["camX"] // PANEL_W)
+        old = [o["id"] for o in objects if o["type"] in ("word", "strike", "cross", "rays")
+               and panel_of[o["id"]] < new_panel and o["id"] not in faded]
+        if old:
+            faded.update(old)
+            events.append({"t": max(0.0, e["t"] - 0.15), "do": "fade", "ids": old, "opacity": 0, "dur": 0.25})
+    events.sort(key=lambda e: e["t"])
     return {"width": WIDTH, "height": HEIGHT, "fps": FPS, "duration": duration, "ground": ground,
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
-            "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts()}
+            "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False}
 
 
 def write_page(data: dict, work: Path) -> Path:
     page = (HERE / "runtime" / "page.html").read_text(encoding="utf-8")
     rep = {
         "__W__": str(WIDTH), "__H__": str(HEIGHT), "__BOARD__": PALETTE["board"], "__INK__": PALETTE["ink"],
-        "__ACCENT__": PALETTE["accent"], "__CAPTION_Y__": "1440", "__CAPTION_SIZE__": "118",
+        "__ACCENT__": PALETTE["accent"], "__CAPTION_X__": str(CAPTION["x"]), "__CAPTION_Y__": str(CAPTION["y"]), "__CAPTION_W__": str(CAPTION["w"]),
+        "__CAPTION_SIZE__": str(CAPTION["size"]),
         "__FONT__": (VENDOR / "fonts" / "Caveat.ttf").as_uri(),
         "__GSAP__": (VENDOR / "gsap" / "gsap.min.js").as_uri(),
         "__RUNTIME__": (HERE / "runtime" / "runtime.js").as_uri(),
@@ -196,6 +224,43 @@ def find_chrome(explicit: str | None) -> str | None:
     return None  # let Playwright use its own downloaded Chromium
 
 
+def layout_check(page, duration: float, work: Path) -> list[dict]:
+    """Sample the timeline every 0.2 s: safe box, right button column, a character over key
+    text, a walking character passing through another. Warnings only (logged + checks.json)."""
+    ranges: dict[str, list] = {}
+    t = 0.0
+    while t <= duration:
+        for msg in page.evaluate(f"window.kiSeek({t:.3f}) && window.kiCheck({t:.3f})"):
+            r = ranges.setdefault(msg, [])
+            if r and t - r[-1][1] <= 0.25:
+                r[-1][1] = t
+            else:
+                r.append([t, t])
+        t = round(t + 0.2, 3)
+    out = [{"issue": m, "from": a, "to": b} for m, rs in ranges.items() for a, b in rs]
+    out.sort(key=lambda x: x["from"])
+    (work / "checks.json").write_text(json.dumps(out, indent=1))
+    for x in out:
+        log(f"LAYOUT WARNING {x['from']:.1f}-{x['to']:.1f} s: {x['issue']}")
+    log(f"layout check: {len(out)} warning(s)" if out else "layout check: OK (safe box, text, walks)")
+    return out
+
+
+def empty_check(mp4: Path) -> list[tuple[float, float]]:
+    """Near-empty screen for more than 1 s inside the safe art area (captions excluded).
+    Near-empty = under 2.5 % ink (a lone stickman is ~1.7 %)."""
+    w, h = SAFE["x1"] - SAFE["x0"], CAPTION["y"] - 20 - SAFE["y0"]
+    vf = f"crop={w}:{h}:{SAFE['x0']}:{SAFE['y0']},negate,blackdetect=d=1.0:pix_th=0.12:pic_th=0.975"
+    res = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(mp4), "-vf", vf, "-an", "-f", "null", "-"],
+                         capture_output=True, text=True)
+    spans = [(float(a), float(b)) for a, b in re.findall(r"black_start:([\d.]+) black_end:([\d.]+)", res.stderr)]
+    for a, b in spans:
+        log(f"EMPTY-SCREEN WARNING {a:.1f}-{b:.1f} s: almost nothing drawn for {b - a:.1f} s")
+    if not spans:
+        log("empty-screen check: OK (no stretch over 1 s)")
+    return spans
+
+
 def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration: float, chrome: str | None,
             stills: list[float] | None = None, still_dir: Path | None = None) -> None:
     from playwright.sync_api import sync_playwright
@@ -216,6 +281,7 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
             raise SystemExit("page never became ready: " + "; ".join(errors or ["no error reported"]))
         for e in errors:
             log(f"page: {e}")
+        layout_check(page, duration, page_file.parent)
         if stills is not None:
             still_dir.mkdir(parents=True, exist_ok=True)
             for t in stills:
@@ -250,11 +316,15 @@ def main() -> None:
     ap.add_argument("--reuse-audio", action="store_true")
     ap.add_argument("--chrome", default=None)
     ap.add_argument("--whisper-model", default="base.en")
+    ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
     a = ap.parse_args()
 
     scene_path = Path(a.scene)
     scene = json.loads(scene_path.read_text(encoding="utf-8"))
     sid = scene.get("id", scene_path.stem)
+    from kindled_iron import script_check
+
+    scene = script_check.check(scene, log, MIN_WORDS)
     out = Path(a.out or f"storage/kindled_iron/{sid}.mp4").resolve()
     work = Path(a.work or out.parent / f"{sid}_work").resolve()
     work.mkdir(parents=True, exist_ok=True)
@@ -278,7 +348,14 @@ def main() -> None:
         timing_file.write_text(json.dumps({"texts": texts, "spans": spans, "words": beat_words, "heard": heard}, indent=1))
 
     duration = round(spans[-1][1] + scene.get("end_hold", 1.8), 3)
+    lo, hi = TARGET_LEN
+    log(f"Length: {duration:.1f} s (target {lo:.0f}-{hi:.0f})")
+    if duration < lo:
+        log(f"WARNING: under {lo:.0f} s. Fine only if the story is complete; never pad it.")
+    elif duration > hi:
+        log(f"WARNING: over {hi:.0f} s")
     data = build_data(scene, spans, beat_words, duration)
+    data["debugSafe"] = a.safe_box
     (work / "captions.srt").write_text(srt(data["captions"]), encoding="utf-8")
     page = write_page(data, work)
     log(f"{len(data['objects'])} objects, {len(data['events'])} events, {len(data['captions'])} caption chunks, {duration:.2f} s")
@@ -291,6 +368,7 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     capture(page, out, wav, duration, a.chrome)
     shutil.copy(work / "captions.srt", out.with_suffix(".srt"))
+    empty_check(out)
     log(f"wrote {out}")
 
 

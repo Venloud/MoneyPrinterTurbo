@@ -34,10 +34,14 @@
   }
   function hash(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function col(name) { return C[name] || name || C.ink; }
+  function f(d, fill, fo, offset) {   // flat colour, fades in after the ink; offset = hand-coloured misregister
+    return '<path d="' + d + '" stroke="none" fill="' + col(fill) + '" data-fill="' + (fo || 1) + '" fill-opacity="0"' +
+      (offset === false ? '' : ' transform="translate(4,3)"') + '/>';
+  }
   function p(d, o) {
     o = o || {};
-    return '<path d="' + d + '" stroke="' + col(o.c) + '" stroke-width="' + (o.w || 7) +
-      '" fill="' + (o.fill ? col(o.fill) : 'none') + '"' + (o.fill ? ' data-fill="' + (o.fo || 1) + '" fill-opacity="0"' : '') +
+    return (o.fill ? f(d, o.fill, o.fo, o.fill === 'board' ? false : true) : '') +
+      '<path d="' + d + '" stroke="' + col(o.c) + '" stroke-width="' + (o.w || 7) + '" fill="none"' +
       ' stroke-linecap="round" stroke-linejoin="round"' + (o.op ? ' opacity="' + o.op + '"' : '') + '/>';
   }
   function circlePath(cx, cy, r) {
@@ -116,20 +120,24 @@
     },
     waves: function (o) {
       var w = o.w || 600, rows = o.rows || 3, s = '';
+      var bottom = (rows - 1) * 42 + 34;
+      s += f('M' + (-w / 2 - 10) + ',-6 C' + (-w / 6) + ',-20 ' + (w / 6) + ',8 ' + (w / 2 + 10) + ',-6 L' + (w / 2 + 6) + ',' + bottom +
+        ' C' + (w / 6) + ',' + (bottom + 10) + ' ' + (-w / 6) + ',' + (bottom - 8) + ' ' + (-w / 2 - 6) + ',' + bottom + ' Z', 'water', 0.75);
       for (var j = 0; j < rows; j++) {
         var pts = [], y = j * 42, off = j % 2 ? 30 : 0;
         for (var x = -w / 2 + off; x <= w / 2; x += 30) pts.push([x, y + ((x + off) / 30 % 2 ? -12 : 12)]);
-        s += p(smooth(pts), { w: 6, c: o.color });
+        s += p(smooth(pts), { w: 6, c: o.color || 'waterLine' });
       }
       return s;
     },
     line: function (o) { var w = o.w || 900; return p('M' + (-w / 2) + ',0 C' + (-w / 6) + ',-6 ' + (w / 6) + ',6 ' + (w / 2) + ',0', { w: o.weight || 6, c: o.color }); },
     hill: function (o) {
       var w = o.w || 420, h = o.h || 160;
-      return p('M' + (-w / 2) + ',0 C' + (-w / 3) + ',' + (-h) + ' ' + (w / 4) + ',' + (-h * 1.1) + ' ' + (w / 2) + ',0', { w: 7, fill: o.fill, fo: 0.25 });
+      return p('M' + (-w / 2) + ',0 C' + (-w / 3) + ',' + (-h) + ' ' + (w / 4) + ',' + (-h * 1.1) + ' ' + (w / 2) + ',0', { w: 7, c: 'greenLine', fill: o.fill || 'green', fo: 0.9 }) +
+        (o.grass === false ? '' : p('M' + (-w * 0.18) + ',' + (-h * 0.78) + ' l-6,-16 M' + (-w * 0.16) + ',' + (-h * 0.8) + ' l4,-18 M' + (w * 0.12) + ',' + (-h * 0.86) + ' l-5,-16 M' + (w * 0.14) + ',' + (-h * 0.86) + ' l5,-15', { w: 5, c: 'greenLine' }));
     },
     cloud: function () {
-      return p('M-120,30 C-170,30 -170,-30 -115,-28 C-110,-80 -30,-90 -5,-45 C20,-95 110,-80 105,-20 C160,-20 165,40 110,40 Z', { w: 7 });
+      return p('M-120,30 C-170,30 -170,-30 -115,-28 C-110,-80 -30,-90 -5,-45 C20,-95 110,-80 105,-20 C160,-20 165,40 110,40 Z', { w: 7, fill: 'cloud', fo: 0.95 });
     },
     light: function (o) {
       var s = p(wobbleCircle(0, 0, o.r || 80, 7), { c: 'accent', w: 8, fill: 'accent', fo: 0.22 });
@@ -160,17 +168,19 @@
       return s;
     },
     tree: function () {
-      return p('M-10,120 L-8,10 M10,120 L8,10 M-8,40 L-40,10 M8,30 L38,0', { w: 7 }) +
-        p('M-10,20 C-90,30 -110,-60 -55,-80 C-60,-150 40,-160 50,-100 C110,-100 115,-10 60,5 C40,30 10,25 -10,20 Z', { w: 7, fill: 'inkSoft', fo: 0.12 });
+      return f('M-12,120 L-9,10 L9,10 L12,120 Z', 'trunk', 0.95) +
+        p('M-10,120 L-8,10 M10,120 L8,10 M-8,40 L-40,10 M8,30 L38,0', { w: 7 }) +
+        p('M-10,20 C-90,30 -110,-60 -55,-80 C-60,-150 40,-160 50,-100 C110,-100 115,-10 60,5 C40,30 10,25 -10,20 Z', { w: 7, fill: 'leaf', fo: 0.95 });
     },
     plant: function (o) {
-      var s = p('M0,40 C0,10 -4,-10 0,-40', { w: 6 }) + p('M0,0 C-30,-5 -40,-25 -38,-40 C-15,-35 -5,-20 0,0', { w: 5 }) +
-        p('M0,-10 C25,-15 38,-35 35,-50 C15,-45 3,-30 0,-10', { w: 5 });
+      var s = p('M0,40 C0,10 -4,-10 0,-40', { w: 6, c: 'greenLine' }) + p('M0,0 C-30,-5 -40,-25 -38,-40 C-15,-35 -5,-20 0,0', { w: 5, c: 'greenLine', fill: 'green', fo: 0.9 }) +
+        p('M0,-10 C25,-15 38,-35 35,-50 C15,-45 3,-30 0,-10', { w: 5, c: 'greenLine', fill: 'green', fo: 0.9 });
       if (o.flower) s += p(wobbleCircle(0, -52, 14, 11), { c: 'accent', w: 6, fill: 'accent', fo: 0.8 });
       return s;
     },
     fish: function () {
-      return p('M-70,0 C-40,-40 30,-40 55,0 C30,40 -40,40 -70,0 Z', { w: 6 }) + p('M55,0 L95,-30 L90,0 L95,30 Z', { w: 6 }) +
+      return f('M-70,0 C-40,-40 30,-40 55,0 C30,40 -40,40 -70,0 Z', 'fishBody', 0.95) + f('M-62,6 C-40,34 30,34 50,6 Z', 'fishBelly', 0.95) +
+        p('M-70,0 C-40,-40 30,-40 55,0 C30,40 -40,40 -70,0 Z', { w: 6 }) + p('M55,0 L95,-30 L90,0 L95,30 Z', { w: 6 }) +
         p(circlePath(-40, -6, 5), { w: 5, fill: 'ink' });
     },
     birds: function (o) {
@@ -182,8 +192,8 @@
       return s;
     },
     animal: function () {     // a sheep: woolly body, head, four legs
-      return p('M-80,0 C-110,-10 -100,-60 -60,-55 C-50,-85 0,-90 15,-60 C40,-85 90,-70 80,-35 C110,-20 95,25 60,22 C40,45 -20,45 -40,22 C-80,35 -100,15 -80,0 Z', { w: 6, fill: 'board', fo: 1 }) +
-        p('M80,-35 C105,-55 140,-40 135,-15 C130,5 100,8 88,-5', { w: 6, fill: 'ink', fo: 0.85 }) +
+      return p('M-80,0 C-110,-10 -100,-60 -60,-55 C-50,-85 0,-90 15,-60 C40,-85 90,-70 80,-35 C110,-20 95,25 60,22 C40,45 -20,45 -40,22 C-80,35 -100,15 -80,0 Z', { w: 6, fill: 'wool', fo: 1 }) +
+        p('M80,-35 C105,-55 140,-40 135,-15 C130,5 100,8 88,-5', { w: 6, fill: 'woolGray', fo: 1 }) +
         p('M-50,30 L-52,80 M-20,35 L-18,82 M30,35 L28,82 M55,25 L58,80', { w: 6 });
     },
     globe: function (o) {
@@ -192,6 +202,16 @@
         p('M' + (-r * 0.6) + ',' + (-r * 0.5) + ' C' + (-r * 0.2) + ',' + (-r * 0.75) + ' ' + (r * 0.05) + ',' + (-r * 0.3) + ' ' + (-r * 0.15) + ',' + (-r * 0.05) + ' C' + (-r * 0.35) + ',' + (r * 0.2) + ' ' + (-r * 0.7) + ',' + (r * 0.05) + ' ' + (-r * 0.6) + ',' + (-r * 0.5) + ' Z', { w: 5, c: 'accent', fill: 'accent', fo: 0.5 }) +
         p('M' + (r * 0.2) + ',' + (r * 0.15) + ' C' + (r * 0.55) + ',' + (r * 0.05) + ' ' + (r * 0.7) + ',' + (r * 0.4) + ' ' + (r * 0.35) + ',' + (r * 0.65) + ' C' + (r * 0.1) + ',' + (r * 0.55) + ' ' + (r * 0.05) + ',' + (r * 0.3) + ' ' + (r * 0.2) + ',' + (r * 0.15) + ' Z', { w: 5, c: 'accent', fill: 'accent', fo: 0.5 });
     },
+    figure: function (o) {   // tiny static person icon
+      return p(circlePath(0, -70, 18), { w: 6, fill: 'board', fo: 1 }) + p('M0,-52 L0,0 M0,-40 L-24,-18 M0,-40 L24,-18 M0,0 L-18,40 M0,0 L18,40', { w: 6, c: o.color });
+    },
+    cross: function () { return '<path class="ki-x1" d="" stroke="' + C.accent + '" stroke-width="12" fill="none" stroke-linecap="round"/><path class="ki-x2" d="" stroke="' + C.accent + '" stroke-width="12" fill="none" stroke-linecap="round"/>'; },
+    frame: function (o) {     // an empty page / canvas
+      var w = (o.w || 700) / 2, h = (o.h || 500) / 2;
+      return p('M' + (-w + 14) + ',' + (-h) + ' L' + (w - 10) + ',' + (-h + 4) + ' Q' + w + ',' + (-h) + ' ' + w + ',' + (-h + 14) + ' L' + (w - 4) + ',' + (h - 12) +
+        ' Q' + w + ',' + h + ' ' + (w - 14) + ',' + h + ' L' + (-w + 10) + ',' + (h - 3) + ' Q' + (-w) + ',' + h + ' ' + (-w) + ',' + (h - 14) + ' L' + (-w + 3) + ',' + (-h + 12) + ' Q' + (-w) + ',' + (-h) + ' ' + (-w + 14) + ',' + (-h), { w: 6, c: 'inkSoft' });
+    },
+    dot: function (o) { var r = o.r || 22; return p(wobbleCircle(0, 0, r, 9), { c: o.color || 'accent', w: 6, fill: o.color || 'accent', fo: 1 }); },
     check: function (o) { var k = o.k || 1; return p('M' + (-110 * k) + ',' + (-5 * k) + ' L' + (-35 * k) + ',' + (75 * k) + ' L' + (130 * k) + ',' + (-110 * k), { c: 'accent', w: 22 }); },
     arrow: function (o) {
       var x = o.dx || 200, y = o.dy || 0, bend = o.bend || 40, mx = x / 2 - y * bend / 200, my = y / 2 + x * bend / 200;
@@ -293,6 +313,12 @@
   });
   D.objects.forEach(function (o) {
     var ob = objs[o.id];
+    if (o.type === 'cross' && o.target && objs[o.target]) {
+      var bb = worldBox(o.target), sc2 = o.scale || 1, m = 10;
+      var ax = (bb.x - o.x) / sc2 - m, ay = (bb.y - o.y) / sc2 - m, bx = ax + bb.w / sc2 + 2 * m, by = ay + bb.h / sc2 + 2 * m;
+      ob.el.querySelector('.ki-x1').setAttribute('d', 'M' + ax + ',' + ay + ' L' + bx + ',' + by);
+      ob.el.querySelector('.ki-x2').setAttribute('d', 'M' + bx + ',' + ay + ' L' + ax + ',' + by);
+    }
     if ((o.type === 'strike' || o.type === 'circle') && o.target && objs[o.target]) {
       var b = worldBox(o.target), s = o.scale || 1;
       var x0 = (b.x - o.x) / s, y0 = (b.y - o.y) / s, w = b.w / s, h = b.h / s;
@@ -456,7 +482,7 @@
         restAfter(e, s, e.t + (e.hold || 1.6));
         break;
       case 'react':
-        tl.to(s, { armR: 60, armRf: 50, armL: 60, armLf: 50, busyR: 1, busyL: 1, lean: -6, duration: 0.18, ease: 'power2.out' }, e.t);
+        tl.to(s, { armR: 40, armRf: 30, armL: 40, armLf: 30, busyR: 1, busyL: 1, lean: -6, duration: 0.18, ease: 'power2.out' }, e.t);
         tl.to(s, { y: -30, duration: 0.15, yoyo: true, repeat: 1, ease: 'power1.out' }, e.t);
         tl.set(s, { expr: e.expression || 'surprised' }, e.t);
         restAfter(e, s, e.t + (e.hold || 1.2));
@@ -492,6 +518,7 @@
     var bob = -w * 7 * Math.abs(Math.cos(ph)) - (1 - w) * 2.2 * (breath + 1) / 2;
     c.el.setAttribute('transform', 'translate(' + s.x.toFixed(2) + ',' + (GROUND + s.y).toFixed(2) + ') scale(' + sc + ')');
     c.el.setAttribute('opacity', s.opacity.toFixed(3));
+    c.el.setAttribute('visibility', s.draw > 0.001 && s.opacity > 0.001 ? 'visible' : 'hidden');
     c.flip.setAttribute('transform', 'scale(' + (Math.abs(s.flipX) < 0.06 ? 0.06 * Math.sign(s.flipX || 1) : s.flipX).toFixed(3) + ',1)');
     var kneel = s.legSpread;
     c.body.setAttribute('transform', 'translate(0,' + (HIP_Y + bob).toFixed(2) + ')');
@@ -542,11 +569,73 @@
     capEl.style.transform = 'translateX(-50%) scale(' + pop.toFixed(3) + ')';
   }
 
+  var lastOrder = '';
   function render(t) {
-    Object.keys(chars).forEach(function (id) { renderChar(chars[id], t); });
+    var ids = Object.keys(chars);
+    ids.forEach(function (id) { renderChar(chars[id], t); });
+    // z-order: a walking character is always in front of everyone else
+    var order = ids.slice().sort(function (a, b) { return (chars[a].s.walk > 0.01) - (chars[b].s.walk > 0.01); });
+    if (order.join() !== lastOrder) {
+      lastOrder = order.join();
+      order.forEach(function (id) { chars[id].el.parentNode.appendChild(chars[id].el); });
+    }
     var z = cam.z;
     world.setAttribute('transform', 'translate(' + (W / 2) + ',' + (H / 2) + ') rotate(' + cam.r.toFixed(3) + ') scale(' + z.toFixed(4) + ') translate(' + (-cam.x).toFixed(2) + ',' + (-cam.y).toFixed(2) + ')');
     renderCaptions(t);
+  }
+
+  var SAFE = D.safe;
+  var transitions = D.events.filter(function (e) { return e.do === 'walk' && e.camera; }).map(function (e) { return [e.t, e.t + e.dur + 0.3]; });
+  function inter(a, b) { return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); }
+  function shown(el) { return el.getAttribute('visibility') !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0.3; }
+  function offScreen(r) { var vis = inter(r, { left: 0, top: 0, right: W, bottom: H }); return vis < 0.5 * r.width * r.height; }
+  function safeIssues(name, r, out) {
+    var tol = 4;
+    if (r.left < SAFE.x0 - tol || r.right > SAFE.x1 + tol || r.top < SAFE.y0 - tol || r.bottom > SAFE.y1 + tol) out.push(name + ' outside safe box');
+    var cl = SAFE.column;
+    if (inter(r, { left: cl.x0 + tol, top: cl.y0 + tol, right: cl.x1, bottom: cl.y1 }) > 0) out.push(name + ' in right button column');
+  }
+  window.kiCheck = function (t) {
+    var out = [], moving = transitions.some(function (w) { return t >= w[0] && t <= w[1]; });
+    var words = [], people = [];
+    Object.keys(objs).forEach(function (id) {
+      var ob = objs[id]; if (!shown(ob.el)) return;
+      var r = ob.el.getBoundingClientRect(); if (offScreen(r)) return;
+      if (!moving) safeIssues('object ' + id, r, out);
+      if (ob.def.type === 'word') words.push([ob.def.text, r]);
+    });
+    Object.keys(chars).forEach(function (id) {
+      var c = chars[id]; if (c.s.draw < 0.05 || !shown(c.el)) return;
+      // union of the individual strokes: a group's box of rotated boxes overshoots a lot
+      var r = null;
+      c.strokes.forEach(function (el) {
+        if (el.closest('.expr')) return;
+        var b = el.getBoundingClientRect();
+        if (!b.width && !b.height) return;
+        r = r ? { left: Math.min(r.left, b.left), top: Math.min(r.top, b.top), right: Math.max(r.right, b.right), bottom: Math.max(r.bottom, b.bottom) } : { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+      });
+      if (!r) return;
+      r.width = r.right - r.left; r.height = r.bottom - r.top;
+      if (offScreen(r)) return;
+      if (!moving) safeIssues(id, r, out);
+      people.push([id, r, c.s.walk > 0.01]);
+    });
+    if (capEl.textContent.trim()) safeIssues('captions', capEl.getBoundingClientRect(), out);
+    people.forEach(function (pp) {
+      words.forEach(function (w) { if (inter(pp[1], w[1]) > 0.04 * w[1].width * w[1].height) out.push(pp[0] + ' covers "' + w[0] + '"'); });
+      if (pp[2]) people.forEach(function (q) { if (q !== pp && inter(pp[1], q[1]) > 0.15 * q[1].width * q[1].height) out.push(pp[0] + ' walks through ' + q[0]); });
+    });
+    return out;
+  };
+  if (D.debugSafe) {   // overlay the TikTok safe box (debug stills only)
+    var ov = document.createElementNS(SVGNS, 'svg');
+    ov.setAttribute('viewBox', '0 0 ' + W + ' ' + H); ov.setAttribute('style', 'position:absolute;left:0;top:0;width:' + W + 'px;height:' + H + 'px;pointer-events:none');
+    var cl = SAFE.column;
+    ov.innerHTML = '<rect x="0" y="0" width="' + W + '" height="' + SAFE.y0 + '" fill="#000" fill-opacity="0.18"/>' +
+      '<rect x="0" y="' + SAFE.y1 + '" width="' + W + '" height="' + (H - SAFE.y1) + '" fill="#000" fill-opacity="0.18"/>' +
+      '<rect x="' + cl.x0 + '" y="' + cl.y0 + '" width="' + (cl.x1 - cl.x0) + '" height="' + (cl.y1 - cl.y0) + '" fill="#d00" fill-opacity="0.18" stroke="#d00" stroke-width="3"/>' +
+      '<rect x="' + SAFE.x0 + '" y="' + SAFE.y0 + '" width="' + (SAFE.x1 - SAFE.x0) + '" height="' + (SAFE.y1 - SAFE.y0) + '" fill="none" stroke="#0a0" stroke-width="4" stroke-dasharray="18 10"/>';
+    document.getElementById('stage').appendChild(ov);
   }
 
   window.kiSeek = function (t) { tl.seek(t, true); render(t); return true; };

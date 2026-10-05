@@ -57,7 +57,7 @@ jobs:
           set -euo pipefail
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 --work storage/kindled_iron/work
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 --work storage/kindled_iron/work \
-            --reuse-audio --frames-only 0.5,4,10,16,22,28,34
+            --reuse-audio --safe-box --frames-only 0.5,4,10,16,22,28,34
 
       - name: Check the MP4 with ffprobe
         run: |
@@ -76,8 +76,8 @@ jobs:
               problems.append("video is not 1080x1920")
           if not a:
               problems.append("no audio stream")
-          if not 30.0 <= dur <= 46.0:
-              problems.append(f"duration {dur:.1f} s is outside 30-46 s")
+          if not 30.0 <= dur <= 70.0:
+              problems.append(f"duration {dur:.1f} s is outside 30-70 s")
           print(f"duration {dur:.2f} s, video {len(v)}, audio {len(a)}")
           if problems:
               sys.exit("FAIL: " + "; ".join(problems))
@@ -96,5 +96,6 @@ jobs:
             storage/kindled_iron/test.srt
             storage/kindled_iron/work/stills/**
             storage/kindled_iron/work/timings.json
+            storage/kindled_iron/work/checks.json
           if-no-files-found: warn
           retention-days: 14

@@ -1,0 +1,48 @@
+name: Kindled Iron Voice Samples
+
+# Renders the same lines in 6 calm, warm Kokoro voices so the owner can pick one. Never publishes.
+on:
+  workflow_dispatch:
+    inputs:
+      voices:
+        description: "Comma-separated Kokoro voices"
+        required: true
+        default: "af_heart,af_bella,bf_emma,bm_george,bm_fable,am_fenrir"
+      speed:
+        description: "Speed (1.0 = normal)"
+        required: true
+        default: "1.0"
+
+permissions:
+  contents: read
+
+jobs:
+  voices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ffmpeg + espeak-ng
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng
+      - name: Cache models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kindled-iron-models-v1
+      - name: Install Python packages
+        run: |
+          set -euo pipefail
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install kokoro soundfile
+          python -m spacy download en_core_web_sm
+      - name: Render samples
+        run: python -m kindled_iron.voice_samples --out storage/kindled_iron/voices --voices "${{ inputs.voices }}" --speed "${{ inputs.speed }}"
+      - name: Upload samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindled-iron-voices
+          path: storage/kindled_iron/voices/*.mp3
+          retention-days: 14

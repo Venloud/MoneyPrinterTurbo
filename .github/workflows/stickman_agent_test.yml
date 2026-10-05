@@ -26,6 +26,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             Work inside the current GitHub repository. This is a TEST ONLY.
             Do not publish or upload the video anywhere.

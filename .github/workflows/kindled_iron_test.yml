@@ -1,0 +1,100 @@
+name: Kindled Iron Test Render
+
+# Test only: renders one scene JSON to an MP4 artifact. Never publishes anywhere.
+on:
+  workflow_dispatch:
+    inputs:
+      scene:
+        description: "Scene JSON to render"
+        required: true
+        default: "kindled_iron/scenes/genesis-1.json"
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install system packages (ffmpeg, espeak-ng, Chrome)
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng fonts-dejavu-core
+          if ! command -v google-chrome >/dev/null; then
+            wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y /tmp/chrome.deb
+          fi
+          google-chrome --version
+          echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+
+      - name: Cache models (Kokoro, Whisper)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kindled-iron-models-v1
+
+      - name: Install Python packages
+        run: |
+          set -euo pipefail
+          # CPU torch first so kokoro doesn't pull the multi-GB CUDA build
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install kokoro soundfile faster-whisper playwright
+          # Kokoro's English G2P needs this spaCy model; install it up front instead of at runtime
+          python -m spacy download en_core_web_sm
+
+      - name: Render
+        run: |
+          set -euo pipefail
+          python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 --work storage/kindled_iron/work
+          python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 --work storage/kindled_iron/work \
+            --reuse-audio --frames-only 0.5,4,10,16,22,28,34
+
+      - name: Check the MP4 with ffprobe
+        run: |
+          set -euo pipefail
+          f=storage/kindled_iron/test.mp4
+          ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,r_frame_rate:format=duration,size -of default=noprint_wrappers=1 "$f"
+          python - <<'PY'
+          import json, subprocess, sys
+          f = "storage/kindled_iron/test.mp4"
+          info = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", f]))
+          v = [s for s in info["streams"] if s["codec_type"] == "video"]
+          a = [s for s in info["streams"] if s["codec_type"] == "audio"]
+          dur = float(info["format"]["duration"])
+          problems = []
+          if not v or (v[0]["width"], v[0]["height"]) != (1080, 1920):
+              problems.append("video is not 1080x1920")
+          if not a:
+              problems.append("no audio stream")
+          if not 30.0 <= dur <= 46.0:
+              problems.append(f"duration {dur:.1f} s is outside 30-46 s")
+          print(f"duration {dur:.2f} s, video {len(v)}, audio {len(a)}")
+          if problems:
+              sys.exit("FAIL: " + "; ".join(problems))
+          print("OK")
+          PY
+          # full decode: a corrupt file fails here
+          ffmpeg -v error -i "$f" -f null - && echo "decode OK"
+
+      - name: Upload MP4 + stills
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindled-iron-test
+          path: |
+            storage/kindled_iron/test.mp4
+            storage/kindled_iron/test.srt
+            storage/kindled_iron/work/stills/**
+            storage/kindled_iron/work/timings.json
+          if-no-files-found: warn
+          retention-days: 14

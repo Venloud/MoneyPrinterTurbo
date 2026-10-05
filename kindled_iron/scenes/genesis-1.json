@@ -1,0 +1,801 @@
+{
+  "id": "genesis-1",
+  "title": "Genesis 1: where the Bible begins",
+  "voice": {
+    "name": "am_michael",
+    "speed": 1.05,
+    "lang": "a"
+  },
+  "beat_gap": 0.28,
+  "end_hold": 1.8,
+  "ground": 1250,
+  "camera_y": 900,
+  "cast": {
+    "guide": {
+      "panel": 0,
+      "x": 190,
+      "scale": 1.5,
+      "facing": 1,
+      "accent": true
+    },
+    "man": {
+      "panel": 4,
+      "x": 330,
+      "scale": 1.35,
+      "facing": 1
+    },
+    "woman": {
+      "panel": 4,
+      "x": 560,
+      "scale": 1.35,
+      "facing": -1,
+      "hair": "long-straight",
+      "dress": true
+    }
+  },
+  "beats": [
+    {
+      "id": "hook",
+      "panel": 0,
+      "narration": "The Bible doesn't begin with Adam. It begins with God.",
+      "events": [
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "bible",
+          "type": "book",
+          "x": 610,
+          "y": 250,
+          "scale": 0.8,
+          "dur": 0.5
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "adam",
+          "type": "word",
+          "text": "ADAM",
+          "x": 610,
+          "y": 470,
+          "size": 210,
+          "dur": 0.5
+        },
+        {
+          "at": "doesn't",
+          "do": "shake",
+          "who": "guide"
+        },
+        {
+          "at": "Adam",
+          "do": "point",
+          "who": "guide",
+          "toward": "adam",
+          "hold": 1.0
+        },
+        {
+          "at": "Adam+0.25",
+          "do": "draw",
+          "id": "adam_x",
+          "type": "strike",
+          "target": "adam",
+          "x": 610,
+          "y": 470,
+          "dur": 0.4
+        },
+        {
+          "at": "God-0.1",
+          "do": "draw",
+          "id": "god",
+          "type": "word",
+          "text": "GOD",
+          "color": "accent",
+          "x": 610,
+          "y": 860,
+          "size": 280,
+          "dur": 0.6,
+          "pop": true
+        },
+        {
+          "at": "God+0.2",
+          "do": "draw",
+          "id": "god_rays",
+          "type": "rays",
+          "x": 610,
+          "y": 860,
+          "n": 14,
+          "r1": 190,
+          "r2": 260,
+          "rx": 1.15,
+          "dur": 0.7
+        },
+        {
+          "at": "God",
+          "do": "react",
+          "who": "guide",
+          "expression": "surprised"
+        },
+        {
+          "at": "God",
+          "do": "camera",
+          "x": 560,
+          "y": 860,
+          "zoom": 1.12,
+          "dur": 1.0
+        }
+      ]
+    },
+    {
+      "id": "darkness",
+      "panel": 1,
+      "narration": "In the beginning, the earth is formless and empty. Darkness covers the deep waters.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "walk",
+          "who": "guide",
+          "to": 170,
+          "camera": true,
+          "camY": 900
+        },
+        {
+          "at": "formless",
+          "do": "draw",
+          "id": "blob",
+          "type": "blob",
+          "x": 640,
+          "y": 580,
+          "r": 170,
+          "dur": 1.0
+        },
+        {
+          "at": "formless",
+          "do": "draw",
+          "id": "lbl_formless",
+          "type": "word",
+          "text": "FORMLESS & EMPTY",
+          "x": 600,
+          "y": 300,
+          "size": 96,
+          "dur": 0.9
+        },
+        {
+          "at": "empty",
+          "do": "shrug",
+          "who": "guide"
+        },
+        {
+          "at": "Darkness-0.1",
+          "do": "draw",
+          "id": "dark1",
+          "type": "darkness",
+          "x": 650,
+          "y": 600,
+          "w": 720,
+          "h": 520,
+          "dur": 1.3
+        },
+        {
+          "at": "Darkness",
+          "do": "react",
+          "who": "guide",
+          "expression": "surprised"
+        },
+        {
+          "at": "deep",
+          "do": "draw",
+          "id": "deep1",
+          "type": "waves",
+          "x": 660,
+          "y": 1030,
+          "w": 680,
+          "rows": 3,
+          "dur": 1.0
+        },
+        {
+          "at": "deep",
+          "do": "look",
+          "who": "guide",
+          "dir": "down",
+          "hold": 1.0
+        },
+        {
+          "at": "Darkness",
+          "do": "camera",
+          "x": 560,
+          "y": 840,
+          "zoom": 1.06,
+          "dur": 2.2,
+          "ease": "sine.inOut"
+        }
+      ]
+    },
+    {
+      "id": "order",
+      "panel": 2,
+      "narration": "Then God speaks. Light breaks through. He separates light from dark, sky from sea, and land from water.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "walk",
+          "who": "guide",
+          "to": 150,
+          "camera": true,
+          "camY": 880
+        },
+        {
+          "at": 0.1,
+          "do": "draw",
+          "id": "dark2",
+          "type": "darkness",
+          "x": 600,
+          "y": 470,
+          "w": 860,
+          "h": 600,
+          "dur": 0.8
+        },
+        {
+          "at": "speaks",
+          "do": "draw",
+          "id": "voice",
+          "type": "voice",
+          "x": 330,
+          "y": 300,
+          "dur": 0.6
+        },
+        {
+          "at": "Light",
+          "do": "draw",
+          "id": "light",
+          "type": "light",
+          "x": 660,
+          "y": 440,
+          "r": 85,
+          "dur": 0.8,
+          "pop": true
+        },
+        {
+          "at": "Light",
+          "do": "fade",
+          "ids": [
+            "dark2",
+            "voice"
+          ],
+          "opacity": 0.12,
+          "dur": 0.8
+        },
+        {
+          "at": "Light",
+          "do": "react",
+          "who": "guide",
+          "expression": "happy"
+        },
+        {
+          "at": "sky",
+          "do": "draw",
+          "id": "horizon",
+          "type": "line",
+          "x": 600,
+          "y": 900,
+          "w": 900,
+          "dur": 0.5
+        },
+        {
+          "at": "sky",
+          "do": "draw",
+          "id": "cloud",
+          "type": "cloud",
+          "x": 420,
+          "y": 690,
+          "dur": 0.7
+        },
+        {
+          "at": "sky",
+          "do": "point",
+          "who": "guide",
+          "toward": "cloud",
+          "hold": 0.8
+        },
+        {
+          "at": "sea",
+          "do": "draw",
+          "id": "sea",
+          "type": "waves",
+          "x": 520,
+          "y": 1000,
+          "w": 420,
+          "rows": 3,
+          "dur": 0.7
+        },
+        {
+          "at": "sea",
+          "do": "point",
+          "who": "guide",
+          "toward": "sea",
+          "hold": 0.9
+        },
+        {
+          "at": "land",
+          "do": "draw",
+          "id": "land",
+          "type": "hill",
+          "x": 860,
+          "y": 900,
+          "w": 380,
+          "h": 170,
+          "dur": 0.7
+        },
+        {
+          "at": "land",
+          "do": "point",
+          "who": "guide",
+          "toward": "land",
+          "hold": 1.2
+        },
+        {
+          "at": "separates",
+          "do": "camera",
+          "x": 560,
+          "y": 760,
+          "zoom": 0.96,
+          "dur": 1.6
+        }
+      ]
+    },
+    {
+      "id": "fill",
+      "panel": 3,
+      "narration": "Then He fills it. Plants and trees cover the land. Sun, moon and stars fill the sky. Fish swim, birds fly, and animals walk the earth.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "walk",
+          "who": "guide",
+          "to": 150,
+          "camera": true,
+          "camY": 840
+        },
+        {
+          "at": 0.2,
+          "do": "draw",
+          "id": "horizon3",
+          "type": "line",
+          "x": 600,
+          "y": 900,
+          "w": 920,
+          "dur": 0.5
+        },
+        {
+          "at": 0.3,
+          "do": "draw",
+          "id": "hill3",
+          "type": "hill",
+          "x": 830,
+          "y": 900,
+          "w": 460,
+          "h": 190,
+          "dur": 0.6
+        },
+        {
+          "at": 0.4,
+          "do": "draw",
+          "id": "sea3",
+          "type": "waves",
+          "x": 480,
+          "y": 1010,
+          "w": 380,
+          "rows": 3,
+          "dur": 0.6
+        },
+        {
+          "at": "Plants",
+          "do": "draw",
+          "id": "plant1",
+          "type": "plant",
+          "x": 720,
+          "y": 800,
+          "flower": true,
+          "dur": 0.5
+        },
+        {
+          "at": "Plants+0.2",
+          "do": "draw",
+          "id": "plant2",
+          "type": "plant",
+          "x": 960,
+          "y": 820,
+          "dur": 0.5
+        },
+        {
+          "at": "trees",
+          "do": "draw",
+          "id": "tree",
+          "type": "tree",
+          "x": 840,
+          "y": 610,
+          "dur": 0.8
+        },
+        {
+          "at": "trees",
+          "do": "reach",
+          "who": "guide",
+          "toward": "tree",
+          "hold": 1.0
+        },
+        {
+          "at": "Sun",
+          "do": "draw",
+          "id": "sun",
+          "type": "sun",
+          "x": 800,
+          "y": 250,
+          "dur": 0.6,
+          "pop": true
+        },
+        {
+          "at": "Sun",
+          "do": "camera",
+          "x": 560,
+          "y": 700,
+          "zoom": 1.0,
+          "dur": 0.8
+        },
+        {
+          "at": "Sun",
+          "do": "look",
+          "who": "guide",
+          "dir": "up",
+          "expression": "surprised",
+          "hold": 1.6
+        },
+        {
+          "at": "moon",
+          "do": "draw",
+          "id": "moon",
+          "type": "moon",
+          "x": 360,
+          "y": 260,
+          "dur": 0.5
+        },
+        {
+          "at": "stars",
+          "do": "draw",
+          "id": "stars",
+          "type": "stars",
+          "x": 560,
+          "y": 420,
+          "w": 620,
+          "h": 150,
+          "n": 6,
+          "dur": 0.7
+        },
+        {
+          "at": "Fish",
+          "do": "camera",
+          "x": 560,
+          "y": 860,
+          "zoom": 1.0,
+          "dur": 0.8
+        },
+        {
+          "at": "Fish",
+          "do": "draw",
+          "id": "fish1",
+          "type": "fish",
+          "x": 420,
+          "y": 1110,
+          "scale": 0.9,
+          "dur": 0.5
+        },
+        {
+          "at": "Fish+0.2",
+          "do": "draw",
+          "id": "fish2",
+          "type": "fish",
+          "x": 600,
+          "y": 1170,
+          "scale": 0.7,
+          "dur": 0.5
+        },
+        {
+          "at": "birds",
+          "do": "draw",
+          "id": "birds",
+          "type": "birds",
+          "x": 520,
+          "y": 560,
+          "n": 3,
+          "dur": 0.5
+        },
+        {
+          "at": "birds",
+          "do": "point",
+          "who": "guide",
+          "toward": "birds",
+          "hold": 0.8
+        },
+        {
+          "at": "animals",
+          "do": "draw",
+          "id": "sheep",
+          "type": "animal",
+          "x": 930,
+          "y": 1150,
+          "scale": 0.9,
+          "dur": 0.7
+        },
+        {
+          "at": "walk",
+          "do": "walk",
+          "who": "guide",
+          "to": 330
+        },
+        {
+          "at": "earth",
+          "do": "camera",
+          "x": 600,
+          "y": 900,
+          "zoom": 1.04,
+          "dur": 0.8
+        }
+      ]
+    },
+    {
+      "id": "humanity",
+      "panel": 4,
+      "narration": "Last, God makes humanity, male and female, in His own image, and puts them in charge of His world.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "walk",
+          "who": "guide",
+          "to": 900,
+          "camera": true,
+          "camY": 900,
+          "camZoom": 1.0,
+          "speed": 900,
+          "face": -1,
+          "camX": 560
+        },
+        {
+          "at": "humanity+0.6",
+          "do": "enter",
+          "who": "man",
+          "dur": 0.8
+        },
+        {
+          "at": "humanity+0.75",
+          "do": "enter",
+          "who": "woman",
+          "dur": 0.8
+        },
+        {
+          "at": "humanity+0.6",
+          "do": "camera",
+          "x": 480,
+          "y": 960,
+          "zoom": 1.12,
+          "dur": 0.9
+        },
+        {
+          "at": "male",
+          "do": "wave",
+          "who": "man"
+        },
+        {
+          "at": "female",
+          "do": "wave",
+          "who": "woman"
+        },
+        {
+          "at": "image",
+          "do": "draw",
+          "id": "image",
+          "type": "word",
+          "text": "IN HIS IMAGE",
+          "color": "accent",
+          "x": 560,
+          "y": 470,
+          "size": 140,
+          "underline": true,
+          "dur": 0.8
+        },
+        {
+          "at": "image",
+          "do": "camera",
+          "x": 560,
+          "y": 820,
+          "zoom": 1.0,
+          "dur": 0.8
+        },
+        {
+          "at": "image",
+          "do": "present",
+          "who": "guide",
+          "hold": 1.2
+        },
+        {
+          "at": "charge",
+          "do": "draw",
+          "id": "globe",
+          "type": "globe",
+          "x": 445,
+          "y": 680,
+          "r": 80,
+          "dur": 0.7
+        },
+        {
+          "at": "charge",
+          "do": "reach",
+          "who": "man",
+          "toward": "globe",
+          "hold": 1.3
+        },
+        {
+          "at": "charge",
+          "do": "reach",
+          "who": "woman",
+          "toward": "globe",
+          "hold": 1.3
+        }
+      ]
+    },
+    {
+      "id": "good",
+      "panel": 4,
+      "narration": "God looks at everything He made, and it is very good.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "image",
+            "globe"
+          ],
+          "opacity": 0,
+          "dur": 0.4
+        },
+        {
+          "at": 0,
+          "do": "camera",
+          "x": 560,
+          "y": 860,
+          "zoom": 0.94,
+          "dur": 1.2
+        },
+        {
+          "at": "everything",
+          "do": "look",
+          "who": "guide",
+          "dir": "up",
+          "hold": 1.2
+        },
+        {
+          "at": "everything",
+          "do": "look",
+          "who": "man",
+          "dir": "up",
+          "hold": 1.2
+        },
+        {
+          "at": "everything",
+          "do": "look",
+          "who": "woman",
+          "dir": "up",
+          "hold": 1.2
+        },
+        {
+          "at": "very-0.15",
+          "do": "draw",
+          "id": "very_good",
+          "type": "word",
+          "text": "VERY GOOD",
+          "color": "accent",
+          "x": 520,
+          "y": 380,
+          "size": 170,
+          "dur": 0.7
+        },
+        {
+          "at": "good",
+          "do": "draw",
+          "id": "check",
+          "type": "check",
+          "x": 520,
+          "y": 640,
+          "k": 0.9,
+          "dur": 0.5,
+          "pop": true
+        },
+        {
+          "at": "good",
+          "do": "cheer",
+          "who": "guide"
+        },
+        {
+          "at": "good",
+          "do": "cheer",
+          "who": "man"
+        },
+        {
+          "at": "good+0.1",
+          "do": "cheer",
+          "who": "woman"
+        },
+        {
+          "at": "good",
+          "do": "camera",
+          "x": 560,
+          "y": 820,
+          "zoom": 1.02,
+          "dur": 0.6
+        }
+      ]
+    },
+    {
+      "id": "endcard",
+      "panel": 5,
+      "narration": "Read it yourself. Genesis chapter one.",
+      "captions": false,
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "walk",
+          "who": "guide",
+          "to": 150,
+          "camera": true,
+          "camY": 820,
+          "camZoom": 1.0,
+          "speed": 520
+        },
+        {
+          "at": 0.1,
+          "do": "draw",
+          "id": "end_book",
+          "type": "book",
+          "x": 630,
+          "y": 300,
+          "scale": 1.15,
+          "dur": 0.8
+        },
+        {
+          "at": "Read",
+          "do": "draw",
+          "id": "end_read",
+          "type": "word",
+          "text": "READ IT YOURSELF:",
+          "x": 630,
+          "y": 560,
+          "size": 112,
+          "dur": 0.9
+        },
+        {
+          "at": "Genesis-0.1",
+          "do": "draw",
+          "id": "end_gen",
+          "type": "word",
+          "text": "GENESIS 1",
+          "color": "accent",
+          "x": 630,
+          "y": 760,
+          "size": 200,
+          "underline": "ink",
+          "dur": 0.8,
+          "pop": true
+        },
+        {
+          "at": "Genesis",
+          "do": "point",
+          "who": "guide",
+          "toward": "end_gen",
+          "hold": 2.5
+        }
+      ]
+    }
+  ]
+}

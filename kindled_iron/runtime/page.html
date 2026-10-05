@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kindled Iron</title>
+<style>
+  @font-face { font-family: "Caveat"; src: url("__FONT__") format("truetype"); font-weight: 400 700; }
+  html, body { margin: 0; padding: 0; background: __BOARD__; overflow: hidden; }
+  #stage { position: relative; width: __W__px; height: __H__px; overflow: hidden; }
+  #board { position: absolute; left: 0; top: 0; width: __W__px; height: __H__px; }
+  #captions {
+    position: absolute; left: 50%; top: __CAPTION_Y__px; width: 960px; transform: translateX(-50%);
+    text-align: center; font-family: "Caveat"; font-weight: 700; font-size: __CAPTION_SIZE__px; line-height: 1.0;
+    color: __INK__; -webkit-text-stroke: 16px __BOARD__; paint-order: stroke fill; letter-spacing: 1px;
+  }
+  #captions span.on { color: __ACCENT__; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <svg id="board" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 __W__ __H__"></svg>
+  <div id="captions"></div>
+</div>
+<script src="__GSAP__"></script>
+<script>window.KI_DATA = __DATA__;</script>
+<script>
+  // Build only after the local font is loaded (text widths drive clip/strike geometry).
+  document.fonts.load('700 100px Caveat').then(function () { return document.fonts.ready; }).then(function () {
+    var s = document.createElement('script'); s.src = "__RUNTIME__"; document.body.appendChild(s);
+  });
+</script>
+</body>
+</html>

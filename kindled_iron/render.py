@@ -169,7 +169,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         t_change = max([start] + [o["quote_end"] + 1.0 + 0.3 for o in objects if o["type"] == "scripture"
                                   and o["quote_end"] + 1.0 + 0.3 > start])
         if b and trans:
-            events += transition_events(trans, t_change, off, cam if isinstance(cam, dict) else {}, cam_y)
+            events += transition_events(trans, t_change, off, cam if isinstance(cam, dict) else {}, cam_y, beat.get("whoosh"))
         elif cam is not False:
             cam = cam or {}
             events.append({"t": max(0.0, start - 0.25) if b else 0.0, "do": "camera",
@@ -314,11 +314,11 @@ def hold_cards(events: list[dict], objects: list[dict]) -> None:
     events.sort(key=lambda e: e["t"])
 
 
-def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float) -> list[dict]:
+def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float, whoosh=None) -> list[dict]:
     """Scene change: cut, slide, zoom or wipe to the next panel (the guide re-enters with an action)."""
     kind = trans if isinstance(trans, str) else trans.get("type", "slide")
     x, y, z = off + cam.get("x", 540), cam.get("y", cam_y), cam.get("zoom", 1.0)
-    base = {"do": "camera", "x": x, "y": y, "transition": kind}
+    base = {"do": "camera", "x": x, "y": y, "transition": kind, "whoosh": whoosh}
     if kind == "cut":
         return [{**base, "t": max(0.0, t0 - 0.05), "zoom": z, "dur": 0.01}]
     if kind == "zoom":                      # punch into the old scene, cut, pull back out of the new one

@@ -12,7 +12,7 @@
         "similarity_boost": 0.8,
         "style": 0.15,
         "use_speaker_boost": true,
-        "speed": 1.05
+        "speed": 1.0
       },
       "monthly_char_budget": 40000,
       "min_remaining_fraction": 0.1,
@@ -26,20 +26,20 @@
     },
     "kokoro": {
       "voice": "am_fenrir",
-      "speed": 1.1,
+      "speed": 1.0,
       "lang": "a"
     },
     "eq": "highpass=f=70,equalizer=f=3200:t=q:w=1.2:g=1.5",
     "pacing": "tight",
-    "trim_over": 0.3,
-    "keep_gap": 0.25,
+    "trim_over": 0.45,
+    "keep_gap": 0.4,
     "max_beat": 0.4,
-    "max_beats": 3,
+    "max_beats": 0,
     "wpm_target": [
       165,
-      185
+      175
     ],
-    "music_track": "trailer"
+    "music_track": "none"
   },
   "night_files": {
     "description": "slow, serious, tense",

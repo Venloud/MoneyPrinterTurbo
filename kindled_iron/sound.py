@@ -4,7 +4,7 @@
   - a soft chime when each scripture reference appears
   - a soft whoosh on every other scene change
   - one short pencil sound per scene, on its main drawing only ("main": true)
-  Hard cap 15 effects, never two within 0.8 s. No per-stroke sounds (no marker, scribble, eraser,
+  Cap and spacing from sound_levels.json (max_effects, min_spacing_s; Kindled Iron: 10, 1 s); pencil can be off. No per-stroke sounds (no marker, scribble, eraser,
   scratch), no ambience beds. "sound": "<role>" / "sound": false on an event overrides.
 
 Music: one track per channel (voice_profiles.json music_track -> vendor/sfx/lib/music_<name>.ogg),
@@ -58,11 +58,14 @@ class Picker:
         return f, 1.0 + self.rng.uniform(-0.04, 0.04)
 
 
-MAX_EFFECTS, MIN_SPACING, MAX_HITS = 15, 0.8, 3
+MAX_EFFECTS = int(CONFIG.get("max_effects", 15))
+MIN_SPACING = float(CONFIG.get("min_spacing_s", 0.8))
+MAX_HITS = 3
+PENCIL = bool(CONFIG.get("pencil", True))
 
 
 def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, picker: Picker | None = None) -> list[dict]:
-    """Few, meaningful effects (a cap of 15, never two within 0.8 s), in priority order:
+    """Few, meaningful effects (cap and spacing from sound_levels.json), in priority order:
       1. a big hit on the key moments: events marked "hit": true (max 3)
       2. a soft chime when each scripture reference appears
       3. a soft whoosh on some scene changes (every other one)
@@ -91,9 +94,10 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
             add(2, t + float(e.get("dur") or 1.5) + 0.1, "chime", f"reference {o.get('ref')} appears")
         elif do == "camera" and e.get("transition"):
             scene_changes += 1
-            if scene_changes % 2 == 1:
+            big = e.get("whoosh")                       # the scene marks its big changes; else every other one
+            if big or (big is None and scene_changes % 2 == 1):
                 add(3, t - 0.05, "whoosh_slow", f"scene change ({e['transition']})", 0.7)
-        elif do == "draw" and o and e.get("main"):
+        elif do == "draw" and o and e.get("main") and PENCIL:
             beat = next((b for b, (a, z) in enumerate(spans) if a - 0.3 <= t <= z + 0.3), None)
             if beat not in pencil_beats:
                 pencil_beats.add(beat)

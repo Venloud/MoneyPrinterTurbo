@@ -174,6 +174,13 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                            "dur": cam.get("dur", 0.9 if b else 0.01)})
         for ev in beat.get("events", []):
             e = dict(ev)
+            if isinstance(e.get("scripture"), dict):
+                card_n = sum(1 for o in objects if o["type"] == "scripture")
+                o, ev_draw = scripture_card(e, words, off, card_n, beat.get("id", b))
+                objects.append(o)
+                events.append(ev_draw)
+                ids.add(o["id"])
+                continue
             if "do" not in e:                     # shorthand {"guide": "parachute", ...}
                 who = next((k for k in scene["cast"] if isinstance(e.get(k), str)), None)
                 if who:
@@ -236,13 +243,69 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             faded.update(old)
             events.append({"t": max(0.0, e["t"] - 0.15), "do": "fade", "ids": old, "opacity": 0, "dur": 0.25})
     events.sort(key=lambda e: e["t"])
+    hold_cards(events, objects)
     respond(events, objects)
     interaction_check(scene, events, objects, spans)
     events.sort(key=lambda e: e["t"])
     return {"width": WIDTH, "height": HEIGHT, "fps": FPS, "duration": duration, "ground": ground,
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
-            "captionSize": CAPTION["size"], "hud": HUD, "paper": None, "inboxReactions": []}
+            "captionSize": CAPTION["size"], "hud": HUD, "paper": None, "inboxReactions": [],
+            "fillMin": scene.get("fill_min", 0.45)}
+
+
+def _norm_words(text: str) -> list[str]:
+    from kindled_iron.scripture import words as w
+    return w(text)
+
+
+def wrap(text: str, size: int, width: int) -> list[str]:
+    per = max(8, int(width / (0.43 * size)))         # Caveat bold: ~0.43 em a character
+    lines, cur = [], ""
+    for word in text.split():
+        if cur and len(cur) + 1 + len(word) > per:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = f"{cur} {word}".strip()
+    return lines + ([cur] if cur else [])
+
+
+def scripture_card(e: dict, words: list[dict], off: int, n: int, beat_id) -> tuple[dict, dict]:
+    """A scripture card is written on exactly while the quote is spoken: its words are found in this
+    beat's narration; the reference appears when the quote ends."""
+    from kindled_iron.scripture import canonical
+
+    card = e["scripture"]
+    want = _norm_words(card["text"])
+    said = [(_norm_words(w["word"]) or [""])[0] for w in words]
+    hit = next((i for i in range(len(said) - len(want) + 1) if said[i:i + len(want)] == want), None)
+    if hit is None:
+        raise SystemExit(f"FAIL: beat {beat_id}: the scripture card text {card['text']!r} is not spoken in this beat")
+    t0, t1 = words[hit]["start"], words[hit + len(want) - 1]["end"]
+    size = int(e.get("size", 76))
+    w = int(e.get("w", 800))
+    lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
+    if len(lines) > 3:
+        size = int(size * 0.85)
+        lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
+    o = {"id": e.get("id", f"card{n + 1}"), "type": "scripture", "x": off + e.get("x", 540), "y": e.get("y", 430),
+         "w": w, "size": size, "lines": lines, "ref": canonical(card["ref"]), "text": card["text"],
+         "quote_end": round(t1, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
+    return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "pop": False}
+
+
+def hold_cards(events: list[dict], objects: list[dict]) -> None:
+    """A card stays on screen at least 1 s after its quote ends: earlier fades are pushed back,
+    an earlier scene change is a SCRIPTURE WARNING."""
+    for o in [o for o in objects if o["type"] == "scripture"]:
+        until = o["quote_end"] + 1.0
+        for e in events:
+            if e["do"] == "fade" and o["id"] in (e.get("ids") or [e.get("id")]) and e["t"] < until:
+                e["t"] = round(until, 3)
+            if (e.get("transition") or (e["do"] == "walk" and e.get("camera"))) and o["quote_end"] - 0.3 < e["t"] < until:
+                log(f"SCRIPTURE WARNING: {o['ref']} leaves the screen {until - e['t']:.1f} s too early (scene change)")
+    events.sort(key=lambda e: e["t"])
 
 
 def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float) -> list[dict]:
@@ -341,7 +404,8 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
             else:
                 r.append([t, t])
         t = round(t + 0.2, 3)
-    out = [{"issue": m, "from": a, "to": b} for m, rs in ranges.items() for a, b in rs]
+    out = [{"issue": m, "from": a, "to": b} for m, rs in ranges.items() for a, b in rs
+           if not m.startswith("SPARSE") or b - a >= 1.5]          # sparse only counts over 1.5 s
     out.sort(key=lambda x: x["from"])
     (work / "checks.json").write_text(json.dumps(out, indent=1))
     for x in out:
@@ -471,6 +535,9 @@ def main() -> None:
     from kindled_iron import script_check
 
     scene = script_check.check(scene, log, MIN_WORDS)
+    from kindled_iron import scripture
+
+    verse_results = scripture.check_scene(scene, log)      # fails the render on any misquote
     out = Path(a.out or f"storage/kindled_iron/{sid}.mp4").resolve()
     work = Path(a.work or out.parent / f"{sid}_work").resolve()
     work.mkdir(parents=True, exist_ok=True)
@@ -583,7 +650,8 @@ def main() -> None:
     words = sum(len(words_of(x)) for x in texts)
     meta = {"scene": sid, "duration": duration, "words": words, "voice": voice_meta,
             "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues),
-            "longest_sound_gap": snd["longest_gap"], "lufs": mixed["lufs"], "empty_stretches": empty}
+            "longest_sound_gap": snd["longest_gap"], "lufs": mixed["lufs"], "empty_stretches": empty,
+            "verse_check": verse_results}
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
     if a.debug_copy:
         dbg = out.with_name(out.stem + "_safebox.mp4")

@@ -13,8 +13,8 @@ HERE = Path(__file__).resolve().parent
 INBOX = HERE / "reactions_inbox"
 SR = 44100
 
-BUILTIN_FACES = {"shocked", "mind_blown", "side_eye", "crying_laughing", "thinking", "wait_what"}
-MAX_REACTIONS, MIN_GAP = 2, 15.0
+BUILTIN_FACES = {"puzzled", "surprised", "shocked", "mind_blown", "side_eye", "crying_laughing", "thinking", "wait_what"}
+MAX_REACTIONS, MIN_GAP = 2, 3.0
 
 
 # --------------------------------------------------------------- reactions

@@ -14,8 +14,8 @@ override per event ("sound": "<role>" or "sound": false).
 
 "Big" = the main subject or over ~25 % of the safe box ("weight": "big" | "small" on the event or the
 object; otherwise estimated from its size). One big sound at a time; never two booms within 1.5 s.
-Mix: voice on top; pencil + hits ~13 dB under it, ambience + music ~20 dB under and ducking further
-under speech; final -14 LUFS. Every sound used is listed with its time, file and source.
+Mix (sound_levels.json): pencil family -20 dB, pops/ticks/chime -18, big sounds -14 (never peaking above
+the voice), ambience -26, music -24, all 4 dB lower while someone speaks; the voice is set to -14 LUFS.
 """
 from __future__ import annotations
 
@@ -38,10 +38,12 @@ MARKS = {"plant", "check", "voice", "arrow", "star", "circle", "underline"}
 BIG_ROLES = {"rumble", "thud", "whoosh_fall", "boom", "riser", "burst", "water_rush", "whoosh_slow"}
 BOOMS = {"boom", "thud"}
 # level of each role relative to the voice (dB under the voice's speech RMS)
-LEVEL = {"pencil_long": 14, "scribble": 14, "marker": 16, "handwriting": 14, "scratch": 12, "eraser": 14,
-         "pop": 15, "rumble": 12, "thud": 12, "whoosh_fall": 13, "boom": 12, "riser": 14, "burst": 13,
-         "water_rush": 13, "whoosh_slow": 14}
-AMB_UNDER, AMB_DUCK = 20.0, 6.0          # ambience + music: 20 dB under, 6 dB more while someone speaks
+CONFIG = json.loads((HERE / "sound_levels.json").read_text())
+LEVELS = CONFIG["sfx_levels"]                 # dB relative to the voice
+SFX_GAIN = float(CONFIG.get("sfx_gain_db", 0.0))
+DUCK_DB = float(CONFIG.get("duck_db", 4.0))
+VOICE_LUFS = float(CONFIG.get("voice_lufs", -14.0))
+ROLE_FILES = {"chime": "burst"}              # a soft chime = the gentlest burst variants, at chime level
 AMBIENCE = {"hum": "amb_hum", "wind": "amb_wind", "waves": "amb_waves", "birds": "amb_birds", "crickets": "amb_crickets"}
 
 
@@ -75,6 +77,7 @@ class Picker:
         self.files = {}
         for f in sorted(LIB.glob("*.ogg")):
             self.files.setdefault(f.stem.rsplit("_", 1)[0], []).append(f)
+        self.files["chime"] = [f for f in self.files.get("burst", []) if f.stem.endswith("_1")] or self.files.get("burst", [])
         self.order = {r: self.rng.sample(v, len(v)) for r, v in self.files.items()}
         self.k = {r: 0 for r in self.files}
 
@@ -111,6 +114,11 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
                 continue
             if typ == "inset":
                 add(t, "pop", "inset appears (already finished)")
+                continue
+            if typ == "scripture":
+                d = float(e.get("dur") or 1.5)
+                add(t, "handwriting", f"writes the quote {o.get('ref')}", "small", d)
+                add(t + d + 0.1, "chime", f"reference {o.get('ref')} appears")
                 continue
             if e.get("instant"):
                 continue                                     # pre-set, or animated in by rise / drop / move
@@ -256,17 +264,24 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     v = np.zeros(n, np.float32)
     v[:len(voice)] = voice
     vr = _speech_rms(voice)
+    vpeak = float(np.percentile(np.abs(voice), 99.95)) or 0.5
     fx = np.zeros(n, np.float32)
     for c in cues:
         x = _repitch(_decode(LIB / c["file"]), c["pitch"])
         x = _fit(x, c.get("dur"))
-        g = vr * 10 ** (-LEVEL.get(c["role"], 14) / 20) / 0.1           # library files sit at 0.1 RMS
+        g = vr * 10 ** ((LEVELS.get(c["role"], -20) + SFX_GAIN) / 20) / 0.1      # library files sit at 0.1 RMS
+        seg = x * g
+        pk = float(np.max(np.abs(seg))) if len(seg) else 0.0
+        if c["role"] in BIG_ROLES and pk > 0.8 * vpeak:                        # never peaks above the voice
+            seg *= 0.8 * vpeak / pk
         i = int(c["t"] * SR)
-        seg = x[: max(0, n - i)] * g
+        seg = seg[: max(0, n - i)]
         fx[i:i + len(seg)] += seg
     # ambience per scene (crossfaded) + the music bed, both ducked under speech
     bed = np.zeros(n, np.float32)
-    duck = (10 ** (-AMB_DUCK / 20)) ** _speech_mask(words, n)
+    duck = (10 ** (-DUCK_DB / 20)) ** _speech_mask(words, n)
+    amb_g = vr * 10 ** ((LEVELS["ambience"] + SFX_GAIN) / 20) / 0.1
+    mus_g = vr * 10 ** ((LEVELS["music"] + SFX_GAIN) / 20) / 0.1
     amb_used = []
     for b, beat in enumerate(scene["beats"]):
         role = AMBIENCE.get(beat.get("ambience") or "")
@@ -279,7 +294,7 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
         k = min(len(x) // 2, int(0.6 * SR))
         x[:k] *= np.linspace(0, 1, k, dtype=np.float32)
         x[-k:] *= np.linspace(1, 0, k, dtype=np.float32)
-        bed[ia:iz] += x * (vr * 10 ** (-AMB_UNDER / 20) / 0.1)
+        bed[ia:iz] += x * amb_g
         amb_used.append({"t": round(max(0, a), 2), "to": round(z, 2), "role": role, "file": f"{role}_0.ogg"})
     if music_from is not None and (LIB / "music_0.ogg").exists():
         ia = int(max(0, music_from - 0.5) * SR)
@@ -287,22 +302,17 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
         k1, k2 = int(2.5 * SR), int(1.5 * SR)
         x[:k1] *= np.linspace(0, 1, k1, dtype=np.float32)
         x[-k2:] *= np.linspace(1, 0, k2, dtype=np.float32)
-        bed[ia:] += x * (vr * 10 ** (-(AMB_UNDER + 2) / 20) / 0.1)
+        bed[ia:] += x * mus_g
         amb_used.append({"t": round(ia / SR, 2), "to": round(n / SR, 2), "role": "music", "file": "music_0.ogg"})
     bed *= duck
-    full = v + fx + bed
-    # loudness to -14 LUFS with a soft limiter (true peak about -1.5 dBFS); the muted copy gets the
-    # exact same gain, so its levels are the real ones under the voice
-    gain_db = -14.0 - _measure_lufs_arr(full)
-    for _ in range(3):
-        _write(full, out, gain_db)
-        err = -14.0 - _measure_lufs(out)
-        if abs(err) < 0.3:
-            break
-        gain_db += err
+    fx *= duck                                    # everything ducks under speech
+    # the loudness target is set on the VOICE alone; effects ride along at their offsets (never boosted)
+    gain_db = VOICE_LUFS - _measure_lufs_arr(v)
+    _write(v + fx + bed, out, gain_db)
     _write(fx + bed, out_novoice, gain_db)
     lufs = _measure_lufs(out)
-    log(f"mix: {len(cues)} sound cues + {len(amb_used)} ambience/music beds, final {lufs:.1f} LUFS")
+    log(f"mix: {len(cues)} sound cues + {len(amb_used)} ambience/music beds, voice at {VOICE_LUFS:.0f} LUFS, "
+        f"final mix {lufs:.1f} LUFS")
     return {"lufs": lufs, "beds": amb_used}
 
 

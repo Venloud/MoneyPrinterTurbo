@@ -254,6 +254,35 @@
         '<path d="' + rr + '" transform="translate(-4,3) rotate(-0.6)" stroke="' + C.ink + '" stroke-width="3" fill="none" opacity="0.6"/>' +
         '<path d="M-50,' + (-h / 2 - 16) + ' L50,' + (-h / 2 - 10) + ' L46,' + (-h / 2 + 18) + ' L-54,' + (-h / 2 + 12) + ' Z" fill="' + C.marker + '" fill-opacity="0.85" stroke="none"/>';
     },
+    scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
+      var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
+      var refSize = Math.round(size * 0.62), h = pad * 2 + lines.length * lh + refSize * 1.5, top = -h / 2;
+      var r = 30, x0 = -w / 2, x1 = w / 2, y0 = top, y1 = top + h;
+      var card = 'M' + (x0 + r) + ',' + y0 + ' L' + (x1 - r) + ',' + y0 + ' Q' + x1 + ',' + y0 + ' ' + x1 + ',' + (y0 + r) + ' L' + x1 + ',' + (y1 - r) +
+        ' Q' + x1 + ',' + y1 + ' ' + (x1 - r) + ',' + y1 + ' L' + (x0 + r) + ',' + y1 + ' Q' + x0 + ',' + y1 + ' ' + x0 + ',' + (y1 - r) + ' L' + x0 + ',' + (y0 + r) + ' Q' + x0 + ',' + y0 + ' ' + (x0 + r) + ',' + y0 + ' Z';
+      var s = '<path d="' + card + '" transform="translate(12,12)" fill="' + C.shadow + '" stroke="none" data-fill="0.9" fill-opacity="0"/>' +
+        p(card, { w: 7, fill: 'page', fo: 1 });
+      lines.forEach(function (ln, i) {
+        var t = (i === 0 ? '\u201C' : '') + ln + (i === lines.length - 1 ? '\u201D' : '');
+        s += '<text class="sc-line" x="0" y="' + (top + pad + lh * (i + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
+          'font-family="Caveat" font-weight="700" font-size="' + size + '" fill="' + C.ink + '">' + esc(t) + '</text>';
+      });
+      var ry = top + pad + lines.length * lh + refSize * 0.55;
+      s += '<g class="sc-ref" opacity="0"><g transform="translate(' + (-refSize * 2.9) + ',' + ry.toFixed(1) + ') scale(' + (refSize / 260).toFixed(3) + ')">' + OBJ.book({ ribbon: false }) + '</g>' +
+        '<text x="' + (-refSize * 2.0) + '" y="' + ry.toFixed(1) + '" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + refSize + '" fill="' + C.accent + '">' +
+        '\u2014 ' + esc(o.ref || '') + '</text></g>';
+      return s;
+    },
+    clock: function (o) {
+      var r = o.r || 90;
+      return p(wobbleCircle(0, 0, r, 9, 0.02), { w: 8, fill: 'page', fo: 1 }) +
+        p('M0,0 L0,' + (-r * 0.62) + ' M0,0 L' + (r * 0.45) + ',' + (r * 0.18), { w: 9 }) +
+        p('M0,' + (-r + 12) + ' l0,10 M' + (r - 12) + ',0 l-10,0 M0,' + (r - 12) + ' l0,-10 M' + (-r + 12) + ',0 l10,0', { w: 6, c: 'inkSoft' });
+    },
+    chair: function () {
+      return p('M-40,-110 L-40,60 M-40,0 L45,0 L45,60 M-40,0 L-40,-110 Q-38,-118 -30,-118', { w: 9, c: 'trunk' }) +
+        p('M-46,-6 L52,-6 L52,8 L-46,8 Z', { w: 6, fill: 'trunk', fo: 0.9 }) + p('M-40,-100 L-40,-20', { w: 22, c: 'trunk', op: 0.5 });
+    },
     check: function (o) { var k = o.k || 1; return p('M' + (-110 * k) + ',' + (-5 * k) + ' L' + (-35 * k) + ',' + (75 * k) + ' L' + (130 * k) + ',' + (-110 * k), { c: 'accent', w: 22 }); },
     arrow: function (o) {
       var x = o.dx || 200, y = o.dy || 0, bend = o.bend || 40, mx = x / 2 - y * bend / 200, my = y / 2 + x * bend / 200;
@@ -300,6 +329,9 @@
   var FACE_ALIAS = { speaking: 'neutral', thinking: 'curious', focused: 'curious', sad: 'neutral', look_up: 'awe' };
   var RAISED = 'M-19,-55 q7,-6 14,-2 M5,-57 q7,-4 14,2';      // raised brows (surprise / wonder), never angry
   var REACT = {
+    puzzled: eyes(3, -3) + p('M-6,-24 L7,-26', { w: 3 }) + p('M-19,-51 L-5,-50 M5,-58 q7,-6 14,1', { w: 4 }) +
+      p('M38,-100 q0,-14 12,-14 q12,0 12,12 q0,8 -10,12 l0,8 M50,-66 l0,2', { w: 5, c: 'accent' }),
+    surprised: eyes(0, -1, 4.4) + mouthO(0, 4.6) + p(RAISED, { w: 4 }),
     shocked: eyes(0, -1, 4.4) + mouthO(0, 5) + p(RAISED, { w: 4 }) +
       p('M38,-74 C42,-64 44,-58 38,-54 C32,-58 34,-64 38,-74 Z', { w: 3, c: 'waterLine', fill: 'water', fo: 1 }),
     mind_blown: eyes(0, -6) + mouthO(0, 5) + p(RAISED, { w: 4 }) +
@@ -358,7 +390,7 @@
 
   // ---------------------------------------------------------------- build DOM
   var board = document.getElementById('board');
-  var defs = '<defs><filter id="rough" x="-5%" y="-5%" width="110%" height="110%">' +
+  var defs = '<defs><filter id="rough" filterUnits="userSpaceOnUse" x="-40" y="-40" width="' + (W + 80) + '" height="' + (H + 80) + '">' +
     '<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4"/>' +
     '<feDisplacementMap in="SourceGraphic" scale="3"/></filter>' +
     '<radialGradient id="glowg"><stop offset="0%" stop-color="#FFF6D8" stop-opacity="1"/><stop offset="45%" stop-color="#FFE7A0" stop-opacity="0.55"/>' +
@@ -379,9 +411,9 @@
     // light that fills the whole scene: warm wash + soft glow + rays spreading out from the source (no spotlight)
     '<g id="light" visibility="hidden"><rect id="lightwash" width="' + W + '" height="' + H + '" fill="#FFF3CF" opacity="0"/>' +
       '<g id="lightsrc"><g id="lightrays"></g><circle id="lightglow" r="900" fill="url(#glowg)" opacity="0"/></g></g>' +
-        '<g id="world"><g filter="url(#rough)">' + objMarkup + charMarkup + '<g id="charEnd"/>' +
+        '<g filter="url(#rough)"><g id="world">' + objMarkup + charMarkup + '<g id="charEnd"/>' +
       '<rect id="darkpaper" x="-6000" y="-6000" width="40000" height="14000" fill="#16141B" opacity="0"/>' + topMarkup + '</g></g>' +
-'<g id="wipe" transform="translate(' + (-W - 200) + ',0)"><path d="M0,0 L' + (W + 60) + ',0 C' + (W + 140) + ',' + (H * 0.3) + ' ' + (W + 20) + ',' + (H * 0.6) + ' ' + (W + 120) + ',' + H + ' L0,' + H + ' Z" fill="' + C.board + '" stroke="' + C.ink + '" stroke-width="10"/></g>' +
+'<g id="wipe" transform="translate(' + (-W - 200) + ',0)"><path d="M0,0 L' + (W + 60) + ',0 C' + (W + 140) + ',' + (H * 0.3) + ' ' + (W + 20) + ',' + (H * 0.6) + ' ' + (W + 120) + ',' + H + ' L0,' + H + ' Z" fill="' + C.board + '" stroke="none"/></g>' +
     '<g id="hud" visibility="hidden" transform="translate(' + D.hud.x + ',' + D.hud.y + ') scale(' + (D.hud.scale || 1) + ')"><g id="hud-in">' +
       '<path d="M-110,-48 L110,-46 Q122,-46 122,-34 L120,40 Q120,52 108,52 L-108,50 Q-120,50 -120,38 L-122,-36 Q-122,-48 -110,-48 Z" fill="' + C.page + '" stroke="' + C.accent + '" stroke-width="6"/>' +
       '<text id="hud-text" x="0" y="-8" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="60" fill="' + C.ink + '">DAY 1</text>' +
@@ -443,6 +475,20 @@
       var u = el.querySelector('.ki-underline');
       if (u) u.setAttribute('d', 'M' + (b.x + 10) + ',' + (b.y + b.height * 0.92) + ' C' + (b.x + b.width * 0.4) + ',' + (b.y + b.height * 0.86) + ' ' + (b.x + b.width * 0.7) + ',' + (b.y + b.height * 0.98) + ' ' + (b.x + b.width - 5) + ',' + (b.y + b.height * 0.9));
     }
+  });
+  D.objects.forEach(function (o) {      // scripture card: one wipe clip per line, written on in order
+    if (o.type !== 'scripture') return;
+    var ob = objs[o.id];
+    ob.lineClips = [];
+    ob.el.querySelectorAll('.sc-line').forEach(function (t, i) {
+      var b = t.getBBox(), cid = 'clip-' + o.id + '-' + i;
+      var clip = document.createElementNS(SVGNS, 'clipPath'); clip.id = cid;
+      var r = document.createElementNS(SVGNS, 'rect');
+      r.setAttribute('x', b.x - 20); r.setAttribute('y', b.y - 20); r.setAttribute('width', 0); r.setAttribute('height', b.height + 40);
+      clip.appendChild(r); ob.el.appendChild(clip); t.setAttribute('clip-path', 'url(#' + cid + ')');
+      ob.lineClips.push({ rect: r, w: b.width + 40, n: t.textContent.length });
+    });
+    ob.refEl = ob.el.querySelector('.sc-ref');
   });
   D.objects.forEach(function (o) {
     var ob = objs[o.id];
@@ -589,6 +635,25 @@
     var ob = objs[e.id]; if (!ob) return;
     var d = e.dur || ob.def.dur || 1.1;
     tl.set(ob.el, { attr: { visibility: 'visible' } }, e.t);
+    if (ob.def.type === 'scripture') {     // card pops in, the quote is written on as it is spoken, then the reference
+      tl.set(ob.el, { attr: { visibility: 'visible' } }, Math.max(0, e.t - 0.3));
+      var refStrokes = Array.prototype.filter.call(ob.strokes, function (st) { return st.closest('.sc-ref'); });
+      var cardStrokes = Array.prototype.filter.call(ob.strokes, function (st) { return !st.closest('.sc-ref'); });
+      tl.to(cardStrokes, { attr: { 'stroke-dashoffset': 0 }, duration: 0.3, ease: 'power1.out' }, e.t - 0.3);
+      ob.fills.forEach(function (fl) { if (!fl.closest('.sc-ref')) tl.to(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') }, duration: 0.25 }, e.t - 0.2); });
+      tl.fromTo(ob.inner, { scale: 0.92, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.35, ease: 'back.out(2)', immediateRender: false }, e.t - 0.3);
+      var total = ob.lineClips.reduce(function (a, c) { return a + c.n; }, 0) || 1, at = e.t;
+      ob.lineClips.forEach(function (c) {
+        var ld = d * c.n / total;
+        tl.to(c.rect, { attr: { width: c.w }, duration: ld, ease: 'none' }, at);
+        at += ld;
+      });
+      var rt = e.t + d + (e.ref_delay == null ? 0.1 : e.ref_delay);
+      tl.set(refStrokes, { attr: { 'stroke-dashoffset': 0 } }, rt);
+      ob.fills.forEach(function (fl) { if (fl.closest('.sc-ref')) tl.set(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') } }, rt); });
+      tl.fromTo(ob.refEl, { attr: { opacity: 0 } }, { attr: { opacity: 1 }, duration: 0.3, immediateRender: false }, rt);
+      return;
+    }
     if (e.instant) {           // already fully drawn on this frame (hook: frame 0 is never empty)
       if (ob.clipRect) tl.set(ob.clipRect, { attr: { width: ob.textW } }, e.t);
       if (ob.strokes.length) tl.set(ob.strokes, { attr: { 'stroke-dashoffset': 0 } }, e.t);
@@ -1083,12 +1148,13 @@
   }
   window.kiCheck = function (t) {
     var out = [], moving = transitions.some(function (w) { return t >= w[0] && t <= w[1]; });
-    var words = [], people = [], boxes = {};
+    var words = [], people = [], boxes = {}, covers = [];
     Object.keys(objs).forEach(function (id) {
       var ob = objs[id]; if (!shown(ob.el)) return;
-      var r = glyphBox(ob); if (offScreen(r)) return;
-      if (!moving) safeIssues('object ' + id, r, out);
+      var r = glyphBox(ob); if (offScreen(r) && !ob.def.offscreen_ok) return;
+      if (!moving && !ob.def.offscreen_ok) safeIssues('object ' + id, r, out);
       if (ob.def.type === 'word') words.push([ob.def.text, r]);
+      covers.push(r);
     });
     Object.keys(chars).forEach(function (id) {
       var c = chars[id]; if (c.s.draw < 0.05 || !shown(c.el)) return;
@@ -1107,8 +1173,19 @@
       if (offScreen(r)) return;
       if (!moving) safeIssues(id, r, out);
       boxes[id] = r;
+      covers.push(r);
       people.push([id, r, c.s.walk > 0.01]);
     });
+    // FILL: the main drawings should cover most of the safe box (grid of 40 px cells, union of boxes)
+    if (!moving && D.fillMin) {
+      var cell = 40, nx = Math.floor((SAFE.x1 - SAFE.x0) / cell), ny = Math.floor((SAFE.y1 - SAFE.y0) / cell), hit = 0;
+      for (var gx = 0; gx < nx; gx++) for (var gy = 0; gy < ny; gy++) {
+        var cx = SAFE.x0 + (gx + 0.5) * cell, cy = SAFE.y0 + (gy + 0.5) * cell;
+        if (covers.some(function (r) { return cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom; })) hit++;
+      }
+      window.kiCoverage = hit / (nx * ny);
+      if (window.kiCoverage < D.fillMin) out.push('SPARSE FRAME: drawings cover under ' + Math.round(D.fillMin * 100) + '% of the safe box');
+    }
     // CONTACT: a pose that touches something (ground, animal, tree, water) must really touch it
     var m = world.getCTM(), sy = function (y) { return m.d * y + m.f; }, sx = function (x) { return m.a * x + m.e; }, tol = 14 * m.d;
     Object.keys(boxes).forEach(function (id) {

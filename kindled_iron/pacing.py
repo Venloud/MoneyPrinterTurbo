@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import numpy as np
 
 TAG = re.compile(r"\[pause\s+([\d.]+)\s*s?\]", re.I)
+REF = re.compile(r"\[(?!pause\b)[^\]]+\]", re.I)      # [Psalm 90:2]: written on screen, never spoken or captioned
 DAY = re.compile(r"^\s*day\s+(one|two|three|four|five|six|seven|\d+)\b", re.I)
 WPM_RANGE = (140.0, 150.0)
 MIN_SPEED = 0.92                       # never slow the voice below this to gain length
@@ -33,7 +34,11 @@ class Segment:
 
 
 def strip_tags(text: str) -> str:
-    return re.sub(r"\s{2,}", " ", TAG.sub(" ", text)).strip()
+    return re.sub(r"\s{2,}", " ", REF.sub(" ", TAG.sub(" ", text))).strip()
+
+
+def refs_of(text: str) -> list[str]:
+    return [m.group(0)[1:-1].strip() for m in REF.finditer(text)]
 
 
 def words_of(text: str) -> list[str]:
@@ -45,8 +50,9 @@ def _sentences(text: str) -> list[tuple[str, float | None]]:
     out: list[tuple[str, float | None]] = []
     pos = 0
     for m in list(TAG.finditer(text)) + [None]:
-        chunk = text[pos:m.start()] if m else text[pos:]
-        parts = [p for p in re.split(r"(?<=[.!?])\s+", chunk.strip()) if p.strip()]
+        chunk = REF.sub(" ", text[pos:m.start()] if m else text[pos:])
+        # a sentence also ends after a closing quote: ...you are God." Think about it.
+        parts = [p for p in re.split(r"(?<=[.!?])\s+|(?<=[.!?][\"”’])\s+", chunk.strip()) if p.strip()]
         for i, ptxt in enumerate(parts):
             out.append((ptxt.strip(), None))
         if m:

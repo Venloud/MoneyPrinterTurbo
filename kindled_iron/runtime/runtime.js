@@ -285,7 +285,7 @@
     },
     check: function (o) { var k = o.k || 1; return p('M' + (-110 * k) + ',' + (-5 * k) + ' L' + (-35 * k) + ',' + (75 * k) + ' L' + (130 * k) + ',' + (-110 * k), { c: 'accent', w: 22 }); },
     arrow: function (o) {
-      var x = o.dx || 200, y = o.dy || 0, bend = o.bend || 40, mx = x / 2 - y * bend / 200, my = y / 2 + x * bend / 200;
+      var x = o.dx == null ? 200 : o.dx, y = o.dy || 0, bend = o.bend == null ? 40 : o.bend, mx = x / 2 - y * bend / 200, my = y / 2 + x * bend / 200;
       var a = Math.atan2(y - my, x - mx), h = 28;
       return p('M0,0 Q' + mx.toFixed(0) + ',' + my.toFixed(0) + ' ' + x + ',' + y, { c: o.color || 'accent', w: 7 }) +
         p('M' + (x - h * Math.cos(a - 0.5)).toFixed(0) + ',' + (y - h * Math.sin(a - 0.5)).toFixed(0) + ' L' + x + ',' + y + ' L' + (x - h * Math.cos(a + 0.5)).toFixed(0) + ',' + (y - h * Math.sin(a + 0.5)).toFixed(0), { c: o.color || 'accent', w: 7 });

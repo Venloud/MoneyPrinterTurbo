@@ -10,7 +10,7 @@ on:
       scene:
         description: "Scene JSON to render"
         required: true
-        default: "kindled_iron/scenes/genesis-1.json"
+        default: "kindled_iron/scenes/where-did-god-come-from.json"
       my_voice:
         description: "Use my cloned voice (ElevenLabs)"
         type: boolean
@@ -155,11 +155,12 @@ jobs:
           gh release view test-renders --repo "$VOICE_REPO" >/dev/null 2>&1 || \
             gh release create test-renders --repo "$VOICE_REPO" --title "Kindled Iron test renders" --notes "Private test renders. Not published."
           stamp=$(date -u +%Y%m%d-%H%M)
-          cp storage/kindled_iron/test.mp4 "genesis-test-$stamp.mp4"
-          cp storage/kindled_iron/test_safebox.mp4 "genesis-test-$stamp-safebox.mp4"
-          cp storage/kindled_iron/test_novoice.mp4 "genesis-test-$stamp-novoice.mp4"
-          gh release upload test-renders --repo "$VOICE_REPO" --clobber "genesis-test-$stamp.mp4" "genesis-test-$stamp-safebox.mp4" \
-            "genesis-test-$stamp-novoice.mp4"
+          name=$(basename "${{ inputs.scene }}" .json)
+          cp storage/kindled_iron/test.mp4 "$name-$stamp.mp4"
+          cp storage/kindled_iron/test_safebox.mp4 "$name-$stamp-safebox.mp4"
+          cp storage/kindled_iron/test_novoice.mp4 "$name-$stamp-novoice.mp4"
+          gh release upload test-renders --repo "$VOICE_REPO" --clobber "$name-$stamp.mp4" "$name-$stamp-safebox.mp4" \
+            "$name-$stamp-novoice.mp4"
           echo "Uploaded to https://github.com/$VOICE_REPO/releases/tag/test-renders"
 
       - name: Upload stills, metadata, sources (no voice audio)

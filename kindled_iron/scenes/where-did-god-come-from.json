@@ -38,7 +38,7 @@
      "text": "WHO CREATED",
      "x": 540,
      "y": 270,
-     "size": 112,
+     "size": 140,
      "instant": true,
      "pop": false
     },
@@ -48,9 +48,9 @@
      "id": "q_god",
      "type": "word",
      "text": "GOD",
-     "x": 500,
-     "y": 440,
-     "size": 190,
+     "x": 470,
+     "y": 470,
+     "size": 250,
      "color": "accent",
      "instant": true,
      "pop": false
@@ -61,9 +61,9 @@
      "id": "q_mark",
      "type": "word",
      "text": "?",
-     "x": 700,
-     "y": 430,
-     "size": 190,
+     "x": 750,
+     "y": 460,
+     "size": 250,
      "color": "accent",
      "instant": true,
      "pop": false
@@ -78,40 +78,44 @@
      "do": "draw",
      "id": "e_globe",
      "type": "globe",
-     "x": 520,
+     "x": 510,
      "y": 760,
-     "r": 66,
-     "dur": 0.35
+     "r": 95,
+     "dur": 0.35,
+     "allow_overlap": true
     },
     {
      "at": "everything+0.1",
      "do": "draw",
      "id": "e_tree",
      "type": "tree",
-     "x": 690,
-     "y": 790,
-     "scale": 0.75,
-     "dur": 0.35
+     "x": 660,
+     "y": 780,
+     "scale": 1.0,
+     "dur": 0.35,
+     "allow_overlap": true
     },
     {
      "at": "everything+0.3",
      "do": "draw",
      "id": "e_sun",
      "type": "sun",
-     "x": 520,
-     "y": 990,
-     "scale": 0.5,
-     "dur": 0.3
+     "x": 500,
+     "y": 1020,
+     "scale": 0.7,
+     "dur": 0.3,
+     "allow_overlap": true
     },
     {
      "at": "everything+0.45",
      "do": "draw",
      "id": "e_fish",
      "type": "fish",
-     "x": 690,
-     "y": 1030,
-     "scale": 0.8,
-     "dur": 0.3
+     "x": 650,
+     "y": 1060,
+     "scale": 1.0,
+     "dur": 0.3,
+     "allow_overlap": true
     },
     {
      "at": "everything+0.5",
@@ -154,9 +158,9 @@
      "do": "draw",
      "id": "a_book",
      "type": "book",
-     "x": 600,
-     "y": 900,
-     "scale": 0.8,
+     "x": 560,
+     "y": 930,
+     "scale": 1.0,
      "dur": 0.45
     },
     {
@@ -177,7 +181,7 @@
      "text": "NOBODY.",
      "x": 540,
      "y": 260,
-     "size": 150,
+     "size": 170,
      "dur": 0.4,
      "underline": true
     },
@@ -248,8 +252,8 @@
      "type": "word",
      "text": "GOD",
      "x": 540,
-     "y": 260,
-     "size": 170,
+     "y": 270,
+     "size": 220,
      "color": "accent",
      "dur": 0.4
     },
@@ -258,26 +262,36 @@
      "do": "draw",
      "id": "in_universe",
      "type": "inset",
-     "x": 560,
-     "y": 520,
-     "w": 400,
-     "h": 250,
+     "x": 600,
+     "y": 560,
+     "w": 500,
+     "h": 320,
      "rotate": -3,
-     "query": "hubble galaxies stars",
+     "query": "orion nebula",
      "sources": [
       "nasa"
      ],
-     "clip_dur": 1.8
+     "clip_dur": 3.0,
+     "pin": {
+      "nasa": "JPL-20221122-SOLSYSf-0001-Orion Dust and Death"
+     },
+     "start": 38.0,
+     "crop": [
+      0.05,
+      0.08,
+      0.7,
+      0.75
+     ]
     },
     {
      "at": "earth-0.4",
      "do": "draw",
      "id": "in_earth",
      "type": "inset",
-     "x": 600,
-     "y": 800,
-     "w": 340,
-     "h": 240,
+     "x": 570,
+     "y": 900,
+     "w": 350,
+     "h": 250,
      "rotate": 3,
      "query": "earth from space",
      "sources": [
@@ -286,17 +300,23 @@
      "pin": {
       "nasa": "jscm001441_Top_20_Earth_Images_of_2020-4kMP4"
      },
-     "start": 30.0,
-     "clip_dur": 1.7
+     "start": 150.0,
+     "clip_dur": 3.0,
+     "crop": [
+      0.2,
+      0.0,
+      0.6,
+      0.68
+     ]
     },
     {
      "at": "time-0.4",
      "do": "draw",
      "id": "b_clock",
      "type": "clock",
-     "x": 600,
-     "y": 1040,
-     "r": 85,
+     "x": 590,
+     "y": 1010,
+     "r": 130,
      "dur": 0.4
     },
     {
@@ -355,33 +375,9 @@
       "text": "From everlasting to everlasting, you are God."
      },
      "x": 540,
-     "y": 400
-    },
-    {
-     "at": "everlasting",
-     "do": "draw",
-     "id": "p_line",
-     "type": "arrow",
-     "x": -120,
-     "y": 760,
-     "dx": 1320,
-     "dy": 0,
-     "bend": 0,
-     "dur": 1.2,
-     "offscreen_ok": true
-    },
-    {
-     "at": "everlasting#2",
-     "do": "draw",
-     "id": "p_line2",
-     "type": "arrow",
-     "x": 1200,
-     "y": 790,
-     "dx": -1320,
-     "dy": 0,
-     "bend": 0,
-     "dur": 1.0,
-     "offscreen_ok": true
+     "y": 440,
+     "size": 88,
+     "w": 780
     },
     {
      "at": "you",
@@ -389,6 +385,53 @@
      "who": "guide",
      "toward": "card1",
      "hold": 1.2
+    },
+    {
+     "at": "everlasting",
+     "do": "draw",
+     "id": "p_god",
+     "type": "word",
+     "text": "GOD",
+     "x": 590,
+     "y": 860,
+     "size": 160,
+     "color": "accent",
+     "dur": 0.35
+    },
+    {
+     "at": "everlasting+0.2",
+     "do": "draw",
+     "id": "p_left",
+     "type": "arrow",
+     "x": 470,
+     "y": 1010,
+     "dx": -60,
+     "dy": 0,
+     "bend": 0,
+     "dur": 0.3
+    },
+    {
+     "at": "everlasting#2",
+     "do": "draw",
+     "id": "p_right",
+     "type": "arrow",
+     "x": 700,
+     "y": 1010,
+     "dx": 60,
+     "dy": 0,
+     "bend": 0,
+     "dur": 0.3
+    },
+    {
+     "at": "everlasting#2+0.2",
+     "do": "draw",
+     "id": "p_forever",
+     "type": "word",
+     "text": "always",
+     "x": 585,
+     "y": 1010,
+     "size": 60,
+     "dur": 0.4
     }
    ]
   },
@@ -413,8 +456,8 @@
      "type": "word",
      "text": "everything has a start",
      "x": 540,
-     "y": 210,
-     "size": 70,
+     "y": 190,
+     "size": 80,
      "dur": 0.6
     },
     {
@@ -422,9 +465,9 @@
      "do": "draw",
      "id": "t_you",
      "type": "figure",
-     "x": 210,
-     "y": 330,
-     "scale": 0.9,
+     "x": 200,
+     "y": 310,
+     "scale": 1.4,
      "dur": 0.25
     },
     {
@@ -433,8 +476,8 @@
      "id": "t_dot1",
      "type": "dot",
      "x": 320,
-     "y": 330,
-     "r": 16,
+     "y": 290,
+     "r": 22,
      "dur": 0.15
     },
     {
@@ -443,7 +486,7 @@
      "id": "t_l1",
      "type": "arrow",
      "x": 320,
-     "y": 330,
+     "y": 290,
      "dx": 580,
      "dy": 0,
      "bend": 0,
@@ -457,9 +500,9 @@
      "do": "draw",
      "id": "t_tree",
      "type": "tree",
-     "x": 210,
+     "x": 200,
      "y": 440,
-     "scale": 0.5,
+     "scale": 0.8,
      "dur": 0.25
     },
     {
@@ -469,7 +512,7 @@
      "type": "dot",
      "x": 320,
      "y": 480,
-     "r": 16,
+     "r": 22,
      "dur": 0.15
     },
     {
@@ -492,9 +535,9 @@
      "do": "draw",
      "id": "t_star",
      "type": "star",
-     "x": 210,
-     "y": 630,
-     "r": 34,
+     "x": 200,
+     "y": 620,
+     "r": 70,
      "dur": 0.2
     },
     {
@@ -503,8 +546,8 @@
      "id": "t_dot3",
      "type": "dot",
      "x": 320,
-     "y": 630,
-     "r": 16,
+     "y": 620,
+     "r": 22,
      "dur": 0.15
     },
     {
@@ -513,7 +556,7 @@
      "id": "t_l3",
      "type": "arrow",
      "x": 320,
-     "y": 630,
+     "y": 620,
      "dx": 580,
      "dy": 0,
      "bend": 0,
@@ -529,8 +572,8 @@
      "type": "word",
      "text": "GOD",
      "x": 230,
-     "y": 790,
-     "size": 100,
+     "y": 850,
+     "size": 130,
      "color": "accent",
      "dur": 0.35
     },
@@ -540,9 +583,9 @@
      "id": "t_q",
      "type": "word",
      "text": "?",
-     "x": 360,
-     "y": 790,
-     "size": 110,
+     "x": 380,
+     "y": 850,
+     "size": 130,
      "dur": 0.25
     },
     {
@@ -578,7 +621,7 @@
      "id": "t_godline",
      "type": "line",
      "x": 540,
-     "y": 870,
+     "y": 960,
      "w": 1500,
      "weight": 9,
      "color": "accent",
@@ -591,8 +634,8 @@
      "id": "t_nostart",
      "type": "word",
      "text": "no start, no end",
-     "x": 420,
-     "y": 930,
+     "x": 360,
+     "y": 1040,
      "size": 58,
      "color": "accent",
      "dur": 0.5
@@ -624,19 +667,20 @@
      "do": "draw",
      "id": "c_chair",
      "type": "chair",
-     "x": 620,
+     "x": 600,
      "y": 1040,
-     "dur": 0.25
+     "dur": 0.25,
+     "scale": 1.2
     },
     {
      "at": 0.15,
      "do": "draw",
      "id": "c_a1",
      "type": "arrow",
-     "x": 620,
-     "y": 930,
+     "x": 600,
+     "y": 880,
      "dx": 0,
-     "dy": -110,
+     "dy": -50,
      "bend": 0,
      "dur": 0.2
     },
@@ -647,7 +691,7 @@
      "type": "word",
      "text": "who made that?",
      "x": 760,
-     "y": 880,
+     "y": 640,
      "size": 46,
      "dur": 0.3
     },
@@ -656,9 +700,9 @@
      "do": "draw",
      "id": "c_carp",
      "type": "figure",
-     "x": 620,
+     "x": 600,
      "y": 760,
-     "scale": 0.8,
+     "scale": 1.1,
      "dur": 0.2
     },
     {
@@ -666,10 +710,10 @@
      "do": "draw",
      "id": "c_a2",
      "type": "arrow",
-     "x": 620,
-     "y": 660,
+     "x": 600,
+     "y": 650,
      "dx": 0,
-     "dy": -90,
+     "dy": -45,
      "bend": 0,
      "dur": 0.2
     },
@@ -678,9 +722,9 @@
      "do": "draw",
      "id": "c_par1",
      "type": "figure",
-     "x": 580,
-     "y": 520,
-     "scale": 0.75,
+     "x": 545,
+     "y": 540,
+     "scale": 1.1,
      "dur": 0.2
     },
     {
@@ -688,9 +732,9 @@
      "do": "draw",
      "id": "c_par2",
      "type": "figure",
-     "x": 660,
-     "y": 520,
-     "scale": 0.75,
+     "x": 655,
+     "y": 540,
+     "scale": 1.1,
      "dur": 0.2
     },
     {
@@ -699,9 +743,9 @@
      "id": "c_dots",
      "type": "word",
      "text": "...",
-     "x": 620,
-     "y": 380,
-     "size": 90,
+     "x": 600,
+     "y": 400,
+     "size": 100,
      "dur": 0.2
     },
     {
@@ -710,9 +754,9 @@
      "id": "c_god",
      "type": "word",
      "text": "GOD",
-     "x": 620,
+     "x": 600,
      "y": 250,
-     "size": 170,
+     "size": 210,
      "color": "accent",
      "dur": 0.35,
      "weight": "big"
@@ -766,16 +810,18 @@
       "text": "All things were made through him."
      },
      "x": 540,
-     "y": 380
+     "y": 440,
+     "size": 88,
+     "w": 780
     },
     {
      "at": "things",
      "do": "draw",
      "id": "j_sun",
      "type": "sun",
-     "x": 500,
-     "y": 720,
-     "scale": 0.45,
+     "x": 480,
+     "y": 800,
+     "scale": 0.7,
      "dur": 0.25
     },
     {
@@ -783,9 +829,9 @@
      "do": "draw",
      "id": "j_tree",
      "type": "tree",
-     "x": 680,
-     "y": 760,
-     "scale": 0.6,
+     "x": 650,
+     "y": 830,
+     "scale": 0.95,
      "dur": 0.25
     },
     {
@@ -793,9 +839,9 @@
      "do": "draw",
      "id": "j_fish",
      "type": "fish",
-     "x": 520,
-     "y": 960,
-     "scale": 0.7,
+     "x": 490,
+     "y": 1010,
+     "scale": 1.1,
      "dur": 0.25
     },
     {
@@ -803,9 +849,9 @@
      "do": "draw",
      "id": "j_animal",
      "type": "animal",
-     "x": 670,
-     "y": 1000,
-     "scale": 0.6,
+     "x": 650,
+     "y": 1040,
+     "scale": 0.75,
      "dur": 0.25
     },
     {
@@ -837,9 +883,9 @@
      "do": "draw",
      "id": "m_moses",
      "type": "figure",
-     "x": 520,
-     "y": 900,
-     "scale": 1.5,
+     "x": 540,
+     "y": 950,
+     "scale": 2.6,
      "dur": 0.35
     },
     {
@@ -850,7 +896,7 @@
      "text": "your name?",
      "x": 640,
      "y": 700,
-     "size": 64,
+     "size": 70,
      "dur": 0.4
     },
     {
@@ -858,8 +904,8 @@
      "do": "draw",
      "id": "m_voice",
      "type": "voice",
-     "x": 640,
-     "y": 860,
+     "x": 650,
+     "y": 920,
      "dur": 0.35
     },
     {
@@ -868,9 +914,9 @@
       "text": "I AM."
      },
      "x": 540,
-     "y": 330,
-     "size": 110,
-     "w": 640
+     "y": 360,
+     "size": 150,
+     "w": 680
     },
     {
      "at": "AM",
@@ -907,9 +953,9 @@
      "id": "i_was",
      "type": "word",
      "text": "I WAS",
-     "x": 560,
-     "y": 560,
-     "size": 90,
+     "x": 600,
+     "y": 610,
+     "size": 100,
      "dur": 0.3
     },
     {
@@ -926,9 +972,9 @@
      "id": "i_will",
      "type": "word",
      "text": "I WILL BE",
-     "x": 560,
-     "y": 700,
-     "size": 90,
+     "x": 600,
+     "y": 760,
+     "size": 100,
      "dur": 0.35
     },
     {
@@ -945,9 +991,9 @@
      "id": "i_am",
      "type": "word",
      "text": "I AM",
-     "x": 570,
-     "y": 880,
-     "size": 170,
+     "x": 560,
+     "y": 960,
+     "size": 190,
      "color": "accent",
      "dur": 0.35,
      "marker": true,
@@ -981,9 +1027,9 @@
      "do": "draw",
      "id": "g_book",
      "type": "book",
-     "x": 600,
-     "y": 800,
-     "scale": 0.8,
+     "x": 580,
+     "y": 900,
+     "scale": 1.0,
      "dur": 0.4
     },
     {
@@ -992,7 +1038,9 @@
       "text": "In the beginning, God created."
      },
      "x": 540,
-     "y": 380
+     "y": 440,
+     "size": 88,
+     "w": 780
     },
     {
      "at": "beginning",
@@ -1007,9 +1055,9 @@
      "id": "g_web",
      "type": "word",
      "text": "Bible text: WEB",
-     "x": 840,
-     "y": 190,
-     "size": 34,
+     "x": 640,
+     "y": 1110,
+     "size": 40,
      "color": "inkSoft",
      "dur": 0.3
     }
@@ -1039,9 +1087,9 @@
      "id": "e_god",
      "type": "word",
      "text": "GOD",
-     "x": 480,
-     "y": 790,
-     "size": 130,
+     "x": 520,
+     "y": 800,
+     "size": 150,
      "color": "accent",
      "dur": 0.3
     },
@@ -1051,9 +1099,9 @@
      "id": "e_began",
      "type": "word",
      "text": "began",
-     "x": 680,
-     "y": 800,
-     "size": 100,
+     "x": 780,
+     "y": 770,
+     "size": 120,
      "dur": 0.3
     },
     {

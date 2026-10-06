@@ -307,18 +307,37 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     bed *= duck
     fx *= duck                                    # everything ducks under speech
     # the loudness target is set on the VOICE alone; effects ride along at their offsets (never boosted)
-    gain_db = VOICE_LUFS - _measure_lufs_arr(v)
-    _write(v + fx + bed, out, gain_db)
-    _write(fx + bed, out_novoice, gain_db)
+    # the VOICE alone is set to the target (gentle compressor, then gain + limiter at -1 dBFS); effects, ambience
+    # and music follow by the same factor, so they keep their offsets and are never boosted to reach loudness
+    vc = _ff(v, "acompressor=threshold=-24dB:ratio=4:attack=5:release=100:knee=6")   # tame the peaks first
+    g = VOICE_LUFS - _measure_lufs_arr(vc)
+    for _ in range(6):
+        vn = _ff(vc, f"volume={g:.2f}dB,alimiter=limit=0.89:attack=3:release=60:level=disabled")
+        err = VOICE_LUFS - _measure_lufs_arr(vn)
+        if abs(err) < 0.2:
+            break
+        g += err
+    k = _speech_rms(vn) / (_speech_rms(v) or 1e-6)
+    voice_lufs = _measure_lufs_arr(vn)
+    _write(vn + (fx + bed) * k, out, 0.0)
+    _write((fx + bed) * k, out_novoice, 0.0)
     lufs = _measure_lufs(out)
-    log(f"mix: {len(cues)} sound cues + {len(amb_used)} ambience/music beds, voice at {VOICE_LUFS:.0f} LUFS, "
-        f"final mix {lufs:.1f} LUFS")
-    return {"lufs": lufs, "beds": amb_used}
+    log(f"mix: {len(cues)} sound cues + {len(amb_used)} ambience/music beds, voice {voice_lufs:.1f} LUFS "
+        f"(target {VOICE_LUFS:.0f}), final mix {lufs:.1f} LUFS")
+    return {"lufs": lufs, "voice_lufs": voice_lufs, "beds": amb_used}
+
+
+def _ff(x: np.ndarray, af: str) -> np.ndarray:
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
+                          "-af", af, "-ar", str(SR), "-f", "f32le", "-ac", "1", "-"],
+                         input=x.astype(np.float32).tobytes(), capture_output=True, check=True).stdout
+    y = np.frombuffer(raw, np.float32).copy()
+    return np.pad(y, (0, max(0, len(x) - len(y))))[: len(x)]
 
 
 def _write(x: np.ndarray, path: Path, gain_db: float) -> None:
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
-                    "-af", f"volume={gain_db:.2f}dB,alimiter=limit=0.84:attack=3:release=60:level=disabled",
+                    "-af", f"volume={gain_db:.2f}dB,alimiter=limit=0.89:attack=3:release=60:level=disabled",
                     "-ar", str(SR), str(path)], input=x.astype(np.float32).tobytes(), check=True)
 
 

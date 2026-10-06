@@ -13,6 +13,28 @@ Outputs next to the MP4: `.srt`, `_meta.json` (duration, words, voice used, fall
 `_sources.json` (every footage clip: source page, file URL, licence), and with `--debug-copy`
 `_safebox.mp4`. The work dir keeps `checks.json`, `timings.json`, `stills/`.
 
+## Channel format (every video)
+Every video answers ONE question people really ask:
+1. The question on screen and spoken in the first 2 seconds.
+2. A straight answer by 10 seconds.
+3. Then the reasons, each one backed by a scripture card.
+4. A last line that closes the loop (comes back to the question).
+God is NEVER drawn as a person or figure: the word GOD in burnt orange and/or warm light only.
+The guide is the HOST: large (35-45 % of the safe-box height), front-facing, lower part of the frame,
+talking to the viewer, pointing at what matters, reacting (eyebrows only inside a reaction).
+
+## Scripture cards (scripture.py, WEB text in data/web_bible.json.gz)
+In the narration a reference is written in brackets: `"From everlasting to everlasting, you are God." [Psalm 90:2]`.
+The bracket is WRITTEN on screen, never spoken and never captioned (it is stripped from the TTS text).
+The beat gets a card event: `{"scripture": {"ref": "Psalm 90:2", "text": "From everlasting to everlasting, you are God."}}`
+(optional `x`, `y`, `w`, `size`). The quote is found in the spoken words and written on exactly while it is
+spoken; the reference (burnt orange, small open-Bible icon) appears when it ends, with a soft chime; the card
+stays at least 1 s after the quote (a scene change waits for it).
+Translation: World English Bible (public domain, eBible.org). Every card's text must be the WEB verse or a
+contiguous part of it, word for word (case/punctuation ignored); any mismatch, a book outside the 66, or a
+[Ref] without a card FAILS the render. Check one by hand: `python -m kindled_iron.scripture "John 1:3"`.
+Show a small "Bible text: WEB" on the end card.
+
 ## Hook + retention rules
 - First 2 seconds: the question/hook is fully on screen at frame 0 (`"instant": true` draws), with
   motion from frame 1 (camera pull-back, wiggle). No slow fade-in.
@@ -98,8 +120,9 @@ Driven by the events, automatic, with `"sound": "<role>"` / `"sound": false` on 
 - Per beat `"ambience"`: hum | wind | waves | birds | crickets. `"music_from": "<word>"` on one beat
   starts the soft music bed there.
 `"weight": "big" | "small"` on the event or object; default = big when over ~25 % of the safe box.
-One big sound at a time; never two booms within 1.5 s. Mix: voice on top, pencil + hits ~12-16 dB
-under it, ambience + music ~20 dB under and 6 dB more while someone speaks, final -14 LUFS.
+One big sound at a time; never two booms within 1.5 s. Levels live in `sound_levels.json` (`sfx_levels` in dB relative to the voice, plus a master `sfx_gain_db`):
+pencil family -20, pops/ticks/chime -18, big sounds -14 (never peaking above the voice), ambience -26, music -24,
+all 4 dB lower while someone speaks. The -14 LUFS target is set on the VOICE; effects are never boosted to reach it.
 Each render writes `<name>_sounds.json`: every sound with its time, file and source (the owner's
 listen-check), plus the longest stretch without a new sound.
 

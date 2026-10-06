@@ -165,8 +165,11 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         if b and trans is None and beat.get("panel", 0) != prev_panel and cam is False \
                 and not any(ev.get("do") == "walk" and ev.get("camera") for ev in beat.get("events", [])):
             trans = "slide"                      # a new panel with no walk: slide over by default
+        # a scripture card stays at least 1 s after its quote: the scene change waits for it
+        t_change = max([start] + [o["quote_end"] + 1.0 + 0.3 for o in objects if o["type"] == "scripture"
+                                  and o["quote_end"] + 1.0 + 0.3 > start])
         if b and trans:
-            events += transition_events(trans, start, off, cam if isinstance(cam, dict) else {}, cam_y)
+            events += transition_events(trans, t_change, off, cam if isinstance(cam, dict) else {}, cam_y)
         elif cam is not False:
             cam = cam or {}
             events.append({"t": max(0.0, start - 0.25) if b else 0.0, "do": "camera",
@@ -191,6 +194,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             except ValueError as err:
                 raise SystemExit(f"beat {beat.get('id', b)}: {err}")
             kind = e.get("do")
+            if b and trans and e["t"] < t_change and kind in ("place", "draw", "fade", "counter"):
+                e["t"] = round(t_change, 3)            # nothing of the new scene happens before it is on screen
             if kind == "draw":
                 if e["id"] in ids:
                     raise SystemExit(f"duplicate object id {e['id']!r}")

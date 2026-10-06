@@ -1,0 +1,7 @@
+{
+ "_help": "publish_mode per platform: live (post publicly where the platform allows it) | draft | off. TikTok falls back to drafts when the app may not direct-post; Instagram and Threads have no drafts (draft = off there).",
+ "publish_mode": {"tiktok": "live", "youtube": "live", "instagram": "live", "threads": "live", "facebook": "live"},
+ "youtube_category": "27",
+ "graph_version": "v23.0",
+ "token_warn_days": 7
+}

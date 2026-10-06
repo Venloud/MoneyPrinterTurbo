@@ -8,11 +8,11 @@
    "model_id": "eleven_multilingual_v2",
    "output_format": "mp3_44100_128",
    "voice_settings": {
-    "stability": 0.55,
+    "stability": 0.42,
     "similarity_boost": 0.8,
-    "style": 0.15,
+    "style": 0.25,
     "use_speaker_boost": true,
-    "speed": 0.9
+    "speed": 0.95
    },
    "monthly_char_budget": 40000,
    "min_remaining_fraction": 0.1,
@@ -44,7 +44,7 @@
    61,
    64
   ],
-  "min_speed": 0.87,
+  "min_speed": 0.9,
   "use_third_party_clips": true
  },
  "night_files": {

@@ -608,7 +608,7 @@ def main() -> None:
             from kindled_iron import recording_voice
 
             voice_meta = recording_voice.voice(Path(a.recording), [w for txt in texts for w in words_of(txt)], raw,
-                                               profile, work, log, scene.get("recording_edits"))
+                                               profile, work, log)
         else:
             voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -723,8 +723,13 @@ def main() -> None:
             "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues),
             "longest_sound_gap": snd["longest_gap"], "lufs": mixed["lufs"], "empty_stretches": empty,
             "verse_check": verse_results, "third_party": {"enabled": third_party, "clips": memes, "images": meme_images},
-            "post": post_text(scene)}
+            "post": post_text(scene),
+            "audio": {k: mixed.get(k) for k in ("lufs", "voice_lufs", "true_peak", "lf_burst")}}
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
+    p = meta["post"]             # caption file the publisher reads
+    out.with_name(out.stem + ".post.txt").write_text(
+        f"title: {p.get('title', '')}\ncaption: {p.get('caption', '')}\nthreads: {p.get('threads', '')}\n"
+        f"description: {p.get('description', '')}\n", encoding="utf-8")
     if a.debug_copy:
         dbg = out.with_name(out.stem + "_safebox.mp4")
         safe_overlay(out, dbg)

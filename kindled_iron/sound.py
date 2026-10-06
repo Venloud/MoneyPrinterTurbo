@@ -188,14 +188,6 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     v = np.zeros(n, np.float32)
     v[:len(voice)] = voice
     vr = _speech_rms(voice)
-    for t0, wav in overlays or []:
-        x = _decode(Path(wav))
-        xr = _speech_rms(x) if len(x) > SR // 10 else 0.0
-        if xr > 0:
-            x = x * (vr / xr) * 0.9
-        i = int(t0 * SR)
-        x = x[: max(0, n - i)]
-        v[i:i + len(x)] += x
     vpeak = float(np.percentile(np.abs(voice), 99.95)) or 0.5
     fx = np.zeros(n, np.float32)
     for c in cues:
@@ -230,24 +222,100 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
         beds.append({"t": 0.0, "to": round(n / SR, 2), "role": "music", "file": f"music_{track}.ogg"})
     bed *= duck
     fx *= duck                                    # everything ducks under speech
-    # the VOICE alone is set to the target (gentle compressor, then gain + limiter at -1 dBFS); effects, ambience
-    # and music follow by the same factor, so they keep their offsets and are never boosted to reach loudness
-    vc = _ff(v, "acompressor=threshold=-24dB:ratio=4:attack=5:release=100:knee=6")   # tame the peaks first
+    # The VOICE alone is cleaned and set to the target: high-pass ~85 Hz, de-plosive (the band under 160 Hz is
+    # compressed hard only above its own loud level, so P/B bursts are tamed and the body stays), light de-esser,
+    # gentle compression, then gain + limiter to VOICE_LUFS with true peak <= TRUE_PEAK. Effects follow by the
+    # same factor (they keep their offsets from sound_levels.json). Every provider goes through this.
+    vc = clean_voice(v)
+    vn, voice_lufs = _to_target(vc)
+    k = _speech_rms(vn) / (_speech_rms(v) or 1e-6)
+    # a clip's own audio ("God did") is matched to the voice loudness, never louder (1 dB under)
+    ov = np.zeros(n, np.float32)
+    for t0, wav in overlays or []:
+        x = _decode(Path(wav))
+        if len(x) < SR // 5:
+            continue
+        lx = _measure_lufs_arr(np.pad(x, (0, max(0, SR - len(x)))))
+        x = _ff(x * 10 ** ((voice_lufs - 1.0 - lx) / 20), f"alimiter=limit={LIMIT:.3f}:attack=3:release=60:level=disabled")
+        i = int(t0 * SR)
+        x = x[: max(0, n - i)]
+        ov[i:i + len(x)] += x
+        log(f"clip audio at {t0:.1f} s: {lx:.1f} LUFS -> {voice_lufs - 1.0:.1f} LUFS (1 dB under the voice)")
+    _write(vn + ov + (fx + bed) * k, out, 0.0)
+    _write(ov + (fx + bed) * k, out_novoice, 0.0)
+    lufs = _measure_lufs(out)
+    tp = true_peak(out)
+    burst = lf_burst(out, vn)
+    log(f"mix: {len(cues)} effects + music {track or 'none'}, voice {voice_lufs:.1f} LUFS (target {VOICE_LUFS:.0f}), "
+        f"final mix {lufs:.1f} LUFS, true peak {tp:.1f} dBTP, worst low-frequency burst {burst:+.1f} dB vs the voice average")
+    if tp > TP_FAIL:
+        raise SystemExit(f"FAIL: audio check: true peak {tp:.1f} dBTP is above {TP_FAIL:.1f} dBTP")
+    if burst > BURST_FAIL:
+        raise SystemExit(f"FAIL: audio check: a low-frequency burst (<120 Hz) is {burst:.1f} dB above the voice average "
+                         f"(limit {BURST_FAIL:.0f} dB)")
+    return {"lufs": lufs, "voice_lufs": voice_lufs, "beds": beds, "true_peak": tp, "lf_burst": burst}
+
+
+TRUE_PEAK = float(CONFIG.get("true_peak_db", -1.5))     # target
+TP_FAIL = float(CONFIG.get("true_peak_fail_db", -1.0))  # the render fails above this
+BURST_FAIL = float(CONFIG.get("lf_burst_fail_db", 10.0))
+LIMIT = 10 ** ((TRUE_PEAK - 0.6) / 20)                  # sample-peak limiter a little under the true-peak target
+
+
+def _ffc(x: np.ndarray, graph: str) -> np.ndarray:
+    """Like _ff, with a filter graph ([in] ... [out])."""
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
+                          "-filter_complex", graph, "-map", "[out]", "-ar", str(SR), "-f", "f32le", "-ac", "1", "-"],
+                         input=x.astype(np.float32).tobytes(), capture_output=True, check=True).stdout
+    y = np.frombuffer(raw, np.float32).copy()
+    return np.pad(y, (0, max(0, len(x) - len(y))))[: len(x)]
+
+
+def _frames_db(x: np.ndarray, win: float = 0.02) -> np.ndarray:
+    h = int(win * SR)
+    fr = x[: len(x) // h * h].reshape(-1, h)
+    return 20 * np.log10(np.sqrt(np.mean(fr ** 2, axis=1)) + 1e-9)
+
+
+def clean_voice(v: np.ndarray) -> np.ndarray:
+    hp = _ff(v, "highpass=f=85:poles=2")
+    # de-plosive threshold: a little above the low band's own loud level (its 90th percentile while speaking)
+    lo = _ff(hp, "lowpass=f=160:poles=2")
+    db = _frames_db(lo)
+    thr = float(np.percentile(db[db > db.max() - 45], 90)) + 3.0 if len(db) else -30.0
+    graph = (f"[0:a]acrossover=split=160[lo][hi];"
+             f"[lo]acompressor=threshold={10 ** (thr / 20):.6f}:ratio=10:attack=0.2:release=40:knee=1[lc];"
+             f"[lc][hi]amix=inputs=2:normalize=0,deesser=i=0.3:m=0.5:f=0.5:s=o,"
+             f"acompressor=threshold=-24dB:ratio=2.5:attack=8:release=150:knee=6[out]")
+    return _ffc(hp, graph)
+
+
+def _to_target(vc: np.ndarray) -> tuple[np.ndarray, float]:
     g = VOICE_LUFS - _measure_lufs_arr(vc)
+    vn = vc
     for _ in range(6):
-        vn = _ff(vc, f"volume={g:.2f}dB,alimiter=limit=0.89:attack=3:release=60:level=disabled")
+        vn = _ff(vc, f"volume={g:.2f}dB,alimiter=limit={LIMIT:.3f}:attack=3:release=60:level=disabled")
         err = VOICE_LUFS - _measure_lufs_arr(vn)
         if abs(err) < 0.2:
             break
         g += err
-    k = _speech_rms(vn) / (_speech_rms(v) or 1e-6)
-    voice_lufs = _measure_lufs_arr(vn)
-    _write(vn + (fx + bed) * k, out, 0.0)
-    _write((fx + bed) * k, out_novoice, 0.0)
-    lufs = _measure_lufs(out)
-    log(f"mix: {len(cues)} effects + music {track or 'none'}, voice {voice_lufs:.1f} LUFS "
-        f"(target {VOICE_LUFS:.0f}), final mix {lufs:.1f} LUFS")
-    return {"lufs": lufs, "voice_lufs": voice_lufs, "beds": beds}
+    return vn, _measure_lufs_arr(vn)
+
+
+def true_peak(path: Path) -> float:
+    import re
+    p = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(path), "-af", "ebur128=peak=true", "-f", "null", "-"],
+                       capture_output=True, text=True)
+    m = re.findall(r"True peak:\s+Peak:\s+(-?[\d.]+|-inf) dBFS", p.stderr)
+    return float(m[-1]) if m and m[-1] != "-inf" else -99.0
+
+
+def lf_burst(path: Path, voice: np.ndarray) -> float:
+    """Worst 20 ms frame of the final mix's band under 120 Hz, in dB above the voice's average speaking level."""
+    x = _decode(path)
+    lo = _ff(x, "lowpass=f=120:poles=2,lowpass=f=120:poles=2")
+    avg = 20 * np.log10(_speech_rms(voice) + 1e-9)
+    return float(_frames_db(lo).max() - avg)
 
 
 def _ff(x: np.ndarray, af: str) -> np.ndarray:
@@ -260,7 +328,7 @@ def _ff(x: np.ndarray, af: str) -> np.ndarray:
 
 def _write(x: np.ndarray, path: Path, gain_db: float) -> None:
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
-                    "-af", f"volume={gain_db:.2f}dB,alimiter=limit=0.89:attack=3:release=60:level=disabled",
+                    "-af", f"volume={gain_db:.2f}dB,alimiter=limit={LIMIT:.3f}:attack=3:release=60:level=disabled",
                     "-ar", str(SR), str(path)], input=x.astype(np.float32).tobytes(), check=True)
 
 

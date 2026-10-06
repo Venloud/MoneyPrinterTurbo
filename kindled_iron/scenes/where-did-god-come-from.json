@@ -1372,17 +1372,9 @@
  "post": {
   "title": "Where Did God Come From?",
   "caption": "If God made everything, who made God? The Bible's answer is one word. #bible #god #faith #christian #jesus #question",
-  "description": "If God made everything, who made God? The Bible's answer: nobody."
+  "description": "If God made everything, who made God? The Bible's answer: nobody.",
+  "threads": "If God made everything, who made God? The Bible's answer is one word. #bible #faith"
  },
  "voice_recording": "recordings/where-did-god-come-from_take3.m4a",
- "recording_edits": [
-  {
-   "copy": [
-    54.33,
-    54.6
-   ],
-   "paste_at": 55.38,
-   "why": "take 3 skipped the second 'Not': his own 'not' from 'Not I was' placed in the pause before 'I will be' (owner asked)"
-  }
- ]
+ "voice_recording_use": "pacing reference only (never heard)"
 }

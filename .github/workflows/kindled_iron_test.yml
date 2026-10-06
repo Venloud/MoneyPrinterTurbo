@@ -1,6 +1,7 @@
 name: Kindled Iron Test Render
 
-# Test only: renders one scene JSON. Never publishes to TikTok/YouTube or anywhere public.
+# Test only: renders one scene JSON. Never publishes to TikTok/YouTube or anywhere public (it has no platform
+# tokens; only kindled_iron_publish.yml can post, and only an approved render).
 # Default voice is Kokoro. Tick my_voice for the owner's ElevenLabs voice (fallback: Chatterbox -> Kokoro).
 # With my_voice, or when third-party clips / meme images were used, the videos go to the owner's PRIVATE
 # repo (release "test-renders"), never to the public artifacts of this fork. Third-party media is loaded at
@@ -217,8 +218,11 @@ jobs:
           cp storage/kindled_iron/test_novoice.mp4 "$name-$stamp-novoice.mp4"
           (cd storage/kindled_iron/work && zip -q -r "$OLDPWD/$name-$stamp-stills.zip" stills)
           cp storage/kindled_iron/test_insets.jpg "$name-$stamp-insets.jpg" 2>/dev/null || true
+          cp storage/kindled_iron/test_meta.json "$name-$stamp.meta.json"
+          cp storage/kindled_iron/test.post.txt "$name-$stamp.post.txt"
           gh release upload test-renders --repo "$VOICE_REPO" --clobber "$name-$stamp.mp4" "$name-$stamp-safebox.mp4" \
-            "$name-$stamp-novoice.mp4" "$name-$stamp-stills.zip" $(ls "$name-$stamp-insets.jpg" 2>/dev/null)
+            "$name-$stamp-novoice.mp4" "$name-$stamp-stills.zip" "$name-$stamp.meta.json" "$name-$stamp.post.txt" \
+            $(ls "$name-$stamp-insets.jpg" 2>/dev/null)
           echo "url=https://github.com/$VOICE_REPO/releases/tag/test-renders" >> "$GITHUB_OUTPUT"
           echo "file=$name-$stamp.mp4" >> "$GITHUB_OUTPUT"
           echo "Uploaded to https://github.com/$VOICE_REPO/releases/tag/test-renders"

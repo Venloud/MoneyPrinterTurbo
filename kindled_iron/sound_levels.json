@@ -2,7 +2,7 @@
  "_comment": "Levels in dB relative to the voice (speech RMS). Effects are never boosted to reach loudness: the -14 LUFS target is set on the VOICE, everything else rides at these offsets. sfx_gain_db moves every effect, ambience and music together. Big sounds are also capped so they never peak above the voice. duck_db = extra dB down for everything under the voice while someone speaks. max_effects / min_spacing_s cap the effects; pencil=false turns the per-scene pencil sound off.",
  "sfx_gain_db": -4.0,
  "duck_db": 4.0,
- "voice_lufs": -14.0,
+ "voice_lufs": -16.0,
  "sfx_levels": {
   "pencil_long": -20,
   "scribble": -20,
@@ -25,5 +25,8 @@
  },
  "max_effects": 10,
  "min_spacing_s": 1.0,
- "pencil": false
+ "pencil": false,
+ "true_peak_db": -1.5,
+ "true_peak_fail_db": -1.0,
+ "lf_burst_fail_db": 10.0
 }

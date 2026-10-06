@@ -64,6 +64,14 @@ Other channels can still use the older sentence pauses (`pause_sentence`, `pause
   `"at": "pause"` / `"pause#2"` puts any event in the 1st / 2nd pause of its beat (the DAY counter ticks
   in the pause before each "Day N" line).
 
+## Voice from the owner's own reading (recording_voice.py)
+`render.py --recording <file>` (workflow input `recording`, a path inside the private repo, e.g.
+`recordings/where-did-god-come-from_take3.m4a`): the recording is cleaned (noise reduction, start/end silence
+trim, loudness) and turned into the cloned voice with ElevenLabs Speech to Speech (`eleven_multilingual_sts_v2`),
+keeping his exact pace, pauses and emphasis. If that fails: one text-to-speech request punctuated the way he spoke
+(pauses measured on the recording) at the closest speed, no post-processing. No pause trimming or insertion on
+either path; captions and timing come from whisper on the final audio. Recordings live ONLY in the private repo.
+
 ## Voice (tts.py)
 Providers with one interface: `elevenlabs_tts.py` (owner's cloned voice), `chatterbox_tts.py`
 (MIT, clones from a private reference clip), `kokoro_tts.py`. `--tts` picks one (default: the voice
@@ -139,7 +147,9 @@ Pop-culture drawings are our own generic shapes: `voxel` world, `blockfolk` vill
 
 ## The host
 The guide is drawn after the channel owner (`render.HOST_LOOK`): brown skin, shoulder-length twisted locs with a
-middle part, small mustache + chin goatee, a slightly hand-drawn head; hands in the same skin tone. A scene can
+middle part, small mustache + chin goatee, a slightly hand-drawn head; bare arms and hands in the same skin tone.
+Outfit: black short-sleeve button-up (light-blue collar, buttons, chest pocket, sleeve trim, light shading),
+black pants with a beige belt and side stripe, dark shoes with beige soles, no scarf. A scene can
 switch it off with `"look": false` on the guide. Pose sheet of the faces:
 `python -m kindled_iron.action_sheet --faces --out faces.png`. He stands low: his feet may sit a little below
 the safe box (scene `ground` 1490); the space above is padding for text.

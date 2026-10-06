@@ -20,6 +20,10 @@ on:
         description: "Use third-party clips / meme images (off = pinned stock + guide fallbacks)"
         type: boolean
         default: true
+      recording:
+        description: "Your own reading in the private repo (e.g. recordings/where-did-god-come-from_take3.m4a); empty = text-to-speech"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -112,8 +116,8 @@ jobs:
           check GIPHY_API_KEY "https://api.giphy.com/v1/gifs/search?api_key=$GIPHY_API_KEY&q=wow&limit=1" "" "$GIPHY_API_KEY"
           { echo "### API keys"; sed 's/^/- /' keys.txt; } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Third-party media from the private repo (reactions/, movie_reference/)
-        if: ${{ inputs.third_party_clips && env.HAS_VOICE_REPO == 'true' }}
+      - name: Private media from the private repo (reactions/, movie_reference/, recordings/)
+        if: ${{ (inputs.third_party_clips || inputs.recording != '') && env.HAS_VOICE_REPO == 'true' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
@@ -122,7 +126,7 @@ jobs:
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::warning::$VOICE_REPO is not private: third-party media not loaded"; exit 0; }
           d="$RUNNER_TEMP/private_media"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
-          git -C "$d" sparse-checkout set reactions movie_reference
+          git -C "$d" sparse-checkout set reactions movie_reference recordings
           ls -la "$d/reactions" "$d/movie_reference" 2>/dev/null || true
           echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
 
@@ -136,10 +140,15 @@ jobs:
           KI_YTDLP: "1"
         run: |
           set -euo pipefail
+          rec=()
+          if [ -n "${{ inputs.recording }}" ]; then
+            [ -f "${KI_PRIVATE_MEDIA:-/nonexistent}/${{ inputs.recording }}" ] || { echo "FAIL: recording ${{ inputs.recording }} not found in the private repo"; exit 1; }
+            rec=(--recording "$KI_PRIVATE_MEDIA/${{ inputs.recording }}" --whisper-model small.en)
+          fi
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
-            --work storage/kindled_iron/work --tts "$TTS" --debug-copy
+            --work storage/kindled_iron/work --tts "$TTS" --debug-copy "${rec[@]}"
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
-            --work storage/kindled_iron/work --reuse-audio --safe-box --frames-only 0,2,4.5,6,10,15,20,25,30,35,40,45,50,55,58,60
+            --work storage/kindled_iron/work --reuse-audio --safe-box --frames-only 0,2,4.5,6,10,15,20,25,30,35,40,45,50,55,60,65,70,74,76,77
           python -m kindled_iron.action_sheet --faces --out storage/kindled_iron/test_faces.png
 
       - name: Delete the reference clip and the private media
@@ -262,7 +271,8 @@ jobs:
           m = json.load(open("storage/kindled_iron/test_meta.json"))
           post = m.get("post", {})
           body = (f"{post.get('caption', '')}\n\nDescription:\n{post.get('description', '')}\n\n"
-                  f"{m['duration']:.1f} s, {m['voice'].get('wpm', '?')} wpm, voice {m['voice'].get('provider_used')}\n"
+                  f"{m['duration']:.1f} s, {m['voice'].get('wpm', '?')} wpm, voice {m['voice'].get('provider_used')} "
+                  f"({m['voice'].get('path', 'text-to-speech')})\n"
                   f"{os.environ['LINK']} {os.environ.get('FILE', '')}".strip())
           req = urllib.request.Request("https://ntfy.sh/" + os.environ["NTFY_TOPIC"], data=body.encode(), method="POST",
                                        headers={"Title": ("Kindled Iron render ready: " + post.get("title", m["scene"])).encode("utf-8").decode("latin-1", "ignore"),

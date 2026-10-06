@@ -353,8 +353,8 @@
     var a = w0 / 2, b = w1 / 2;
     return 'M' + (-a) + ',0 A' + a + ',' + a + ' 0 0 1 ' + a + ',0 L' + b + ',' + L + ' A' + b + ',' + b + ' 0 0 1 ' + (-b) + ',' + L + ' Z';
   }
-  function limb(cls, len1, len2, w, color, end) {
-    return '<g class="' + cls + '1">' + solid(capsule(w[0], w[1], len1), color) +
+  function limb(cls, len1, len2, w, color, end, upper) {
+    return '<g class="' + cls + '1">' + solid(capsule(w[0], w[1], len1), color) + (upper || '') +
       '<g transform="translate(0,' + len1 + ')"><g class="' + cls + '2">' + solid(capsule(w[1], w[2], len2), color) + end +
       '</g></g></g>';
   }
@@ -438,15 +438,28 @@
         solid('M-6,-12 C-3,-10 3,-10 6,-12 C6,-7 3,-1 0,0 C-3,-1 -6,-7 -6,-12 Z', col.hair, 2);
     }
     var torso = solid('M-20,4 C-25,-30 -27,-68 -19,-90 Q0,-100 19,-90 C27,-68 25,-30 20,4 Q0,12 -20,4 Z', col.shirt);
+    var fit = spec.outfit === 'buttonup', BLUE = '#8CCBEB', BEIGE = '#D9C4A0', SHADE = '#4A4D58';
+    if (fit) {   // black short-sleeve button-up: light shading, light-blue collar / placket / buttons / pocket, beige belt
+      torso += f('M-15,-84 C-20,-60 -20,-28 -15,2 L-9,3 C-13,-28 -13,-60 -9,-87 Z', SHADE, 0.85, false) +
+        solid('M-1,-95 L-15,-92 L-8,-79 Z', BLUE, 2.4) + solid('M1,-95 L15,-92 L8,-79 Z', BLUE, 2.4) +
+        p('M0,-86 L0,1', { w: 2.2, c: BLUE }) +
+        [-72, -54, -36, -18].map(function (y) { return solid(circlePath(0, y, 2.6), BLUE, 1.2); }).join('') +
+        p('M5,-70 L16,-70 L16,-58 Q10.5,-55 5,-58 Z', { w: 2.2, c: BLUE }) +
+        p('M-20,1 Q0,9 20,1', { w: 4, c: BEIGE });
+    }
     var dress = spec.dress ? solid('M-21,-46 L-36,16 Q0,26 36,16 L21,-46 Q0,-40 -21,-46 Z', col.dress) : '';
-    var scarf = spec.accent ? '<g class="scarf">' + solid('M-18,-92 Q0,-83 18,-92 L19,-80 Q0,-71 -19,-80 Z', C.accent) +
+    var scarf = spec.accent && !fit ? '<g class="scarf">' + solid('M-18,-92 Q0,-83 18,-92 L19,-80 Q0,-71 -19,-80 Z', C.accent) +
       '<g transform="translate(-7,-79)"><g class="scarfTail">' + solid('M-5,0 C-8,12 -5,24 -9,36 L1,38 C3,26 2,12 5,1 Z', C.accent) + '</g></g></g>' : '';
     var hand = solid(circlePath(0, 4, 8.5), col.skin, 4);
-    var shoe = solid('M-9,-4 C-10,6 20,10 25,3 C25,-4 8,-8 -9,-4 Z', col.shoe, 4);
-    var leg = function (cls, x) { return '<g transform="translate(' + x + ',0)"><g class="' + cls + '">' + limb(cls, LEG, LEG, [21, 16, 13], col.pants, '<g transform="translate(0,' + (LEG - 2) + ')">' + shoe + '</g>') + '</g></g>'; };
+    var shoe = solid('M-9,-4 C-10,6 20,10 25,3 C25,-4 8,-8 -9,-4 Z', col.shoe, 4) +
+      (fit ? p('M-8,3 C2,8 16,8 24,3', { w: 3.4, c: BEIGE }) : '');
+    var stripe = function (side) { return fit ? p('M' + (side * 7) + ',8 L' + (side * 5.5) + ',' + (LEG - 6), { w: 2.2, c: BEIGE }) : ''; };
+    var leg = function (cls, x) { return '<g transform="translate(' + x + ',0)"><g class="' + cls + '">' + limb(cls, LEG, LEG, [21, 16, 13], col.pants, '<g transform="translate(0,' + (LEG - 2) + ')">' + shoe + '</g>', stripe(x < 0 ? -1 : 1)) + '</g></g>'; };
+    // short sleeves: bare arm in skin tone, the sleeve (black, light-blue trim) over the top of the upper arm
+    var sleeve = fit ? solid(capsule(20, 18, 27), col.shirt, 4) + p('M-9,25 L9,25', { w: 3.2, c: BLUE }) : '';
     var arm = function (cls, x, mirror) {
       return '<g transform="translate(' + x + ',-' + SHOULDER + ')"><g class="' + cls + '"' + (mirror ? ' transform="scale(-1,1)"' : '') + '>' +
-        limb(cls, UARM, FARM, [16, 13, 11], col.shirt, '<g transform="translate(0,' + FARM + ')">' + hand + '</g>') + '</g></g>';
+        limb(cls, UARM, FARM, [16, 13, 11], fit ? col.skin : col.shirt, '<g transform="translate(0,' + FARM + ')">' + hand + '</g>', sleeve) + '</g></g>';
     };
     // props: parachute above the head, a small snorkel on the face
     var chute = '<g class="chute" opacity="0">' + p('M-36,-180 L-112,-312 M36,-180 L112,-312 M0,-196 L0,-318', { w: 3, c: 'inkSoft' }) +
@@ -1126,7 +1139,7 @@
       lastChunk = idx;
       capEl.innerHTML = idx < 0 ? '' : D.captions[idx].words.map(function (w, k) { return '<span data-k="' + k + '">' + esc(w.text) + '</span>'; }).join(' ');
       // shrink to fit the safe box on one line; below the minimum size, wrap instead
-      var size = D.captionSize, min = Math.round(size * 0.68);
+      var size = D.captionSize, min = Math.round(size * ((D.captionBox || {}).min_scale || 0.68));   // below min: wrap to 2 lines
       capEl.style.whiteSpace = 'nowrap'; capEl.style.fontSize = size + 'px';
       while (size > min && capEl.scrollWidth > capEl.clientWidth) { size -= 4; capEl.style.fontSize = size + 'px'; }
       if (capEl.scrollWidth > capEl.clientWidth) capEl.style.whiteSpace = 'normal';

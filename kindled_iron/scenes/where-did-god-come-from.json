@@ -13,12 +13,14 @@
  "captions_box": {
   "x": 540,
   "y": 618,
-  "w": 800,
-  "size": 184
+  "w": 820,
+  "size": 140,
+  "min_scale": 0.85
  },
  "captions_chunk": {
-  "max_words": 3,
-  "max_chars": 11
+  "max_words": 5,
+  "min_words": 3,
+  "max_chars": 22
  },
  "cast": {
   "guide": {
@@ -124,7 +126,7 @@
   {
    "id": "nobody",
    "panel": 0,
-   "narration": "Fair question. The Bible's answer: nobody.",
+   "narration": "Fair question. The Bible's answer? Nobody.",
    "camera_start": false,
    "events": [
     {
@@ -211,7 +213,7 @@
   {
    "id": "cheat",
    "panel": 0,
-   "narration": "I know. That sounds like a cheat code.",
+   "narration": "I know, that sounds like a cheat code. It doesn't even make sense.",
    "camera_start": false,
    "events": [
     {
@@ -271,13 +273,18 @@
      "who": "guide",
      "to": 550,
      "dur": 0.35
+    },
+    {
+     "at": "sense",
+     "do": "shake",
+     "who": "guide"
     }
    ]
   },
   {
    "id": "start",
    "panel": 1,
-   "narration": "But think about it. Everything you've ever seen had a start. You. Your phone. The universe. So your brain says God needs one too.",
+   "narration": "But think about it. Everything you've ever seen had a start. You, your phone, the universe. So your brain says God must have one too.",
    "camera_start": false,
    "transition": "slide",
    "whoosh": true,
@@ -467,7 +474,7 @@
   {
    "id": "time",
    "panel": 2,
-   "narration": "Here's the problem. That question only works inside time. And time is one of the things He made.",
+   "narration": "Here's the problem with that. That question only works inside of time. And time is one of the things He made.",
    "camera_start": false,
    "transition": "cut",
    "events": [
@@ -841,7 +848,7 @@
   {
    "id": "john",
    "panel": 5,
-   "narration": "And: \"All things were made through him.\" [John 1:3] If He made everything that was ever made, He can't be on the list.",
+   "narration": "And: \"All things were made through him.\" [John 1:3] If He made everything that was ever made, He can't be on that list.",
    "camera_start": false,
    "transition": "zoom",
    "serious": true,
@@ -936,7 +943,7 @@
   {
    "id": "moses",
    "panel": 6,
-   "narration": "Then Moses asks for His name. Two words: \"I AM.\" [Exodus 3:14] Not I was. Not I will be. I am.",
+   "narration": "Then Moses asked for His name. Two words: \"I AM.\" [Exodus 3:14] Not I was. I will be. I am.",
    "camera_start": false,
    "transition": "wipe",
    "whoosh": true,
@@ -1063,7 +1070,7 @@
   {
    "id": "genesis",
    "panel": 7,
-   "narration": "So the Bible never explains where God came from. Its first line just says: \"In the beginning, God created.\" [Genesis 1:1] Created. Not was created. He's the one who did the creating. He was already there. In the beginning, God did.",
+   "narration": "So the Bible never explains where God came from. Its first line just says: \"In the beginning, God created.\" [Genesis 1:1] Created. Not was created. He's the one who did the creating. He was already there in the beginning. And remember, it doesn't always have to make sense. God did.",
    "camera_start": false,
    "transition": "slide",
    "serious": true,
@@ -1241,7 +1248,7 @@
      "type": "word",
      "text": "GOD",
      "x": 540,
-     "y": 720,
+     "y": 690,
      "size": 200,
      "color": "accent",
      "dur": 0.25,
@@ -1254,7 +1261,7 @@
      "type": "word",
      "text": "DID",
      "x": 540,
-     "y": 890,
+     "y": 850,
      "size": 190,
      "dur": 0.2,
      "title": true,
@@ -1268,18 +1275,18 @@
      "expression": "happy"
     },
     {
-     "at": "did#2+0.15",
+     "at": "did#2+0.1",
      "id": "c_goddid",
      "x": 540,
-     "y": 400,
+     "y": 390,
      "w": 820,
-     "h": 440,
+     "h": 400,
      "meme_clip": {
       "query": "god did",
       "folders": [
        "reactions"
       ],
-      "max_s": 2.0,
+      "max_s": 1.4,
       "audio": true
      },
      "fallback": [
@@ -1313,6 +1320,51 @@
      "who": "guide",
      "toward": "card4",
      "hold": 0.5
+    },
+    {
+     "at": "remember-0.05",
+     "do": "draw",
+     "id": "g_sense",
+     "type": "word",
+     "text": "it doesn't always",
+     "x": 540,
+     "y": 712,
+     "size": 84,
+     "dur": 0.4,
+     "title": true
+    },
+    {
+     "at": "have-0.05",
+     "do": "draw",
+     "id": "g_sense2",
+     "type": "word",
+     "text": "have to make sense",
+     "x": 540,
+     "y": 802,
+     "size": 84,
+     "dur": 0.4,
+     "title": true
+    },
+    {
+     "at": "God#3-0.25",
+     "do": "fade",
+     "ids": [
+      "g_sense",
+      "g_sense2"
+     ],
+     "opacity": 0,
+     "dur": 0.15
+    },
+    {
+     "at": "remember",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "sense",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
     }
    ]
   }
@@ -1321,5 +1373,6 @@
   "title": "Where Did God Come From?",
   "caption": "If God made everything, who made God? The Bible's answer is one word. #bible #god #faith #christian #jesus #question",
   "description": "If God made everything, who made God? The Bible's answer: nobody."
- }
+ },
+ "voice_recording": "recordings/where-did-god-come-from_take3.m4a"
 }

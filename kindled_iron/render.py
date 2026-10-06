@@ -43,7 +43,10 @@ PALETTE = {
 }
 # The host (guide) is drawn after the channel owner: brown skin, shoulder-length twisted locs with a
 # middle part, small mustache + chin goatee, slightly hand-drawn head. A scene can turn it off ("look": false).
-HOST_LOOK = {"head": "hand", "hair": "locs", "beard": "goatee", "colors": {"skin": "#8D5B3E", "hair": "#231915"}}
+# Outfit: black short-sleeve button-up (light-blue collar, buttons, pocket, sleeve trim), black pants with a
+# beige accent, dark shoes with beige soles, no scarf, bare arms.
+HOST_LOOK = {"head": "hand", "hair": "locs", "beard": "goatee", "outfit": "buttonup",
+             "colors": {"skin": "#8D5B3E", "hair": "#231915", "shirt": "#2A2C33", "pants": "#25262C", "shoe": "#2E2925"}}
 HUD = {"x": 300, "y": 248, "scale": 1.25}   # DAY counter badge (top-left of the safe box: x 148-452, y 188-313)
 NO_POP = {"darkness", "line", "frame", "waves", "hill", "rays", "strike", "cross", "inset", "sparkle"}
 # TikTok safe area (owner's template). Important art + captions stay inside the box and out of the
@@ -117,16 +120,20 @@ def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, u
     return hits[nth - 1]["start"] + off
 
 
-def caption_chunks(words: list[dict], max_words: int = 3, max_chars: int = 13) -> list[dict]:
+def caption_chunks(words: list[dict], max_words: int = 3, max_chars: int = 13, min_words: int = 1) -> list[dict]:
+    """Chunks of min_words..max_words words; a chunk ends at punctuation or a pause only once it has
+    min_words (a pause over 0.8 s always ends it)."""
     chunks, cur = [], []
     for i, w in enumerate(words):
         cur.append(w)
         text = " ".join(x["word"] for x in cur)
         nxt = words[i + 1] if i + 1 < len(words) else None
         punct = re.search(r"[.,;:!?]$", w["word"])
-        gap = nxt is not None and nxt["start"] - w["end"] > 0.35
+        pause = nxt["start"] - w["end"] if nxt is not None else 0.0
+        gap = nxt is not None and pause > 0.35
         too_long = nxt is not None and len(text) + 1 + len(nxt["word"]) > max_chars
-        if len(cur) >= max_words or punct or gap or too_long or nxt is None:
+        enough = len(cur) >= min_words or pause > 0.8
+        if len(cur) >= max_words or ((punct or gap) and enough) or too_long or nxt is None:
             chunks.append(cur)
             cur = []
     out = []
@@ -558,6 +565,8 @@ def main() -> None:
                     help="voice provider (default: the voice profile's tts_provider)")
     ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
     ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
+    ap.add_argument("--recording", default=None, help="the owner's own reading (private file): his delivery in his cloned "
+                    "voice via ElevenLabs speech-to-speech, fallback text-to-speech matched to it; no pause edits")
     ap.add_argument("--music", default=None, help="music track name (vendor/sfx/lib/music_<name>.ogg); default: channel music_track")
     a = ap.parse_args()
 
@@ -595,7 +604,13 @@ def main() -> None:
         provider = a.tts or profile.get("tts_provider", "kokoro")
         segs = pacing.plan(texts, profile)
         raw = work / "narration_raw.wav"
-        voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
+        if a.recording:
+            from kindled_iron import recording_voice
+
+            voice_meta = recording_voice.voice(Path(a.recording), [w for txt in texts for w in words_of(txt)], raw,
+                                               profile, work, log)
+        else:
+            voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                                    "-of", "csv=p=0", str(raw)]).decode().strip())
         # Word timings always come from the audio that was actually used.
@@ -605,7 +620,12 @@ def main() -> None:
         aligned = wt.align(flat, heard, (0.0, audio_len))
         # Pauses: every sentence gap is set to its target on the final audio; timings shift with it.
         audio, sr = sf.read(raw, dtype="float32")
-        audio, aligned, pace_stats = pacing.enforce(audio, sr, aligned, segs, profile, log)
+        if a.recording:      # his delivery stays exactly as read: no trimming, no pause insertion
+            pace_stats = {"mode": "recording", "longest_silence": round(max(
+                [aligned[i + 1]["start"] - aligned[i]["end"] for i in range(len(aligned) - 1)] or [0]), 2)}
+            log(f"pacing: the recording's own pauses (longest {pace_stats['longest_silence']:.2f} s), no edits")
+        else:
+            audio, aligned, pace_stats = pacing.enforce(audio, sr, aligned, segs, profile, log)
         sf.write(wav, audio, sr)
         beat_words, k = [], 0
         for txt in texts:

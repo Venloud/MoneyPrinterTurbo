@@ -1,0 +1,976 @@
+[
+ {
+  "file": "amb_birds_0.ogg",
+  "role": "amb_birds",
+  "source": "freesound",
+  "id": 50619,
+  "title": "morning_birds_ambience.wav",
+  "author": "vibe_crc",
+  "url": "https://freesound.org/people/vibe_crc/sounds/50619/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "birds morning ambience",
+  "segment": "loop"
+ },
+ {
+  "file": "amb_crickets_0.ogg",
+  "role": "amb_crickets",
+  "source": "freesound",
+  "id": 522299,
+  "title": "Crickets At Night - Raw sound",
+  "author": "Defelozedd94",
+  "url": "https://freesound.org/people/Defelozedd94/sounds/522299/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "night crickets",
+  "segment": "loop"
+ },
+ {
+  "file": "amb_hum_0.ogg",
+  "role": "amb_hum",
+  "source": "freesound",
+  "id": 638914,
+  "title": "Low Rumble - loopable ambiance",
+  "author": "lennartgreen",
+  "url": "https://freesound.org/people/lennartgreen/sounds/638914/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "low drone ambience",
+  "segment": "loop"
+ },
+ {
+  "file": "amb_waves_0.ogg",
+  "role": "amb_waves",
+  "source": "freesound",
+  "id": 578524,
+  "title": "Calm ocean waves",
+  "author": "SamsterBirdies",
+  "url": "https://freesound.org/people/SamsterBirdies/sounds/578524/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "calm sea waves",
+  "segment": "loop"
+ },
+ {
+  "file": "amb_wind_0.ogg",
+  "role": "amb_wind",
+  "source": "freesound",
+  "id": 459977,
+  "title": "Soft Wind",
+  "author": "florianreichelt",
+  "url": "https://freesound.org/people/florianreichelt/sounds/459977/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "soft wind ambience",
+  "segment": "loop"
+ },
+ {
+  "file": "boom_0.ogg",
+  "role": "boom",
+  "source": "freesound",
+  "id": 165109,
+  "title": "Low Movie Boom.mp3",
+  "author": "rickeyc",
+  "url": "https://freesound.org/people/rickeyc/sounds/165109/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "deep boom",
+  "segment": [
+   6.16,
+   7.76
+  ]
+ },
+ {
+  "file": "boom_1.ogg",
+  "role": "boom",
+  "source": "freesound",
+  "id": 268084,
+  "title": "Bass Boom",
+  "author": "LordHannes",
+  "url": "https://freesound.org/people/LordHannes/sounds/268084/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "sub boom",
+  "segment": [
+   0.04,
+   2.44
+  ]
+ },
+ {
+  "file": "burst_0.ogg",
+  "role": "burst",
+  "source": "freesound",
+  "id": 351408,
+  "title": "GLEAM-GLOW-SFX-CHIME.wav",
+  "author": "newagesoup",
+  "url": "https://freesound.org/people/newagesoup/sounds/351408/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "chime sparkle",
+  "segment": [
+   1.48,
+   2.92
+  ]
+ },
+ {
+  "file": "burst_1.ogg",
+  "role": "burst",
+  "source": "freesound",
+  "id": 639429,
+  "title": "Crystal Twinkle",
+  "author": "LaurenPonder",
+  "url": "https://freesound.org/people/LaurenPonder/sounds/639429/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "chime sparkle",
+  "segment": [
+   0.18,
+   1.54
+  ]
+ },
+ {
+  "file": "eraser_0.ogg",
+  "role": "eraser",
+  "source": "freesound",
+  "id": 119143,
+  "title": "Pencil Eraser.wav",
+  "author": "esperri",
+  "url": "https://freesound.org/people/esperri/sounds/119143/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "eraser",
+  "segment": [
+   0.12,
+   1.62
+  ]
+ },
+ {
+  "file": "eraser_1.ogg",
+  "role": "eraser",
+  "source": "freesound",
+  "id": 119143,
+  "title": "Pencil Eraser.wav",
+  "author": "esperri",
+  "url": "https://freesound.org/people/esperri/sounds/119143/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "eraser",
+  "segment": [
+   2.07,
+   3.57
+  ]
+ },
+ {
+  "file": "eraser_2.ogg",
+  "role": "eraser",
+  "source": "freesound",
+  "id": 383861,
+  "title": "Pencil Eraser Erasing",
+  "author": "deleted_user_7146007",
+  "url": "https://freesound.org/people/deleted_user_7146007/sounds/383861/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "eraser",
+  "segment": [
+   2.24,
+   3.68
+  ]
+ },
+ {
+  "file": "eraser_3.ogg",
+  "role": "eraser",
+  "source": "freesound",
+  "id": 383861,
+  "title": "Pencil Eraser Erasing",
+  "author": "deleted_user_7146007",
+  "url": "https://freesound.org/people/deleted_user_7146007/sounds/383861/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "eraser",
+  "segment": [
+   11.9,
+   12.3
+  ]
+ },
+ {
+  "file": "handwriting_0.ogg",
+  "role": "handwriting",
+  "source": "freesound",
+  "id": 383866,
+  "title": "Pen Writing on Paper",
+  "author": "deleted_user_7146007",
+  "url": "https://freesound.org/people/deleted_user_7146007/sounds/383866/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen writing paper",
+  "segment": [
+   1.9,
+   2.62
+  ]
+ },
+ {
+  "file": "handwriting_1.ogg",
+  "role": "handwriting",
+  "source": "freesound",
+  "id": 383866,
+  "title": "Pen Writing on Paper",
+  "author": "deleted_user_7146007",
+  "url": "https://freesound.org/people/deleted_user_7146007/sounds/383866/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen writing paper",
+  "segment": [
+   8.78,
+   9.54
+  ]
+ },
+ {
+  "file": "handwriting_2.ogg",
+  "role": "handwriting",
+  "source": "freesound",
+  "id": 383866,
+  "title": "Pen Writing on Paper",
+  "author": "deleted_user_7146007",
+  "url": "https://freesound.org/people/deleted_user_7146007/sounds/383866/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen writing paper",
+  "segment": [
+   15.08,
+   15.76
+  ]
+ },
+ {
+  "file": "handwriting_3.ogg",
+  "role": "handwriting",
+  "source": "freesound",
+  "id": 234016,
+  "title": "Writing On Paper.wav",
+  "author": "rivernile7",
+  "url": "https://freesound.org/people/rivernile7/sounds/234016/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen writing paper",
+  "segment": [
+   0.14,
+   2.14
+  ]
+ },
+ {
+  "file": "handwriting_4.ogg",
+  "role": "handwriting",
+  "source": "freesound",
+  "id": 234016,
+  "title": "Writing On Paper.wav",
+  "author": "rivernile7",
+  "url": "https://freesound.org/people/rivernile7/sounds/234016/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen writing paper",
+  "segment": [
+   5.18,
+   7.18
+  ]
+ },
+ {
+  "file": "marker_0.ogg",
+  "role": "marker",
+  "source": "freesound",
+  "id": 351145,
+  "title": "fast and slow marker strokes",
+  "author": "MBPiM",
+  "url": "https://freesound.org/people/MBPiM/sounds/351145/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "felt tip pen drawing",
+  "segment": [
+   0.04,
+   1.24
+  ]
+ },
+ {
+  "file": "marker_1.ogg",
+  "role": "marker",
+  "source": "freesound",
+  "id": 351145,
+  "title": "fast and slow marker strokes",
+  "author": "MBPiM",
+  "url": "https://freesound.org/people/MBPiM/sounds/351145/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "felt tip pen drawing",
+  "segment": [
+   2.42,
+   3.82
+  ]
+ },
+ {
+  "file": "marker_2.ogg",
+  "role": "marker",
+  "source": "freesound",
+  "id": 351145,
+  "title": "fast and slow marker strokes",
+  "author": "MBPiM",
+  "url": "https://freesound.org/people/MBPiM/sounds/351145/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "felt tip pen drawing",
+  "segment": [
+   4.0,
+   4.44
+  ]
+ },
+ {
+  "file": "marker_3.ogg",
+  "role": "marker",
+  "source": "freesound",
+  "id": 400914,
+  "title": "Sharpie Marker Pen Writing and Scribbling on Paper",
+  "author": "luke2578",
+  "url": "https://freesound.org/people/luke2578/sounds/400914/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "marker pen",
+  "segment": [
+   2.4,
+   2.9
+  ]
+ },
+ {
+  "file": "marker_4.ogg",
+  "role": "marker",
+  "source": "freesound",
+  "id": 400914,
+  "title": "Sharpie Marker Pen Writing and Scribbling on Paper",
+  "author": "luke2578",
+  "url": "https://freesound.org/people/luke2578/sounds/400914/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "marker pen",
+  "segment": [
+   15.6,
+   17.2
+  ]
+ },
+ {
+  "file": "music_0.ogg",
+  "role": "music",
+  "source": "freesound",
+  "id": 455855,
+  "title": "Wandering",
+  "author": "Andrewkn",
+  "url": "https://freesound.org/people/Andrewkn/sounds/455855/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "ambient pad calm",
+  "segment": "loop"
+ },
+ {
+  "file": "pencil_long_0.ogg",
+  "role": "pencil_long",
+  "source": "freesound",
+  "id": 650994,
+  "title": "Pencil - drawing lines",
+  "author": "GeorgeHopkins",
+  "url": "https://freesound.org/people/GeorgeHopkins/sounds/650994/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil line",
+  "segment": [
+   0.0,
+   1.46
+  ]
+ },
+ {
+  "file": "pencil_long_1.ogg",
+  "role": "pencil_long",
+  "source": "freesound",
+  "id": 650994,
+  "title": "Pencil - drawing lines",
+  "author": "GeorgeHopkins",
+  "url": "https://freesound.org/people/GeorgeHopkins/sounds/650994/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil line",
+  "segment": [
+   10.26,
+   11.22
+  ]
+ },
+ {
+  "file": "pencil_long_2.ogg",
+  "role": "pencil_long",
+  "source": "freesound",
+  "id": 650994,
+  "title": "Pencil - drawing lines",
+  "author": "GeorgeHopkins",
+  "url": "https://freesound.org/people/GeorgeHopkins/sounds/650994/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil line",
+  "segment": [
+   18.98,
+   20.74
+  ]
+ },
+ {
+  "file": "pencil_long_3.ogg",
+  "role": "pencil_long",
+  "source": "freesound",
+  "id": 46624,
+  "title": "drawing fast lines with pencil on paper.wav",
+  "author": "123jorre456",
+  "url": "https://freesound.org/people/123jorre456/sounds/46624/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil line",
+  "segment": [
+   8.16,
+   9.96
+  ]
+ },
+ {
+  "file": "pencil_long_4.ogg",
+  "role": "pencil_long",
+  "source": "freesound",
+  "id": 46624,
+  "title": "drawing fast lines with pencil on paper.wav",
+  "author": "123jorre456",
+  "url": "https://freesound.org/people/123jorre456/sounds/46624/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil line",
+  "segment": [
+   16.88,
+   17.92
+  ]
+ },
+ {
+  "file": "pencil_long_5.ogg",
+  "role": "pencil_long",
+  "source": "freesound",
+  "id": 46624,
+  "title": "drawing fast lines with pencil on paper.wav",
+  "author": "123jorre456",
+  "url": "https://freesound.org/people/123jorre456/sounds/46624/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil line",
+  "segment": [
+   18.7,
+   19.34
+  ]
+ },
+ {
+  "file": "pop_0.ogg",
+  "role": "pop",
+  "source": "kenney",
+  "title": "pop.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "pop_1.ogg",
+  "role": "pop",
+  "source": "kenney",
+  "title": "pop2.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "pop_2.ogg",
+  "role": "pop",
+  "source": "kenney",
+  "title": "pop3.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "pop_3.ogg",
+  "role": "pop",
+  "source": "kenney",
+  "title": "tick.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "riser_0.ogg",
+  "role": "riser",
+  "source": "freesound",
+  "id": 334525,
+  "title": "rise5.wav",
+  "author": "soneproject",
+  "url": "https://freesound.org/people/soneproject/sounds/334525/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "riser swell",
+  "segment": [
+   1.9,
+   4.4
+  ]
+ },
+ {
+  "file": "riser_1.ogg",
+  "role": "riser",
+  "source": "freesound",
+  "id": 334525,
+  "title": "rise5.wav",
+  "author": "soneproject",
+  "url": "https://freesound.org/people/soneproject/sounds/334525/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "riser swell",
+  "segment": [
+   5.15,
+   7.65
+  ]
+ },
+ {
+  "file": "riser_2.ogg",
+  "role": "riser",
+  "source": "freesound",
+  "id": 218354,
+  "title": "Movie Short Swell",
+  "author": "jordivburgel",
+  "url": "https://freesound.org/people/jordivburgel/sounds/218354/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "reverse swell",
+  "segment": [
+   0.68,
+   3.18
+  ]
+ },
+ {
+  "file": "rumble_0.ogg",
+  "role": "rumble",
+  "source": "freesound",
+  "id": 217657,
+  "title": "earth rumble.wav",
+  "author": "Reitanna",
+  "url": "https://freesound.org/people/Reitanna/sounds/217657/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "earth rumble",
+  "segment": [
+   0.02,
+   3.02
+  ]
+ },
+ {
+  "file": "rumble_1.ogg",
+  "role": "rumble",
+  "source": "freesound",
+  "id": 217657,
+  "title": "earth rumble.wav",
+  "author": "Reitanna",
+  "url": "https://freesound.org/people/Reitanna/sounds/217657/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "earth rumble",
+  "segment": [
+   19.52,
+   22.52
+  ]
+ },
+ {
+  "file": "rumble_2.ogg",
+  "role": "rumble",
+  "source": "freesound",
+  "id": 336023,
+  "title": "Rocks.wav",
+  "author": "adamgryu",
+  "url": "https://freesound.org/people/adamgryu/sounds/336023/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "rocks crumble",
+  "segment": [
+   0.2,
+   3.14
+  ]
+ },
+ {
+  "file": "scratch_0.ogg",
+  "role": "scratch",
+  "source": "freesound",
+  "id": 320154,
+  "title": "Pencil Scratch 2",
+  "author": "OwlStorm",
+  "url": "https://freesound.org/people/OwlStorm/sounds/320154/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil scratch",
+  "segment": [
+   0.96,
+   1.31
+  ]
+ },
+ {
+  "file": "scratch_1.ogg",
+  "role": "scratch",
+  "source": "freesound",
+  "id": 320154,
+  "title": "Pencil Scratch 2",
+  "author": "OwlStorm",
+  "url": "https://freesound.org/people/OwlStorm/sounds/320154/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil scratch",
+  "segment": [
+   13.67,
+   14.02
+  ]
+ },
+ {
+  "file": "scratch_2.ogg",
+  "role": "scratch",
+  "source": "freesound",
+  "id": 320154,
+  "title": "Pencil Scratch 2",
+  "author": "OwlStorm",
+  "url": "https://freesound.org/people/OwlStorm/sounds/320154/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil scratch",
+  "segment": [
+   22.61,
+   22.96
+  ]
+ },
+ {
+  "file": "scratch_3.ogg",
+  "role": "scratch",
+  "source": "freesound",
+  "id": 407405,
+  "title": "Drawing with a pen",
+  "author": "florianreichelt",
+  "url": "https://freesound.org/people/florianreichelt/sounds/407405/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen scratch paper",
+  "segment": [
+   0.0,
+   0.35
+  ]
+ },
+ {
+  "file": "scratch_4.ogg",
+  "role": "scratch",
+  "source": "freesound",
+  "id": 407405,
+  "title": "Drawing with a pen",
+  "author": "florianreichelt",
+  "url": "https://freesound.org/people/florianreichelt/sounds/407405/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen scratch paper",
+  "segment": [
+   9.35,
+   9.7
+  ]
+ },
+ {
+  "file": "scratch_5.ogg",
+  "role": "scratch",
+  "source": "freesound",
+  "id": 407405,
+  "title": "Drawing with a pen",
+  "author": "florianreichelt",
+  "url": "https://freesound.org/people/florianreichelt/sounds/407405/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pen scratch paper",
+  "segment": [
+   18.32,
+   18.67
+  ]
+ },
+ {
+  "file": "scribble_0.ogg",
+  "role": "scribble",
+  "source": "freesound",
+  "id": 451646,
+  "title": "pencil on paper scribble.wav",
+  "author": "toddcircle",
+  "url": "https://freesound.org/people/toddcircle/sounds/451646/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil scribble",
+  "segment": [
+   2.6,
+   2.8
+  ]
+ },
+ {
+  "file": "scribble_1.ogg",
+  "role": "scribble",
+  "source": "freesound",
+  "id": 451646,
+  "title": "pencil on paper scribble.wav",
+  "author": "toddcircle",
+  "url": "https://freesound.org/people/toddcircle/sounds/451646/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil scribble",
+  "segment": [
+   7.86,
+   8.22
+  ]
+ },
+ {
+  "file": "scribble_2.ogg",
+  "role": "scribble",
+  "source": "freesound",
+  "id": 451646,
+  "title": "pencil on paper scribble.wav",
+  "author": "toddcircle",
+  "url": "https://freesound.org/people/toddcircle/sounds/451646/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil scribble",
+  "segment": [
+   12.7,
+   12.86
+  ]
+ },
+ {
+  "file": "scribble_3.ogg",
+  "role": "scribble",
+  "source": "freesound",
+  "id": 211247,
+  "title": "Scribble",
+  "author": "Tomoyo Ichijouji",
+  "url": "https://freesound.org/people/Tomoyo%20Ichijouji/sounds/211247/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "pencil scribble",
+  "segment": [
+   0.02,
+   0.62
+  ]
+ },
+ {
+  "file": "thud_0.ogg",
+  "role": "thud",
+  "source": "kenney",
+  "title": "impactSoft_heavy_000.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "thud_1.ogg",
+  "role": "thud",
+  "source": "kenney",
+  "title": "impactSoft_heavy_001.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "thud_2.ogg",
+  "role": "thud",
+  "source": "kenney",
+  "title": "impactSoft_heavy_002.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "thud_3.ogg",
+  "role": "thud",
+  "source": "kenney",
+  "title": "impactSoft_heavy_003.ogg",
+  "pack": "Kenney Interface/Impact Sounds",
+  "url": "https://kenney.nl/assets",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+ },
+ {
+  "file": "water_rush_0.ogg",
+  "role": "water_rush",
+  "source": "freesound",
+  "id": 253607,
+  "title": "Waves_WashingThroughCoral.wav",
+  "author": "floating tree",
+  "url": "https://freesound.org/people/floating%20tree/sounds/253607/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "wave wash",
+  "segment": [
+   1.14,
+   3.34
+  ]
+ },
+ {
+  "file": "water_rush_1.ogg",
+  "role": "water_rush",
+  "source": "freesound",
+  "id": 253607,
+  "title": "Waves_WashingThroughCoral.wav",
+  "author": "floating tree",
+  "url": "https://freesound.org/people/floating%20tree/sounds/253607/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "wave wash",
+  "segment": [
+   20.58,
+   21.88
+  ]
+ },
+ {
+  "file": "water_rush_2.ogg",
+  "role": "water_rush",
+  "source": "freesound",
+  "id": 161717,
+  "title": "waterFLOSH.wav",
+  "author": "PPWEISS",
+  "url": "https://freesound.org/people/PPWEISS/sounds/161717/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "water whoosh",
+  "segment": [
+   0.78,
+   3.78
+  ]
+ },
+ {
+  "file": "water_rush_3.ogg",
+  "role": "water_rush",
+  "source": "freesound",
+  "id": 161717,
+  "title": "waterFLOSH.wav",
+  "author": "PPWEISS",
+  "url": "https://freesound.org/people/PPWEISS/sounds/161717/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "water whoosh",
+  "segment": [
+   12.84,
+   15.08
+  ]
+ },
+ {
+  "file": "whoosh_fall_0.ogg",
+  "role": "whoosh_fall",
+  "source": "freesound",
+  "id": 325256,
+  "title": "Whoosh slow low.wav",
+  "author": "deleted_user_2104797",
+  "url": "https://freesound.org/people/deleted_user_2104797/sounds/325256/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "whoosh down",
+  "segment": [
+   3.22,
+   4.62
+  ]
+ },
+ {
+  "file": "whoosh_fall_1.ogg",
+  "role": "whoosh_fall",
+  "source": "freesound",
+  "id": 325256,
+  "title": "Whoosh slow low.wav",
+  "author": "deleted_user_2104797",
+  "url": "https://freesound.org/people/deleted_user_2104797/sounds/325256/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "whoosh down",
+  "segment": [
+   5.04,
+   6.44
+  ]
+ },
+ {
+  "file": "whoosh_fall_2.ogg",
+  "role": "whoosh_fall",
+  "source": "freesound",
+  "id": 238375,
+  "title": "CP_Subby_Whoosh.aif",
+  "author": "stewdio2003",
+  "url": "https://freesound.org/people/stewdio2003/sounds/238375/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "whoosh down",
+  "segment": [
+   0.44,
+   1.84
+  ]
+ },
+ {
+  "file": "whoosh_fall_3.ogg",
+  "role": "whoosh_fall",
+  "source": "freesound",
+  "id": 238375,
+  "title": "CP_Subby_Whoosh.aif",
+  "author": "stewdio2003",
+  "url": "https://freesound.org/people/stewdio2003/sounds/238375/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "whoosh down",
+  "segment": [
+   3.0,
+   3.4
+  ]
+ },
+ {
+  "file": "whoosh_slow_0.ogg",
+  "role": "whoosh_slow",
+  "source": "freesound",
+  "id": 369698,
+  "title": "Whoosh.wav",
+  "author": "crackles04",
+  "url": "https://freesound.org/people/crackles04/sounds/369698/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "slow whoosh",
+  "segment": [
+   3.44,
+   4.88
+  ]
+ },
+ {
+  "file": "whoosh_slow_1.ogg",
+  "role": "whoosh_slow",
+  "source": "freesound",
+  "id": 325256,
+  "title": "Whoosh slow low.wav",
+  "author": "deleted_user_2104797",
+  "url": "https://freesound.org/people/deleted_user_2104797/sounds/325256/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "slow whoosh",
+  "segment": [
+   3.22,
+   5.72
+  ]
+ },
+ {
+  "file": "whoosh_slow_2.ogg",
+  "role": "whoosh_slow",
+  "source": "freesound",
+  "id": 325256,
+  "title": "Whoosh slow low.wav",
+  "author": "deleted_user_2104797",
+  "url": "https://freesound.org/people/deleted_user_2104797/sounds/325256/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "query": "slow whoosh",
+  "segment": [
+   6.98,
+   7.8
+  ]
+ }
+]

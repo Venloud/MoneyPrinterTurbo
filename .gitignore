@@ -45,3 +45,8 @@ htmlcov/
 
 # Claude Code 订阅令牌（docker compose 自动读取），禁止提交
 .env
+
+# Kindled Iron sound library: raw downloads / generated cache (the trimmed CC0 files in vendor/sfx/lib are committed)
+kindled_iron/vendor/sfx/.download/
+kindled_iron/vendor/sfx/.elevenlabs/
+kindled_iron/vendor/sfx/kenney_impact/

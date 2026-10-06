@@ -160,13 +160,24 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         if beat.get("captions", True):
             captions += caption_chunks(words)
         cam = beat.get("camera_start")
-        if cam is not False:
+        prev_panel = scene["beats"][b - 1].get("panel", 0) if b else None
+        trans = beat.get("transition")
+        if b and trans is None and beat.get("panel", 0) != prev_panel and cam is False \
+                and not any(ev.get("do") == "walk" and ev.get("camera") for ev in beat.get("events", [])):
+            trans = "slide"                      # a new panel with no walk: slide over by default
+        if b and trans:
+            events += transition_events(trans, start, off, cam if isinstance(cam, dict) else {}, cam_y)
+        elif cam is not False:
             cam = cam or {}
             events.append({"t": max(0.0, start - 0.25) if b else 0.0, "do": "camera",
                            "x": off + cam.get("x", 540), "y": cam.get("y", cam_y), "zoom": cam.get("zoom", 1.0),
                            "dur": cam.get("dur", 0.9 if b else 0.01)})
         for ev in beat.get("events", []):
             e = dict(ev)
+            if "do" not in e:                     # shorthand {"guide": "parachute", ...}
+                who = next((k for k in scene["cast"] if isinstance(e.get(k), str)), None)
+                if who:
+                    e["do"], e["who"] = e.pop(who), who
             try:
                 e["t"] = round(resolve_at(e.pop("at", None), words, start, end, used,
                                           [p for p in pauses if p[2] == b]), 3)
@@ -199,11 +210,13 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                                     "n": 6})
                     events.append({"t": round(e["t"] + 0.25, 3), "do": "draw", "id": sid, "dur": 0.3, "pop": False})
                 continue
-            if kind == "walk":
+            if kind in ("walk", "drift"):
                 e["to"] = e["to"] + off
                 if e.get("camera"):
                     e["camX"] = e.get("camX", 540) + off
                     e.setdefault("camY", cam_y)
+            if kind == "place" and "x" in e:
+                e["x"] = e["x"] + off
             if kind == "camera":
                 e["x"] = e.get("x", 540) + off
                 e.setdefault("y", cam_y)
@@ -216,17 +229,75 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
     # never walks over key text and no half-cut drawing edge slides across the screen.
     panel_of = {o["id"]: int(o["x"] // PANEL_W) for o in objects}
     faded: set[str] = set()
-    for e in [e for e in events if e["do"] == "walk" and e.get("camera")]:
-        new_panel = int(e["camX"] // PANEL_W)
+    for e in [e for e in events if (e["do"] == "walk" and e.get("camera")) or e.get("transition")]:
+        new_panel = int((e.get("camX") if e["do"] == "walk" else e["x"]) // PANEL_W)
         old = [o["id"] for o in objects if panel_of[o["id"]] < new_panel and o["id"] not in faded]
         if old:
             faded.update(old)
             events.append({"t": max(0.0, e["t"] - 0.15), "do": "fade", "ids": old, "opacity": 0, "dur": 0.25})
     events.sort(key=lambda e: e["t"])
+    respond(events, objects)
+    interaction_check(scene, events, objects, spans)
+    events.sort(key=lambda e: e["t"])
     return {"width": WIDTH, "height": HEIGHT, "fps": FPS, "duration": duration, "ground": ground,
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
             "captionSize": CAPTION["size"], "hud": HUD, "paper": None, "inboxReactions": []}
+
+
+def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float) -> list[dict]:
+    """Scene change: cut, slide, zoom or wipe to the next panel (the guide re-enters with an action)."""
+    kind = trans if isinstance(trans, str) else trans.get("type", "slide")
+    x, y, z = off + cam.get("x", 540), cam.get("y", cam_y), cam.get("zoom", 1.0)
+    base = {"do": "camera", "x": x, "y": y, "transition": kind}
+    if kind == "cut":
+        return [{**base, "t": max(0.0, t0 - 0.05), "zoom": z, "dur": 0.01}]
+    if kind == "zoom":                      # punch into the old scene, cut, pull back out of the new one
+        return [{"t": max(0.0, t0 - 0.35), "do": "camera_zoom_out_of", "zoom": 1.35, "dur": 0.3},
+                {**base, "t": max(0.0, t0 - 0.05), "zoom": 1.35, "dur": 0.01},
+                {"t": t0, "do": "camera", "x": x, "y": y, "zoom": z, "dur": 0.45, "ease": "power2.out"}]
+    if kind == "wipe":
+        return [{"t": max(0.0, t0 - 0.35), "do": "wipe", "dur": 0.7},
+                {**base, "t": max(0.0, t0 - 0.02), "zoom": z, "dur": 0.01}]
+    return [{**base, "t": max(0.0, t0 - 0.3), "zoom": z, "dur": 0.55, "ease": "power2.inOut"}]      # slide
+
+
+GUIDE_TOUCHES = {"point", "reach", "touch", "pet", "ride", "peek", "climb", "shield_eyes", "look"}
+RESPONSE = {"tree": "wiggle", "plant": "wiggle", "cloud": "wiggle", "waves": "splash", "fish": "splash",
+            "animal": "wiggle", "sun": "pulse", "light": "pulse", "moon": "pulse", "star": "pulse", "stars": "pulse",
+            "hill": "dirt", "globe": "wiggle", "book": "pulse"}
+
+
+def respond(events: list[dict], objects: list[dict]) -> None:
+    """The drawing a character touches answers back: the tree shakes, water splashes, the sun pulses."""
+    by_id = {o["id"]: o for o in objects}
+    for e in list(events):
+        if e.get("do") not in GUIDE_TOUCHES or e.get("respond") is False:
+            continue
+        o = by_id.get(e.get("toward") or e.get("on"))
+        if not o:
+            continue
+        kind = RESPONSE.get(o["type"], "pulse")
+        t = round(e["t"] + 0.25, 3)
+        if kind in ("splash", "dirt"):
+            sid = f"{o['id']}_{kind}_{int(t * 100)}"
+            objects.append({"id": sid, "type": "splash", "x": o["x"], "y": o["y"] - (30 if kind == "splash" else 0),
+                            "r": 90, "n": 9, "dirt": kind == "dirt"})
+            events.append({"t": t, "do": "draw", "id": sid, "dur": 0.3, "pop": False, "hold": 0.7})
+        else:
+            events.append({"t": t, "do": kind, "id": o["id"]})
+
+
+def interaction_check(scene: dict, events: list[dict], objects: list[dict], spans) -> None:
+    """Every scene: the guide touches, points at or reacts to at least one drawing."""
+    ids = {o["id"] for o in objects}
+    for b, beat in enumerate(scene["beats"]):
+        a, z = spans[b][0], spans[b + 1][0] if b + 1 < len(spans) else spans[b][1] + 5
+        hit = any(e.get("who") == "guide" and e.get("do") in GUIDE_TOUCHES | {"present"} and
+                  (e.get("toward") in ids or e.get("on") in ids or e.get("do") in ("present", "shield_eyes")) and a <= e["t"] < z
+                  for e in events)
+        if not hit and beat.get("interaction", True):
+            log(f"INTERACTION WARNING beat {beat.get('id', b)}: the guide doesn't touch, point at or react to any drawing")
 
 
 def write_page(data: dict, work: Path) -> Path:
@@ -283,7 +354,10 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
     return out
 
 
-VISUAL_EVENTS = {"move", "wiggle", "draw", "walk", "point", "reach", "wave", "cheer", "react", "shrug", "present", "look", "shake",
+VISUAL_EVENTS = {"place", "sit", "lie_down", "swim", "float", "parachute", "pop_up", "climb", "jump", "fall", "ride",
+                 "peek", "pet", "shield_eyes", "stand", "look_viewer", "ghost", "wipe", "touch", "size", "drift",
+                 "rise", "drop", "light_burst", "paper", "express", "fade",
+                 "move", "wiggle", "draw", "walk", "point", "reach", "wave", "cheer", "react", "shrug", "present", "look", "shake",
                  "camera", "pulse", "enter", "reaction", "counter", "inset", "sparkle", "kneel"}
 
 
@@ -346,7 +420,12 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         for e in errors:
             log(f"page: {e}")
         layout_check(page, duration, page_file.parent)
+        # GSAP can't reliably undo instant "set" steps when scrubbed backwards: start again from a fresh
+        # page so the capture only ever plays forwards
+        page.goto(page_file.as_uri())
+        page.wait_for_function("window.KI_READY === true", timeout=60000)
         if stills is not None:
+            stills = sorted(stills)
             still_dir.mkdir(parents=True, exist_ok=True)
             for t in stills:
                 page.evaluate(f"window.kiSeek({t})")
@@ -475,16 +554,36 @@ def main() -> None:
         log(f"stills in {work / 'stills'}")
         return
     out.parent.mkdir(parents=True, exist_ok=True)
-    cues = effects.plan_sfx(data["events"], data["objects"])
-    effects.mix(wav, cues, work / "mix.wav", duration)
-    log(f"sound effects: {len(cues)} cues (Kenney CC0), under the voice")
+    from kindled_iron import sound
+
+    cues = sound.plan(data["events"], data["objects"], scene, spans)
+    music_from = None
+    for b, beat in enumerate(scene["beats"]):
+        if beat.get("music_from") is not None:
+            music_from = resolve_at(beat["music_from"], beat_words[b], spans[b][0], spans[b][1], {})
+            break
+    flat_words = [w for bw in beat_words for w in bw]
+    mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music_from, log)
+    snd = sound.report(cues, mixed["beds"], duration)
+    snd["lufs"] = mixed["lufs"]
+    (work / "sounds.json").write_text(json.dumps(snd, indent=1))
+    log(f"sounds: {snd['cues']} cues, longest stretch without a new sound {snd['longest_gap']:.1f} s "
+        f"(at {snd['longest_gap_at']:.1f} s), final {mixed['lufs']:.1f} LUFS")
     capture(page, out, work / "mix.wav", duration, a.chrome)
+    novoice = out.with_name(out.stem + "_novoice.mp4")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out), "-i", str(work / "mix_novoice.wav"), "-map", "0:v", "-map", "1:a",
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", str(novoice)], check=True)
+    log(f"voice-muted copy: {novoice}")
+    shutil.copy(work / "sounds.json", out.with_name(out.stem + "_sounds.json"))
+    if (work / "insets_contact_sheet.jpg").exists():
+        shutil.copy(work / "insets_contact_sheet.jpg", out.with_name(out.stem + "_insets.jpg"))
     shutil.copy(work / "captions.srt", out.with_suffix(".srt"))
     shutil.copy(work / "sources.json", out.with_name(out.stem + "_sources.json"))
     empty = empty_check(out)
     words = sum(len(words_of(x)) for x in texts)
     meta = {"scene": sid, "duration": duration, "words": words, "voice": voice_meta,
-            "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues), "empty_stretches": empty}
+            "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues),
+            "longest_sound_gap": snd["longest_gap"], "lufs": mixed["lufs"], "empty_stretches": empty}
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
     if a.debug_copy:
         dbg = out.with_name(out.stem + "_safebox.mp4")

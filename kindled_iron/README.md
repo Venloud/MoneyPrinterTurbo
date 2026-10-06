@@ -74,16 +74,40 @@ drawing. NASA (public domain), Pexels and Pixabay (no attribution needed; keys `
 NASA search results are mixed (press conferences...), so pin NASA clips after checking frames.
 
 ## Reactions (use sparingly)
-`{"do": "reaction", "who": "guide", "face": "side_eye", "dur": 1.2}`: faces `shocked`, `mind_blown`,
-`side_eye`, `crying_laughing`, `thinking`, `wait_what`, drawn in our style and swapped onto the head
-(head pops bigger) for under 1.5 s. Own images: `reactions_inbox/`. Hard limits (extra ones are
-dropped with a WARNING): max 2 a video, 15 s apart, never on the word "God" or on a beat marked
-`"serious": true`.
+`{"do": "reaction", "who": "guide", "face": "shocked", "dur": 1.2}`: faces `shocked`, `mind_blown`,
+`side_eye`, `crying_laughing`, `thinking`, `wait_what`. Eyebrows exist ONLY inside a reaction (never
+angled down = never angry). Hard limits (extra ones are dropped with a WARNING): max 2 a video, 15 s
+apart, under 1.5 s, never on the word "God" or on a beat marked `"serious": true`.
 
-## Sound effects
-Kenney CC0 sounds in `vendor/sfx` (licence file there): pops on drawings, scratch on strikes, ding on
-the check mark and the DAY counter, whoosh on insets, boing on reactions, sparkle on sparkles. Mixed
-at about -13 dB under the voice, at most one every 0.3 s.
+## Faces
+Everyone (guide, man, woman) has the same simple face: two dot eyes and a small mouth, friendly and
+calm by default. `express` / `look` expressions: `neutral`, `happy`, `surprised`, `curious`, `awe`
+(older names map: thinking/focused -> curious, speaking/sad -> neutral). The guide always wears the
+orange scarf; people are told apart by hair, clothes and height.
+
+## Sound (sound.py, library built once by sfx_library.py)
+Driven by the events, automatic, with `"sound": "<role>"` / `"sound": false` on an event to override:
+- DRAWN things: pencil/pen on paper, starting and stopping with the stroke: `pencil_long` (outlines),
+  `scribble` (short marks), `marker` (colour fill), `handwriting` (text), two `scratch`es (cross-outs),
+  `eraser` (a `fade` with `"erase": true`). 4+ variants each, rotated, slight random pitch.
+- BIG things animated in (build-up starts BEFORE they appear, then the impact): `rise` = rumble + soft
+  thud, `drop` = falling whoosh + landing boom, `light_burst` = riser + bright burst, water `rise` = water
+  rush, big text = riser + deep soft boom, a big `move` (sky lifting, dark sweeping away) = slow whoosh.
+- SMALL / background: no sound (the guide's little actions, birds, waves, clouds, stars, sparkles).
+- A soft pop for things that appear finished (insets, the DAY counter tick).
+- Per beat `"ambience"`: hum | wind | waves | birds | crickets. `"music_from": "<word>"` on one beat
+  starts the soft music bed there.
+`"weight": "big" | "small"` on the event or object; default = big when over ~25 % of the safe box.
+One big sound at a time; never two booms within 1.5 s. Mix: voice on top, pencil + hits ~12-16 dB
+under it, ambience + music ~20 dB under and 6 dB more while someone speaks, final -14 LUFS.
+Each render writes `<name>_sounds.json`: every sound with its time, file and source (the owner's
+listen-check), plus the longest stretch without a new sound.
+
+Library: `vendor/sfx/lib/*.ogg` + `vendor/sfx/lib/sources.json` (licence per file). Source order:
+Kenney CC0 -> Freesound CC0 only (API with FREESOUND_API_KEY, else the public CC0 search page; every
+sound page re-checked for CC0) -> ElevenLabs Sound Effects (only with `--allow-elevenlabs`). No CC BY,
+no Shutterstock. Picks are pinned in `vendor/sfx/lib_pins.json`; to swap one, change the id and run
+`python -m kindled_iron.sfx_library --roles <role>`.
 
 ## Writing rules (every script)
 - The hook (first line) is explained in the next 1-2 lines.
@@ -161,16 +185,29 @@ camera to the beat's own events (e.g. a walk with `"camera": true`).
 Also `sparkle` (n, r), `inset` (above). Common: `x`, `y`, `scale`, `rotate`, `dur`, `pop` (bounce, default
 on for small things), `instant` (fully drawn at once), `sparkle` (burst as it lands), `marker` (word:
 highlighter band), `over` (intended overlaps). Strokes draw themselves; text wipes in.
-Also `fade` (`ids`, `opacity`), `pulse` / `wiggle` (`id`), `move` (`id`, `dx`, `dy`, `dur`),
-`counter` (`day`), `shake` (no `who` = camera shake).
+Also `fade` (`ids`, `opacity`, `erase`), `pulse` / `wiggle` (`id`), `move` (`id`, `dx`, `dy`, `dur`),
+`rise` (`id`: grows up out of the ground), `drop` (`id`: falls in from above and lands), `counter` (`day`),
+`shake` (no `who` = camera shake), `paper` (`dark` 0..1: dark paper), `light_burst` (`x`, `y`, `dur`,
+`hold`: the light fills the whole scene, paper brightens, rays spread from x,y; no spotlight).
+Object `layer: "top"` stays visible on the dark paper; `still: true` = no ambient motion.
 
 ### Characters (`who` = a cast id)
-`enter` (draws the stickman in), `exit`, `walk` (`to`, `speed`, `camera`, `camY`, `camZoom`, `face`),
-`point` / `reach` (`toward` = object or character id; auto-turns), `wave`, `cheer`, `react`
-(`expression`), `shrug`, `present`, `look` (`dir` up|down), `shake` (head), `kneel`, `express`
-(`expression`: neutral, happy, surprised, thinking, speaking, focused), `face` (1 / -1).
-Gestures hold for `hold` seconds, then return to rest. Cast options: `hair` (long-straight,
-short-tufts), `dress`, `accent` (orange collar), `scale`, `facing`.
+`enter` (draws the character in), `exit`, `walk` (`to`, `speed`, `camera`, `camY`, `camZoom`, `face`;
+turns first, never walks backwards), `point` / `reach` / `touch` (`toward`), `wave`, `cheer`, `react`,
+`shrug`, `present`, `look` (`dir` up|down), `kneel`, `express` (`expression`), `face` (1 / -1),
+`place` (`x`, `facing`, `hidden`), `size` (`value`: big + centred only for the hook and the last line),
+`drift` (`to`: float across). Scene actions: `float`, `parachute` (`from`, `y`, `dur`), `pop_up`, `climb`
+(`dx`, `dy`), `sit` (`against`: a tree id = back to the trunk), `lie_down`, `swim` (`in`: a waves id;
+lower body under the water line, `snorkel`), `jump`, `fall`, `ride` (`on`: an animal/fish id; seated,
+moves with it), `peek` (`toward`, `side`), `pet` (`toward`), `shield_eyes`, `look_viewer`, `stand`.
+Shorthand: `{"guide": "parachute", "at": ...}`. Contact check: sit / lie / ride / swim must really touch
+the ground, animal, trunk or water (LAYOUT WARNING otherwise).
+Gestures hold for `hold` seconds, then return to rest. Cast options: `hair` (long-straight, short),
+`dress`, `accent` (orange scarf), `colors`, `scale`, `facing`.
+
+### Beats
+`transition`: cut | slide | zoom | wipe (a new panel with no walk slides by default). `ambience`,
+`music_from`, `serious`, `interaction: false` (no "guide touches a drawing" warning).
 
 ### Camera
 `{"do": "camera", "x": 560, "y": 860, "zoom": 1.12, "dur": 1.0, "ease": "power2.inOut"}` (panel-local).

@@ -222,6 +222,17 @@
         ' Q' + w + ',' + h + ' ' + (w - 14) + ',' + h + ' L' + (-w + 10) + ',' + (h - 3) + ' Q' + (-w) + ',' + h + ' ' + (-w) + ',' + (h - 14) + ' L' + (-w + 3) + ',' + (-h + 12) + ' Q' + (-w) + ',' + (-h) + ' ' + (-w + 14) + ',' + (-h), { w: 6, c: 'inkSoft' });
     },
     dot: function (o) { var r = o.r || 22; return p(wobbleCircle(0, 0, r, 9), { c: o.color || 'accent', w: 6, fill: o.color || 'accent', fo: 1 }); },
+    splash: function (o) {    // drops flying up and out (water) or clods (dirt); pops in and fades
+      var R = rng(hash(o.id)), n = o.n || 8, r = o.r || 70, s = '', fill = o.dirt ? '#A07850' : 'water', line = o.dirt ? '#6B4A2E' : 'waterLine';
+      for (var i = 0; i < n; i++) {
+        var a = -Math.PI * (0.1 + 0.8 * i / (n - 1)) + (R() - 0.5) * 0.3, d = r * (0.6 + R() * 0.6);
+        var x = Math.cos(a) * d, y = Math.sin(a) * d, k = 7 + R() * 7;
+        s += '<g class="spk" transform="translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')"><g class="spk-i">' +
+          p(o.dirt ? wobbleCircle(0, 0, k, i + 3, 0.3) : 'M0,' + (-k * 1.4) + ' C' + (k * 0.9) + ',' + (-k * 0.2) + ' ' + (k * 0.8) + ',' + k + ' 0,' + k + ' C' + (-k * 0.8) + ',' + k + ' ' + (-k * 0.9) + ',' + (-k * 0.2) + ' 0,' + (-k * 1.4) + ' Z',
+            { w: 3, c: line, fill: fill, fo: 1 }) + '</g></g>';
+      }
+      return s;
+    },
     sparkle: function (o) {   // a burst of little stars that pops in and fades
       var R = rng(hash(o.id)), n = o.n || 6, r = o.r || 90, s = '';
       for (var i = 0; i < n; i++) {
@@ -255,66 +266,94 @@
 
   // ---------------------------------------------------------------- stickman rig
   // Local units: hip at (0,0), y down. Feet touch y = LEG*2 + 6.
-  var LEG = 52, TORSO = 95, SHOULDER = 82, UARM = 50, FARM = 48;
+  var LEG = 52, TORSO = 95, SHOULDER = 82, UARM = 50, FARM = 48, SH_W = 17;
   var HIP_Y = -(LEG * 2 + 6);
   var V = D.vendor; // vendored upstream SVG snippets: head, expressions, hair
 
-  function limb(cls, len1, len2, foot) {
-    return '<g class="' + cls + '1">' + p('M0,0 L0,' + len1, { w: 7 }) +
-      '<g transform="translate(0,' + len1 + ')"><g class="' + cls + '2">' + p('M0,0 L0,' + len2, { w: 7 }) +
-      (foot ? p('M0,' + len2 + ' L13,' + (len2 + 2), { w: 7 }) : p(circlePath(0, len2 + 2, 6), { w: 5, fill: 'board', fo: 1 })) +
+  // Solid "real body" rig: the same joints as the old stick rig (hips, knees, shoulders, elbows),
+  // but every part is a filled shape with an ink outline. Simple dot-eye faces (eyebrows only for
+  // reactions) and always wears the orange scarf, so he reads as the narrator, never as a created thing.
+  var DEFAULT_COLORS = { skin: '#EFD9BC', shirt: '#4A6C8F', pants: '#2F3F52', shoe: '#2B2B2B', hair: '#4A3426', dress: '#C98BA3' };
+  function solid(d, fill, w) { return f(d, fill, 1, false) + p(d, { w: w || 4.5 }); }
+  function capsule(w0, w1, L) {
+    var a = w0 / 2, b = w1 / 2;
+    return 'M' + (-a) + ',0 A' + a + ',' + a + ' 0 0 1 ' + a + ',0 L' + b + ',' + L + ' A' + b + ',' + b + ' 0 0 1 ' + (-b) + ',' + L + ' Z';
+  }
+  function limb(cls, len1, len2, w, color, end) {
+    return '<g class="' + cls + '1">' + solid(capsule(w[0], w[1], len1), color) +
+      '<g transform="translate(0,' + len1 + ')"><g class="' + cls + '2">' + solid(capsule(w[1], w[2], len2), color) + end +
       '</g></g></g>';
   }
-  // Reaction faces in our own stickman style, head coords (face centre at 0,-39). Short and rare.
-  var REACTIONS = {
-    shocked: p(circlePath(-15, -44, 9), { w: 4, fill: 'page', fo: 1 }) + p(circlePath(13, -44, 9), { w: 4, fill: 'page', fo: 1 }) +
-      p(circlePath(-15, -44, 2.5), { w: 4, fill: 'ink', fo: 1 }) + p(circlePath(13, -44, 2.5), { w: 4, fill: 'ink', fo: 1 }) +
-      p('M-26,-62 q10,-8 20,-2 M6,-64 q10,-6 20,2', { w: 4 }) + p('M-7,-18 C-7,-30 7,-30 7,-18 C7,-6 -7,-6 -7,-18 Z', { w: 4, fill: 'ink', fo: 1 }) +
-      p('M34,-70 C38,-60 40,-54 34,-50 C28,-54 30,-60 34,-70 Z', { w: 3, c: 'waterLine', fill: 'water', fo: 1 }),
-    mind_blown: p('M-20,-44 m-6,0 a6,6 0 1,1 6,6 a3,3 0 1,1 -3,-3 M10,-44 m-6,0 a6,6 0 1,1 6,6 a3,3 0 1,1 -3,-3', { w: 3.5 }) +
-      p('M-9,-20 C-9,-30 9,-30 9,-20 C9,-10 -9,-10 -9,-20 Z', { w: 4, fill: 'ink', fo: 1 }) +
-      p('M-24,-84 L-36,-104 M-8,-88 L-10,-112 M8,-88 L12,-112 M24,-84 L38,-102 M-30,-78 L-48,-86 M30,-78 L48,-84', { w: 6, c: 'accent' }),
-    side_eye: p('M-26,-46 L-4,-46 M4,-46 L26,-46', { w: 4 }) + p(circlePath(-8, -40, 3.5), { w: 3, fill: 'ink', fo: 1 }) + p(circlePath(20, -40, 3.5), { w: 3, fill: 'ink', fo: 1 }) +
-      p('M-24,-56 L-6,-52 M6,-54 L24,-58', { w: 4 }) + p('M-8,-18 L12,-21', { w: 4 }),
-    crying_laughing: p('M-24,-42 q8,-10 16,0 M6,-42 q8,-10 16,0', { w: 4.5 }) +
-      p('M-16,-26 C-14,-6 14,-6 16,-26 Z', { w: 4, fill: 'ink', fo: 1 }) + p('M-8,-12 q8,4 16,0', { w: 3, c: 'accent' }) +
-      p('M-30,-40 C-40,-32 -42,-24 -36,-20 C-30,-24 -30,-32 -30,-40 Z M30,-40 C40,-32 42,-24 36,-20 C30,-24 30,-32 30,-40 Z', { w: 3, c: 'waterLine', fill: 'water', fo: 1 }),
-    thinking: p(circlePath(-12, -46, 3.5), { w: 3, fill: 'ink', fo: 1 }) + p(circlePath(16, -46, 3.5), { w: 3, fill: 'ink', fo: 1 }) +
-      p('M-24,-54 L-6,-54 M6,-60 q10,-6 20,0', { w: 4 }) + p('M-8,-20 q4,-4 8,0 q4,4 8,0', { w: 4 }) +
-      p('M34,-96 q0,-14 12,-14 q12,0 12,12 q0,8 -10,12 l0,8 M46,-62 l0,2', { w: 5, c: 'accent' }),
-    wait_what: p(circlePath(-14, -44, 8), { w: 4, fill: 'page', fo: 1 }) + p(circlePath(-14, -44, 2.5), { w: 3, fill: 'ink', fo: 1 }) +
-      p('M6,-44 L24,-44', { w: 4.5 }) + p('M-26,-62 q10,-10 22,-2 M6,-52 L24,-50', { w: 4 }) + p('M-10,-18 L-2,-22 L6,-17 L12,-21', { w: 4 }) +
-      p('M38,-104 q0,-14 11,-14 q11,0 11,11 q0,8 -9,11 l0,7 M49,-74 l0,2 M68,-118 L66,-90 M66,-80 l0,2', { w: 5, c: 'accent' })
+  // Simple faces (every character, same style): two dot eyes and a small mouth, friendly and calm.
+  // Head centre (0,-38), radius 33. Eyebrows exist ONLY inside a reaction (under 1.5 s), never angled
+  // down toward the middle (never angry).
+  function eyes(dx, dy, r) { return p(circlePath(-11 + dx, -42 + dy, r || 3.6) + ' ' + circlePath(11 + dx, -42 + dy, r || 3.6), { w: 2.5, fill: 'ink', fo: 1 }); }
+  function mouthO(dx, r) { return p(circlePath(dx || 0, -24, r || 4), { w: 3 }); }
+  var FACES = {
+    neutral: eyes(0, 0) + p('M-7,-25 Q0,-20 7,-25', { w: 3 }),
+    happy: eyes(0, -1) + p('M-10,-27 Q0,-16 10,-27', { w: 3.2 }),
+    surprised: eyes(0, -1, 4.2) + mouthO(0, 4.2),
+    curious: eyes(4, -2) + p('M-4,-24 Q2,-22 7,-25', { w: 3 }),
+    awe: eyes(1, -7) + mouthO(1, 3.6),
+    blink: p('M-15,-42 L-7,-42 M7,-42 L15,-42', { w: 3 }) + p('M-7,-25 Q0,-20 7,-25', { w: 3 })
   };
-  var BLINK = p('M-21,-39 L-9,-39 M7,-39 L19,-39', { w: 3.5 }) + p('M-13,-19 C-7,-15 7,-15 13,-19', { w: 3 });
+  var FACE_ALIAS = { speaking: 'neutral', thinking: 'curious', focused: 'curious', sad: 'neutral', look_up: 'awe' };
+  var RAISED = 'M-19,-55 q7,-6 14,-2 M5,-57 q7,-4 14,2';      // raised brows (surprise / wonder), never angry
+  var REACT = {
+    shocked: eyes(0, -1, 4.4) + mouthO(0, 5) + p(RAISED, { w: 4 }) +
+      p('M38,-74 C42,-64 44,-58 38,-54 C32,-58 34,-64 38,-74 Z', { w: 3, c: 'waterLine', fill: 'water', fo: 1 }),
+    mind_blown: eyes(0, -6) + mouthO(0, 5) + p(RAISED, { w: 4 }) +
+      p('M-24,-84 L-36,-106 M-8,-88 L-10,-114 M8,-88 L12,-114 M24,-84 L38,-104', { w: 6, c: 'accent' }),
+    side_eye: eyes(6, 0) + p('M-19,-52 L-5,-52 M5,-52 L19,-52', { w: 4 }) + p('M-6,-24 L7,-25', { w: 3 }),
+    crying_laughing: p('M-16,-41 q5,-7 10,0 M6,-41 q5,-7 10,0', { w: 3.5 }) + p('M-12,-29 Q0,-12 12,-29 Z', { w: 3, fill: 'ink', fo: 1 }) + p(RAISED, { w: 4 }) +
+      p('M-36,-40 C-46,-32 -48,-24 -42,-20 C-36,-24 -36,-32 -36,-40 Z M36,-40 C46,-32 48,-24 42,-20 C36,-24 36,-32 36,-40 Z', { w: 3, c: 'waterLine', fill: 'water', fo: 1 }),
+    thinking: eyes(4, -3) + p('M-4,-24 Q2,-22 7,-25', { w: 3 }) + p('M5,-58 q7,-5 14,1', { w: 4 }) +
+      p('M36,-98 q0,-14 12,-14 q12,0 12,12 q0,8 -10,12 l0,8 M48,-64 l0,2', { w: 5, c: 'accent' }),
+    wait_what: eyes(0, -1, 4) + p('M-6,-24 q3,-3 6,0 q3,3 6,0', { w: 3 }) + p('M-19,-56 q7,-7 14,-2', { w: 4 }) +
+      p('M38,-106 q0,-14 11,-14 q11,0 11,11 q0,8 -9,11 l0,7 M49,-76 l0,2', { w: 5, c: 'accent' })
+  };
   function buildChar(id, spec) {
+    var col = {}; Object.keys(DEFAULT_COLORS).forEach(function (k) { col[k] = (spec.colors || {})[k] || DEFAULT_COLORS[k]; });
     var exprs = '';
-    Object.keys(V.expressions).forEach(function (name) {
-      exprs += '<g class="expr" data-expr="' + name + '" transform="translate(0,-39) scale(1.15)" opacity="0">' + V.expressions[name] + '</g>';
-    });
-    exprs += '<g class="expr" data-expr="blink" opacity="0">' + BLINK + '</g>';
-    Object.keys(REACTIONS).forEach(function (name) {
-      exprs += '<g class="react" data-react="' + name + '" opacity="0">' + REACTIONS[name] + '</g>';
-    });
+    Object.keys(FACES).forEach(function (name) { exprs += '<g class="expr" data-expr="' + name + '" opacity="0">' + FACES[name] + '</g>'; });
+    Object.keys(REACT).forEach(function (name) { exprs += '<g class="react" data-react="' + name + '" opacity="0">' + REACT[name] + '</g>'; });
     (D.inboxReactions || []).forEach(function (r) {
-      exprs += '<g class="react" data-react="' + r.key + '" opacity="0"><clipPath id="rc-' + id + '-' + r.key + '"><circle cx="0" cy="-39" r="38"/></clipPath>' +
-        '<image href="' + r.href + '" x="-40" y="-79" width="80" height="80" preserveAspectRatio="xMidYMid slice" clip-path="url(#rc-' + id + '-' + r.key + ')"/></g>';
+      exprs += '<g class="react" data-react="' + r.key + '" opacity="0"><clipPath id="rc-' + id + '-' + r.key + '"><circle cx="0" cy="-38" r="36"/></clipPath>' +
+        '<image href="' + r.href + '" x="-38" y="-76" width="76" height="76" preserveAspectRatio="xMidYMid slice" clip-path="url(#rc-' + id + '-' + r.key + ')"/></g>';
     });
-    // hair sits BEHIND the head so only the strands outside the face show
-    var hair = spec.hair && V.hair[spec.hair] ? '<g transform="translate(0,-74) scale(1.75,1.7)">' + V.hair[spec.hair] + '</g>' : '';
-    var accent = spec.accent ? p('M-16,-' + (TORSO - 8) + ' C-6,-' + (TORSO - 18) + ' 6,-' + (TORSO - 18) + ' 16,-' + (TORSO - 8), { c: 'accent', w: 8 }) : '';
-    var dress = spec.dress ? p('M0,-' + (TORSO - 20) + ' L-34,8 L34,8 Z', { w: 6, fill: 'accent', fo: 0.35 }) : '';
-    var svg =
-      '<g class="ki-char" id="char-' + id + '">' + f('M-36,2 C-20,-6 20,-6 36,2 C20,9 -20,9 -36,2 Z', 'shadow', 0.8, false) +
-      '<g class="flip"><g class="body" transform="translate(0,' + HIP_Y + ')">' +
-      '<g class="legL">' + limb('legL', LEG, LEG, true) + '</g>' +
-      '<g class="legR">' + limb('legR', LEG, LEG, true) + '</g>' +
-      '<g class="torso">' + p('M0,0 L0,-' + TORSO, { w: 7 }) + dress + accent +
-      '<g transform="translate(0,-' + SHOULDER + ')"><g class="armL" transform="scale(-1,1)">' + limb('armL', UARM, FARM, false) + '</g></g>' +
-      '<g transform="translate(0,-' + SHOULDER + ')"><g class="armR">' + limb('armR', UARM, FARM, false) + '</g></g>' +
-      '<g transform="translate(0,-' + (TORSO - 4) + ')"><g class="head">' + V.head + hair + exprs + '</g></g>' +
-      '</g></g></g></g>';
-    return svg;
+    var hairBack = '', hairFront = '';
+    if (spec.hair === 'long-straight') {
+      hairBack = solid('M-37,-34 C-42,-84 42,-84 37,-34 L38,10 Q30,15 23,8 L22,-28 L-22,-28 L-23,8 Q-30,15 -38,10 Z', col.hair);
+      hairFront = solid('M-31,-50 C-22,-76 22,-76 31,-50 C14,-60 -14,-60 -31,-50 Z', col.hair);
+    } else if (spec.hair) {
+      hairFront = solid('M-32,-46 C-30,-78 30,-78 32,-46 C16,-58 -16,-58 -32,-46 Z', col.hair);
+    }
+    var torso = solid('M-20,4 C-25,-30 -27,-68 -19,-90 Q0,-100 19,-90 C27,-68 25,-30 20,4 Q0,12 -20,4 Z', col.shirt);
+    var dress = spec.dress ? solid('M-21,-46 L-36,16 Q0,26 36,16 L21,-46 Q0,-40 -21,-46 Z', col.dress) : '';
+    var scarf = spec.accent ? '<g class="scarf">' + solid('M-18,-92 Q0,-83 18,-92 L19,-80 Q0,-71 -19,-80 Z', C.accent) +
+      '<g transform="translate(-7,-79)"><g class="scarfTail">' + solid('M-5,0 C-8,12 -5,24 -9,36 L1,38 C3,26 2,12 5,1 Z', C.accent) + '</g></g></g>' : '';
+    var hand = solid(circlePath(0, 4, 8.5), col.skin, 4);
+    var shoe = solid('M-9,-4 C-10,6 20,10 25,3 C25,-4 8,-8 -9,-4 Z', col.shoe, 4);
+    var leg = function (cls, x) { return '<g transform="translate(' + x + ',0)"><g class="' + cls + '">' + limb(cls, LEG, LEG, [21, 16, 13], col.pants, '<g transform="translate(0,' + (LEG - 2) + ')">' + shoe + '</g>') + '</g></g>'; };
+    var arm = function (cls, x, mirror) {
+      return '<g transform="translate(' + x + ',-' + SHOULDER + ')"><g class="' + cls + '"' + (mirror ? ' transform="scale(-1,1)"' : '') + '>' +
+        limb(cls, UARM, FARM, [16, 13, 11], col.shirt, '<g transform="translate(0,' + FARM + ')">' + hand + '</g>') + '</g></g>';
+    };
+    // props: parachute above the head, a small snorkel on the face
+    var chute = '<g class="chute" opacity="0">' + p('M-36,-180 L-112,-312 M36,-180 L112,-312 M0,-196 L0,-318', { w: 3, c: 'inkSoft' }) +
+      solid('M-118,-310 Q0,-450 118,-310 Q88,-296 59,-312 Q30,-296 0,-312 Q-30,-296 -59,-312 Q-88,-296 -118,-310 Z', '#FBF1DC', 5) +
+      p('M-59,-312 Q-40,-400 0,-420 M59,-312 Q40,-400 0,-420', { w: 4, c: 'accent' }) + '</g>';
+    var snorkel = '<g class="snorkel" opacity="0">' + solid('M-24,-50 Q0,-56 24,-50 L24,-34 Q0,-28 -24,-34 Z', '#BFE3F2', 4) +
+      p('M-33,-44 L-24,-43 M24,-43 L33,-44', { w: 4 }) + solid('M30,-40 L36,-40 L36,-100 Q36,-106 30,-106 L30,-40 Z', C.accent, 3.5) + '</g>';
+    return '<g class="ki-char" id="char-' + id + '"><clipPath id="cl-' + id + '" clipPathUnits="userSpaceOnUse"><rect class="clipr" x="-600" y="-3000" width="1200" height="3006"/></clipPath>' +
+      '<g class="cclip">' +
+      '<g class="shadow">' + f('M-46,2 C-24,-7 24,-7 46,2 C24,10 -24,10 -46,2 Z', 'shadow', 0.8, false) + '</g>' +
+      '<g class="mover"><g class="flip"><g class="body" transform="translate(0,' + HIP_Y + ')">' + chute +
+      leg('legL', -10) + leg('legR', 10) +
+      '<g class="torso">' + arm('armL', -SH_W, true) + torso + dress + scarf +
+      '<g transform="translate(0,-' + (TORSO - 2) + ')"><g class="head">' + hairBack + solid(circlePath(0, -38, 33), col.skin) + hairFront + exprs + snorkel + '</g></g>' +
+      arm('armR', SH_W, false) + '</g>' +
+      '</g></g></g></g></g>';
   }
 
   // ---------------------------------------------------------------- build DOM
@@ -322,26 +361,45 @@
   var defs = '<defs><filter id="rough" x="-5%" y="-5%" width="110%" height="110%">' +
     '<feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4"/>' +
     '<feDisplacementMap in="SourceGraphic" scale="3"/></filter>' +
+    '<radialGradient id="glowg"><stop offset="0%" stop-color="#FFF6D8" stop-opacity="1"/><stop offset="45%" stop-color="#FFE7A0" stop-opacity="0.55"/>' +
+    '<stop offset="100%" stop-color="#FFE7A0" stop-opacity="0"/></radialGradient>' +
     '<radialGradient id="vig" cx="50%" cy="45%" r="75%"><stop offset="70%" stop-color="#000" stop-opacity="0"/>' +
     '<stop offset="100%" stop-color="#000" stop-opacity="0.07"/></radialGradient></defs>';
-  var objMarkup = '', charMarkup = '';
+  var objMarkup = '', topMarkup = '', charMarkup = '';
   D.objects.forEach(function (o) {
     var fn = OBJ[o.type];
     if (!fn) { console.warn('unknown object type ' + o.type); fn = function () { return ''; }; }
-    objMarkup += '<g class="ki-obj" id="obj-' + o.id + '" data-type="' + o.type + '" transform="translate(' + o.x + ',' + o.y + ') rotate(' + (o.rotate || 0) + ') scale(' + (o.scale || 1) + ')" visibility="hidden">' +
+    var mk = '<g class="ki-obj" id="obj-' + o.id + '" data-type="' + o.type + '" transform="translate(' + o.x + ',' + o.y + ') rotate(' + (o.rotate || 0) + ') scale(' + (o.scale || 1) + ')" visibility="hidden">' +
       '<g class="amb"><g class="inner">' + fn(o) + '</g></g></g>';
+    if (o.layer === 'top') topMarkup += mk; else objMarkup += mk;     // "top": stays visible on the dark paper
   });
   Object.keys(D.cast).forEach(function (id) { charMarkup += buildChar(id, D.cast[id]); });
   board.innerHTML = defs + '<rect width="' + W + '" height="' + H + '" fill="' + C.board + '"/>' +
     (D.paper ? '<image href="' + D.paper + '" x="0" y="0" width="' + W + '" height="' + H + '" preserveAspectRatio="none"/>' : '') +
-    '<g id="world"><g filter="url(#rough)">' + objMarkup + charMarkup + '</g></g>' +
+    // light that fills the whole scene: warm wash + soft glow + rays spreading out from the source (no spotlight)
+    '<g id="light" visibility="hidden"><rect id="lightwash" width="' + W + '" height="' + H + '" fill="#FFF3CF" opacity="0"/>' +
+      '<g id="lightsrc"><g id="lightrays"></g><circle id="lightglow" r="900" fill="url(#glowg)" opacity="0"/></g></g>' +
+        '<g id="world"><g filter="url(#rough)">' + objMarkup + charMarkup + '<g id="charEnd"/>' +
+      '<rect id="darkpaper" x="-6000" y="-6000" width="40000" height="14000" fill="#16141B" opacity="0"/>' + topMarkup + '</g></g>' +
+'<g id="wipe" transform="translate(' + (-W - 200) + ',0)"><path d="M0,0 L' + (W + 60) + ',0 C' + (W + 140) + ',' + (H * 0.3) + ' ' + (W + 20) + ',' + (H * 0.6) + ' ' + (W + 120) + ',' + H + ' L0,' + H + ' Z" fill="' + C.board + '" stroke="' + C.ink + '" stroke-width="10"/></g>' +
     '<g id="hud" visibility="hidden" transform="translate(' + D.hud.x + ',' + D.hud.y + ') scale(' + (D.hud.scale || 1) + ')"><g id="hud-in">' +
       '<path d="M-110,-48 L110,-46 Q122,-46 122,-34 L120,40 Q120,52 108,52 L-108,50 Q-120,50 -120,38 L-122,-36 Q-122,-48 -110,-48 Z" fill="' + C.page + '" stroke="' + C.accent + '" stroke-width="6"/>' +
       '<text id="hud-text" x="0" y="-8" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="60" fill="' + C.ink + '">DAY 1</text>' +
       [0, 1, 2, 3, 4, 5].map(function (i) { return '<circle class="hud-dot" cx="' + (-75 + i * 30) + '" cy="32" r="8" stroke="' + C.accent + '" stroke-width="3" fill="' + C.page + '"/>'; }).join('') +
     '</g></g>' +
     '<rect width="' + W + '" height="' + H + '" fill="url(#vig)" pointer-events="none"/>';
-  var world = document.getElementById('world');
+  var world = document.getElementById('world'), charEnd = document.getElementById('charEnd');
+  var darkEl = document.getElementById('darkpaper'), lightEl = document.getElementById('light');
+  var lightWash = document.getElementById('lightwash'), lightGlow = document.getElementById('lightglow');
+  var lightRays = document.getElementById('lightrays'), lightSrc = document.getElementById('lightsrc');
+  (function () {
+    var s = '';
+    for (var i = 0; i < 24; i++) {
+      var a = i / 24 * Math.PI * 2, r2 = i % 2 ? 1500 : 1900, w = i % 2 ? 0.05 : 0.08;
+      s += '<path d="M0,0 L' + (Math.cos(a - w) * r2).toFixed(0) + ',' + (Math.sin(a - w) * r2).toFixed(0) + ' L' + (Math.cos(a + w) * r2).toFixed(0) + ',' + (Math.sin(a + w) * r2).toFixed(0) + ' Z" fill="#FFE39A" opacity="' + (i % 2 ? 0.35 : 0.5) + '"/>';
+    }
+    lightRays.innerHTML = s;
+  })();
 
   // Stroke setup: every stroked element draws itself via a normalised dash.
   function prepStrokes(root) {
@@ -413,8 +471,14 @@
   Object.keys(D.cast).forEach(function (id, k) {
     var c = D.cast[id], el = document.getElementById('char-' + id);
     chars[id] = {
-      el: el, flip: el.querySelector('.flip'), body: el.querySelector('.body'), torso: el.querySelector('.torso'),
+      id: id, el: el, flip: el.querySelector('.flip'), body: el.querySelector('.body'), torso: el.querySelector('.torso'),
       head: el.querySelector('.head'), exprEls: el.querySelectorAll('.expr'), reactEls: el.querySelectorAll('.react'),
+      mover: el.querySelector('.mover'), cclip: el.querySelector('.cclip'), shadow: el.querySelector('.shadow'),
+      clipr: el.querySelector('.clipr'), chute: el.querySelector('.chute'), snorkel: el.querySelector('.snorkel'),
+      tail: el.querySelector('.scarfTail'),
+      fills: Array.prototype.map.call(el.querySelectorAll('[data-fill]'), function (n) {
+        return [n, parseFloat(n.getAttribute('data-fill')), !!n.closest('.scarf')];
+      }),
       j: {
         legL1: el.querySelector('.legL1'), legL2: el.querySelector('.legL2'), legR1: el.querySelector('.legR1'), legR2: el.querySelector('.legR2'),
         armL1: el.querySelector('.armL1'), armL2: el.querySelector('.armL2'), armR1: el.querySelector('.armR1'), armR2: el.querySelector('.armR2')
@@ -424,7 +488,9 @@
         x: c.x, y: 0, facing: c.facing || 1, flipX: c.facing || 1, walk: 0, phase: 0, opacity: 1,
         draw: D.events.some(function (e) { return e.do === 'enter' && e.who === id; }) ? 0 : 1,
         armR: 8, armRf: 12, armL: 8, armLf: 12, busyR: 0, busyL: 0, lean: 0, headTilt: 0, legSpread: 0, expr: c.expression || 'neutral',
-        reaction: '', rpop: 0
+        reaction: '', rpop: 0,
+        lR: 0, lRs: 0, lL: 0, lLs: 0, rotB: 0, ghost: 0, chute: 0, snorkel: 0, swim: 0, swimPh: 0,
+        floatAmt: 0, k: c.size || 1, clip: 0, clipY: 0, ride: '', rideDx: 0, rideDy: 0, behind: '', contact: ''
       }
     };
   });
@@ -432,13 +498,20 @@
   // ---------------------------------------------------------------- timeline
   var tl = gsap.timeline({ paused: true });
   var hudState = { day: 0, pop: 0 };
-  var REST = { armR: 8, armRf: 12, armL: 8, armLf: 12, busyR: 0, busyL: 0, lean: 0, headTilt: 0, legSpread: 0, y: 0 };
+  var lightState = { dark: 0, wash: 0, glow: 0, rays: 0, spread: 0.2, x: W / 2, y: H * 0.3 };
+  var REST = { armR: 8, armRf: 12, armL: 8, armLf: 12, busyR: 0, busyL: 0, lean: 0, headTilt: 0, legSpread: 0, y: 0,
+               lR: 0, lRs: 0, lL: 0, lLs: 0, rotB: 0, floatAmt: 0, swim: 0 };
+  var POSE_KEYS = Object.keys(REST);
 
   var TURN = 0.25;                 // a character turns round BEFORE it starts walking
   function charX(id, t) {        // x of a character at time t (walks are linear)
     var x = D.cast[id].x;
     D.events.forEach(function (e) {
-      if (e.do !== 'walk' || e.who !== id || e.t > t) return;
+      if (e.who !== id || e.t > t) return;
+      if (e.do === 'place' && typeof e.x === 'number') { x = e.x; return; }
+      if (e.do === 'climb' && e.dx) { x = e.fromX + e.dx * Math.min(1, (t - e.t) / (e.dur || 1.5)); return; }
+      if (e.do === 'drift') { x = e.fromX + (e.to - e.fromX) * Math.min(1, (t - e.t) / (e.dur || 1.5)); return; }
+      if (e.do !== 'walk') return;
       var k = Math.max(0, Math.min(1, (t - e.t - e.turn) / e.dur));
       x = e.fromX + (e.to - e.fromX) * k;
     });
@@ -450,6 +523,9 @@
     Object.keys(D.cast).forEach(function (id) { pos[id] = D.cast[id].x; facing[id] = D.cast[id].facing || 1; });
     D.events.forEach(function (e) {
       if (!D.cast[e.who]) return;
+      if (e.do === 'place' && typeof e.x === 'number') { pos[e.who] = e.x; if (e.facing) facing[e.who] = e.facing; return; }
+      if (e.do === 'climb') { e.fromX = pos[e.who]; pos[e.who] += e.dx || 0; return; }
+      if (e.do === 'drift') { e.fromX = pos[e.who]; pos[e.who] = e.to; return; }
       if (e.do === 'walk') {
         e.fromX = pos[e.who];
         var dist = Math.abs(e.to - e.fromX), dir = e.to >= e.fromX ? 1 : -1;
@@ -478,7 +554,18 @@
   }
   // Gestures finish with a "rest" tween unless the same character's next
   // gesture starts before then (it continues from the current pose).
-  var GESTURES = { point: 1, reach: 1, wave: 1, cheer: 1, react: 1, shrug: 1, present: 1, look: 1, shake: 1, kneel: 1 };
+  var GESTURES = { point: 1, reach: 1, wave: 1, cheer: 1, react: 1, shrug: 1, present: 1, look: 1, shake: 1, kneel: 1,
+    sit: 1, lie_down: 1, swim: 1, float: 1, parachute: 1, pop_up: 1, climb: 1, jump: 1, fall: 1, ride: 1, peek: 1,
+    pet: 1, shield_eyes: 1, stand: 1, look_viewer: 1 };
+  function pose(s, props, t, dur, ease) {
+    var to = {}; Object.keys(props).forEach(function (k) { to[k] = props[k]; });
+    to.duration = dur == null ? 0.35 : dur; to.ease = ease || 'power2.inOut';
+    tl.to(s, to, t);
+  }
+  function standUp(s, t, dur) { var r = {}; POSE_KEYS.forEach(function (k) { r[k] = REST[k]; }); pose(s, r, t, dur == null ? 0.4 : dur); }
+  // sitting ON the ground: hips at ground level, legs out in front, hands resting on the lap
+  var SIT = { lR: 94, lRs: -8, lL: 90, lLs: -4, armR: 30, armRf: 50, armL: 22, armLf: 46, busyR: 1, busyL: 1, lean: -8 };
+  var SIT_Y = LEG * 2 + 6 - 12;      // mover offset (x scale) that puts the hips on the ground
   function nextGestureAfter(e) {
     var n = null;
     D.events.forEach(function (o) { if (!n && o !== e && o.who === e.who && GESTURES[o.do] && o.t > e.t) n = o; });
@@ -519,7 +606,7 @@
     }
     ob.fills.forEach(function (f) { tl.to(f, { attr: { 'fill-opacity': f.getAttribute('data-fill') }, duration: 0.4 }, e.t + d * 0.8); });
     if (e.pop) tl.fromTo(ob.inner, { scale: 0.55, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.55, ease: 'back.out(2.6)', immediateRender: false }, e.t);
-    if (ob.def.type === 'sparkle') {
+    if (ob.def.type === 'sparkle' || ob.def.type === 'splash') {
       var sp = ob.el.querySelectorAll('.spk-i');
       tl.fromTo(sp, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'back.out(3)', stagger: 0.06, immediateRender: false }, e.t);
       tl.to(ob.el, { opacity: 0, duration: 0.35 }, e.t + (e.hold || 1.2));
@@ -536,6 +623,126 @@
     var c = chars[e.who], s = c && c.s, f, tp;
     switch (e.do) {
       case 'draw': addDraw(e); break;
+      case 'place':            // put a character somewhere instantly (used at scene changes)
+        tl.set(s, { x: typeof e.x === 'number' ? e.x : s.x, y: e.y || 0, opacity: e.hidden ? 0 : 1, ride: '', behind: '',
+                    expr: 'neutral', reaction: '', rpop: 0, clip: 0, chute: 0, snorkel: 0, contact: '' }, e.t);
+        if (e.facing) { tl.set(s, { flipX: e.facing }, e.t); s._facing = e.facing; }
+        standUp(s, e.t, 0.01);
+        break;
+      case 'stand': standUp(s, e.t, e.dur); tl.set(s, { ride: '', behind: '', clip: 0, chute: 0, snorkel: 0, contact: '' }, e.t); break;
+      case 'look_viewer':
+        standUp(s, e.t, 0.4); tl.to(s, { flipX: 1, duration: 0.25 }, e.t); s._facing = 1;
+        tl.set(s, { expr: 'neutral', ride: '', behind: '', contact: '' }, e.t);
+        break;
+      case 'size':             // big + centred for the hook and the last line, small in the scenes
+        tl.to(s, { k: e.value || 1, duration: e.dur == null ? 0.6 : e.dur, ease: 'power2.inOut' }, e.t); break;
+      case 'drift':            // float across without walking (in the dark, in the air)
+        tl.to(s, { x: e.to, duration: e.dur || 1.5, ease: 'sine.inOut' }, e.t); break;
+      case 'ghost': tl.to(s, { ghost: e.value == null ? 1 : e.value, duration: e.dur || 0.6 }, e.t); break;
+      case 'sit': {            // on the ground; "against": a tree id -> back to the trunk, facing away from it
+        var sit = {}; Object.keys(SIT).forEach(function (k) { sit[k] = SIT[k]; });
+        sit.y = SIT_Y * c.scale;
+        if (e.against && objs[e.against]) {
+          var tb = worldBox(e.against), tx = tb.x + tb.w / 2, dir = e.facing || (charX(e.who, e.t) >= tx ? 1 : -1);
+          var trunkHalf = 11 * (objs[e.against].def.scale || 1);
+          tl.set(s, { x: tx + dir * (trunkHalf + 20 * c.scale), flipX: dir }, e.t); s._facing = dir;
+          sit.lean = -4 * 1;
+        }
+        pose(s, sit, e.t, 0.45);
+        tl.set(s, { contact: e.against ? 'tree:' + e.against : 'ground' }, e.t + 0.45);
+        if (e.hold) { standUp(s, e.t + e.hold); tl.set(s, { contact: '' }, e.t + e.hold); }
+        break;
+      }
+      case 'lie_down':
+        pose(s, { rotB: -90, y: 72 * c.scale, lL: 45, lLs: 85, lR: 4, armR: 165, armRf: 140, armL: 165, armLf: 140, busyR: 1, busyL: 1 }, e.t, 0.6);
+        tl.set(s, { contact: 'ground', expr: 'awe' }, e.t + 0.6);
+        if (e.hold) { standUp(s, e.t + e.hold, 0.6); tl.set(s, { contact: '', expr: 'neutral' }, e.t + e.hold); }
+        break;
+      case 'swim': {           // upright-ish crawl: hips below the water line, lower body masked by the water
+        var d = e.dur || 2.5, wl = e.in && objs[e.in] ? objs[e.in].def.y : GROUND + (e.y || 0);
+        tl.set(s, { snorkel: e.snorkel ? 1 : 0, clip: 1, clipY: wl, opacity: 1 }, e.t);
+        tl.set(s, { contact: 'water' }, e.t + 0.4);
+        pose(s, { rotB: 28, swim: 1, y: wl - GROUND + 128 * c.scale, busyR: 1, busyL: 1 }, e.t, 0.35);
+        tl.to(s, { swimPh: '+=' + (d * 0.9).toFixed(2), duration: d, ease: 'none' }, e.t);
+        if (e.dx) tl.to(s, { x: '+=' + e.dx, duration: d, ease: 'sine.inOut' }, e.t);
+        if (e.hold !== 0) { tl.set(s, { contact: '' }, e.t + d); standUp(s, e.t + d, 0.4); tl.set(s, { snorkel: 0, clip: 0, clipY: 0 }, e.t + d + 0.4); }
+        break;
+      }
+      case 'float':
+        pose(s, { floatAmt: 1, armR: 70, armRf: -5, armL: 70, armLf: -5, lR: 12, lL: -10, busyR: 1, busyL: 1, y: e.y || 0 }, e.t, 0.5);
+        if (e.hold) standUp(s, e.t + e.hold, 0.5);
+        break;
+      case 'parachute': {
+        var pd = e.dur || 2.4;
+        tl.set(s, { chute: 1, opacity: 1, y: (e.from == null ? -900 : e.from) }, e.t);
+        pose(s, { armR: 152, armRf: 10, armL: 152, armLf: 10, busyR: 1, busyL: 1, floatAmt: 0.8, lR: 10, lL: -8 }, e.t, 0.01);
+        tl.to(s, { y: e.y || 0, duration: pd, ease: 'sine.out' }, e.t);
+        tl.to(s, { chute: 0, floatAmt: 0, duration: 0.45 }, e.t + pd - 0.05);
+        standUp(s, e.t + pd + 0.1, 0.4);
+        break;
+      }
+      case 'pop_up':
+        tl.set(s, { clip: 1, opacity: 1, y: 260 * c.scale }, e.t);
+        tl.to(s, { y: 0, duration: 0.5, ease: 'back.out(2.2)' }, e.t);
+        pose(s, { armR: 150, armL: 150, busyR: 1, busyL: 1 }, e.t + 0.2, 0.25, 'back.out(2)');
+        tl.set(s, { clip: 0 }, e.t + 0.55);
+        standUp(s, e.t + 1.0, 0.35);
+        break;
+      case 'climb': {
+        var cd = e.dur || 1.6, steps = Math.max(2, Math.round(cd / 0.35));
+        tl.to(s, { y: '+=' + (e.dy || -120), duration: cd, ease: 'none' }, e.t);
+        if (e.dx) tl.to(s, { x: '+=' + e.dx, duration: cd, ease: 'none' }, e.t);
+        pose(s, { lean: 14, busyR: 1, busyL: 1 }, e.t, 0.2);
+        tl.fromTo(s, { armR: 150, armL: 70, lR: 45, lL: 0 }, { armR: 70, armL: 150, lR: 0, lL: 45, duration: cd / steps, ease: 'sine.inOut',
+          yoyo: true, repeat: steps - 1, immediateRender: false }, e.t);
+        standUp(s, e.t + cd, 0.3);
+        tl.to(s, { y: e.endY == null ? '+=0' : e.endY, duration: 0.01 }, e.t + cd);
+        break;
+      }
+      case 'jump':
+        pose(s, { y: 14, lRs: 35, lLs: 35, lR: 18, lL: 18 }, e.t, 0.15);
+        tl.to(s, { y: -(e.height || 150), lRs: 0, lLs: 0, lR: 0, lL: 0, armR: 150, armL: 150, busyR: 1, busyL: 1, duration: 0.32, ease: 'power2.out' }, e.t + 0.15);
+        tl.to(s, { y: 0, duration: 0.3, ease: 'power2.in' }, e.t + 0.47);
+        standUp(s, e.t + 0.78, 0.25);
+        break;
+      case 'fall': {
+        var fd = e.dur || 0.9, sit2 = {}; Object.keys(SIT).forEach(function (k) { sit2[k] = SIT[k]; });
+        tl.set(s, { y: -(e.height || 500), opacity: 1 }, e.t);
+        tl.fromTo(s, { rotB: 0 }, { rotB: 360, duration: fd, ease: 'power1.in', immediateRender: false }, e.t);
+        tl.to(s, { y: 46 * c.scale, duration: fd, ease: 'power2.in' }, e.t);
+        tl.set(s, { rotB: 0 }, e.t + fd);
+        sit2.y = 46 * c.scale; pose(s, sit2, e.t + fd, 0.15);
+        if (e.hold) standUp(s, e.t + fd + e.hold);
+        break;
+      }
+      case 'ride': {           // seated ON the animal: hips on its back, legs down its side, hands holding on
+        var ro = objs[e.on], top = ro ? worldBox(e.on).y - ro.def.y : -40;
+        tl.set(s, { ride: e.on, rideDx: e.dx || 0, rideDy: e.dy == null ? top + 10 : e.dy, opacity: 1, contact: 'ride:' + e.on }, e.t);
+        pose(s, { lR: 78, lRs: 82, lL: 66, lLs: 92, armR: 12, armRf: 34, armL: 8, armLf: 34, busyR: 1, busyL: 1, lean: 10, y: 46 * c.scale }, e.t, 0.01);
+        if (e.hold) { standUp(s, e.t + e.hold, 0.3); tl.set(s, { ride: '', contact: '', x: e.offX == null ? s.x : e.offX }, e.t + e.hold); }
+        break;
+      }
+      case 'peek': {
+        var po = objs[e.toward]; if (!po) break;
+        var side = e.side || 1, bb = worldBox(e.toward);
+        tl.set(s, { behind: e.toward, x: bb.x + bb.w / 2, opacity: 1 }, e.t);
+        tl.to(s, { x: bb.x + bb.w / 2 + side * (bb.w * 0.42), rotB: side * 16, headTilt: side * 14, duration: 0.45, ease: 'back.out(1.6)' }, e.t);
+        tl.set(s, { expr: 'surprised' }, e.t + 0.3);
+        if (e.hold) { tl.to(s, { x: bb.x + bb.w / 2 + side * (bb.w * 0.5 + 60), rotB: 0, headTilt: 0, duration: 0.4 }, e.t + e.hold); tl.set(s, { behind: '' }, e.t + e.hold + 0.4); }
+        break;
+      }
+      case 'pet':
+        pose(s, { lean: 22, armR: 38, armRf: 8, busyR: 1 }, e.t, 0.3);
+        tl.fromTo(s, { armR: 30 }, { armR: 46, duration: 0.25, yoyo: true, repeat: 5, ease: 'sine.inOut', immediateRender: false }, e.t + 0.3);
+        tl.set(s, { expr: 'neutral' }, e.t);
+        restAfter(e, s, e.t + (e.hold || 1.8));
+        break;
+      case 'shield_eyes':
+        pose(s, { armR: 152, armRf: 118, busyR: 1, lean: -8, headTilt: -10 }, e.t, 0.25);
+        tl.set(s, { expr: 'awe' }, e.t);
+        restAfter(e, s, e.t + (e.hold || 1.5));
+        break;
+      case 'splash': break;
       case 'reaction': {
         var rd = Math.min(1.5, e.dur || 1.2);
         tl.set(s, { reaction: e.face }, e.t);
@@ -544,9 +751,36 @@
         tl.set(s, { reaction: '' }, e.t + rd);
         break;
       }
+      case 'wipe': {
+        var wp = document.getElementById('wipe'), wd = e.dur || 0.6;
+        tl.fromTo(wp, { x: -W - 200 }, { x: 0, duration: wd / 2, ease: 'power2.in', immediateRender: false }, e.t);
+        tl.to(wp, { x: W + 200, duration: wd / 2, ease: 'power2.out' }, e.t + wd / 2);
+        break;
+      }
+      case 'paper':            // dark paper (opening) or normal paper; value 1 = dark
+        tl.to(lightState, { dark: e.dark == null ? 1 : e.dark, duration: e.dur || 0.01, ease: 'power1.inOut' }, e.t);
+        if (e.dark) tl.to(lightState, { wash: 0, glow: 0, rays: 0, duration: e.dur || 0.01 }, e.t);   // night ends any light burst
+        break;
+      case 'light_burst': {    // the light fills the whole scene: paper brightens, rays spread from (x, y), soft glow
+        var lb = e.dur || 1.2, lh = e.hold || 3.5;
+        tl.set(lightState, { x: e.x == null ? W / 2 : e.x, y: e.y == null ? H * 0.3 : e.y }, e.t);
+        tl.to(lightState, { dark: 0, duration: lb * 0.6, ease: 'power2.out' }, e.t);
+        tl.fromTo(lightState, { wash: 0, glow: 0, rays: 0, spread: 0.15 }, { wash: 0.55, glow: 1, rays: 1, spread: 1, duration: lb, ease: 'power2.out', immediateRender: false }, e.t);
+        tl.to(lightState, { wash: 0.12, glow: 0.45, rays: 0.55, duration: 1.0, ease: 'sine.inOut' }, e.t + lb);
+        tl.to(lightState, { wash: 0, glow: 0, rays: 0, duration: 1.2, ease: 'sine.inOut' }, e.t + lb + lh);
+        break;
+      }
       case 'counter':
         tl.set(hudState, { day: e.day }, e.t);
         tl.fromTo(hudState, { pop: 1 }, { pop: 0, duration: 0.55, ease: 'power2.out', immediateRender: false }, e.t);
+        break;
+      case 'rise':           // a big thing grows up out of the ground (hill, land)
+        if (objs[e.id]) tl.fromTo(objs[e.id].inner, { scaleY: 0.02, transformOrigin: '50% 100%' },
+          { scaleY: 1, duration: e.dur || 0.9, ease: 'back.out(1.4)', immediateRender: false }, e.t);
+        break;
+      case 'drop':           // a big thing falls in from above and lands (e.dur = fall time)
+        if (objs[e.id]) tl.fromTo(objs[e.id].mv, { y: -(e.height || 1100) }, { y: 0, duration: e.dur || 0.6, ease: 'power2.in', immediateRender: false }, e.t);
+        if (objs[e.id]) tl.fromTo(objs[e.id].inner, { scaleY: 0.82, scaleX: 1.12, transformOrigin: '50% 100%' }, { scaleY: 1, scaleX: 1, duration: 0.35, ease: 'back.out(3)', immediateRender: false }, e.t + (e.dur || 0.6));
         break;
       case 'move':           // slide a drawing along (e.g. an animal walking across)
         if (objs[e.id]) tl.to(objs[e.id].mv, { x: e.dx || 0, y: e.dy || 0, duration: e.dur || 2, ease: e.ease || 'none' }, e.t);
@@ -557,6 +791,8 @@
         break;
       case 'fade': (e.ids || [e.id]).forEach(function (id) { if (objs[id]) tl.to(objs[id].el, { opacity: e.opacity == null ? 0 : e.opacity, duration: e.dur || 0.5 }, e.t); }); break;
       case 'pulse': if (objs[e.id]) tl.to(objs[e.id].inner, { scale: 1.12, transformOrigin: '50% 50%', duration: 0.25, yoyo: true, repeat: 3, ease: 'sine.inOut' }, e.t); break;
+      case 'camera_zoom_out_of':    // zoom transition, first half: punch into the old scene
+        tl.to(cam, { z: e.zoom || 1.35, duration: e.dur || 0.3, ease: 'power2.in' }, e.t); break;
       case 'camera':
         tl.to(cam, { x: e.x, y: e.y, z: e.zoom, r: e.rotate || 0, duration: e.dur || 0.8, ease: e.ease || 'power2.inOut' }, e.t); break;
       case 'shake':
@@ -585,12 +821,12 @@
         if (e.face && e.face !== f) { tl.to(s, { flipX: e.face, duration: 0.22 }, t0 + e.dur + 0.05); s._facing = e.face; }
         break;
       }
-      case 'point': case 'reach': {
+      case 'point': case 'reach': case 'touch': {
         tp = targetPoint(e); if (!tp) break;
         f = face(e, s, tp.x);
         var sh = shoulder(e.who, e.t), dx = (tp.x - sh.x) * f, dy = tp.y - sh.y;
         var ang = Math.atan2(Math.max(dx, 20), dy) * 180 / Math.PI;      // 0 = down, 90 = outward, 180 = up
-        var reach = e.do === 'reach';
+        var reach = e.do === 'reach' || e.do === 'touch';
         tl.to(s, { armR: ang, armRf: reach ? 0 : 4, busyR: 1, lean: reach ? 7 : 2, duration: 0.35, ease: 'back.out(1.6)' }, e.t);
         tl.set(s, { expr: e.expression || (reach ? 'focused' : 'speaking') }, e.t);
         restAfter(e, s, e.t + (e.hold || 1.5));
@@ -638,47 +874,77 @@
   tl.set({}, {}, D.duration);    // timeline spans the whole video
 
   // ---------------------------------------------------------------- render(t)
+  var AMB_XY = {   // the translate part of AMBIENT below, so a rider moves with its animal
+    fish: function (t, k) { return [16 * Math.sin(t * 1.5 + k), 4 * Math.sin(t * 3 + k)]; },
+    animal: function (t, k) { return [0, -4 * Math.abs(Math.sin(t * 2.2 + k))]; },
+    cloud: function (t, k) { return [14 * Math.sin(t * 0.6 + k), 0]; }
+  };
   function rot(el, deg) { el.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ')'); }
   function renderChar(c, t) {
-    var s = c.s, sc = c.scale, ph = s.phase, w = s.walk;
+    var s = c.s, sc = c.scale * s.k, ph = s.phase, w = s.walk;
     var breath = Math.sin(t * 1.9 + c.seed), sway = Math.sin(t * 1.1 + c.seed);
     var bob = -w * 7 * Math.abs(Math.cos(ph)) - (1 - w) * 2.2 * (breath + 1) / 2;
-    c.el.setAttribute('transform', 'translate(' + s.x.toFixed(2) + ',' + (GROUND + s.y).toFixed(2) + ') scale(' + sc + ')');
+    var X = s.x, Y = GROUND;
+    if (s.ride && objs[s.ride]) {             // riding: follow the object (fish, sheep, cloud...)
+      var ro = objs[s.ride];
+      var am = AMB_XY[ro.def.type] ? AMB_XY[ro.def.type](t, (hash(s.ride) % 628) / 100) : [0, 0];   // moves with it
+      X = ro.def.x + ro.mv.x + s.rideDx + am[0]; Y = ro.def.y + ro.mv.y + s.rideDy + 64 * sc + am[1];   // rideDy = hips, from the object's centre
+    }
+    var fy = s.floatAmt * 12 * Math.sin(t * 2.2 + c.seed);
+    c.el.setAttribute('transform', 'translate(' + X.toFixed(2) + ',' + Y.toFixed(2) + ') scale(' + sc + ')');
+    c.mover.setAttribute('transform', 'translate(0,' + ((s.y + fy) / sc).toFixed(2) + ')');
+    if (s.clip > 0.5) {        // ground (pop up) or water line (swim) masks the lower body
+      c.clipr.setAttribute('height', (3000 + (s.clipY ? (s.clipY - Y) / sc : 6)).toFixed(1));
+      c.cclip.setAttribute('clip-path', 'url(#cl-' + c.id + ')');
+    } else c.cclip.removeAttribute('clip-path');
+    var air = Math.max(0, Math.min(1, 1 + (s.y + fy) / 320));          // shadow shrinks when he is high up
+    c.shadow.setAttribute('opacity', (s.ride || s.swim > 0.5 ? 0 : air).toFixed(2));
+    c.shadow.setAttribute('transform', 'scale(' + (0.5 + 0.5 * air).toFixed(3) + ',1)');
     c.el.setAttribute('opacity', s.opacity.toFixed(3));
     c.el.setAttribute('visibility', s.draw > 0.001 && s.opacity > 0.001 ? 'visible' : 'hidden');
     c.flip.setAttribute('transform', 'scale(' + (Math.abs(s.flipX) < 0.06 ? 0.06 * Math.sign(s.flipX || 1) : s.flipX).toFixed(3) + ',1)');
-    var kneel = s.legSpread;
-    c.body.setAttribute('transform', 'translate(0,' + (HIP_Y + bob).toFixed(2) + ')');
-    // legs (positive rotation swings a leg backward when facing right)
-    var sw = Math.sin(ph);
-    rot(c.j.legR1, -w * 27 * sw - kneel * 70);
-    rot(c.j.legR2, w * 26 * Math.max(0, Math.sin(ph - 0.9)) + w * 6 + kneel * 100);
-    rot(c.j.legL1, w * 27 * sw + kneel * 20);
-    rot(c.j.legL2, w * 26 * Math.max(0, Math.sin(ph + Math.PI - 0.9)) + w * 6 + kneel * 60);
-    // torso lean + breathing
+    var kneel = s.legSpread, sw = Math.sin(ph);
+    var rb = s.rotB + s.floatAmt * 5 * Math.sin(t * 1.3 + c.seed);
+    c.body.setAttribute('transform', 'translate(0,' + (HIP_Y + bob).toFixed(2) + ') rotate(' + rb.toFixed(2) + ')');
+    // legs (positive lR / lL = swing forward; lRs / lLs = knee bend)
+    var flutter = s.swim * 14 * Math.sin(s.swimPh * Math.PI * 4);
+    rot(c.j.legR1, -w * 27 * sw - kneel * 70 - s.lR - flutter);
+    rot(c.j.legR2, w * 26 * Math.max(0, Math.sin(ph - 0.9)) + w * 6 + kneel * 100 + s.lRs);
+    rot(c.j.legL1, w * 27 * sw + kneel * 20 - s.lL + flutter);
+    rot(c.j.legL2, w * 26 * Math.max(0, Math.sin(ph + Math.PI - 0.9)) + w * 6 + kneel * 60 + s.lLs);
     c.torso.setAttribute('transform', 'rotate(' + (s.lean + w * 4 + sway * 1.2).toFixed(2) + ')');
-    // arms: "outward" angle; swing while walking unless busy
+    // arms: "outward" angle; swing while walking unless busy; crawl stroke while swimming
     var swingR = w * (1 - s.busyR) * 22 * sw, swingL = -w * (1 - s.busyL) * 22 * sw;
     var idleA = (1 - w) * 2.5 * breath;
-    rot(c.j.armR1, -(s.armR + idleA) + swingR);
-    rot(c.j.armR2, -s.armRf);
-    rot(c.j.armL1, -(s.armL + idleA) - swingL);
-    rot(c.j.armL2, -s.armLf);
+    var crawlR = (s.swimPh * 360) % 360, crawlL = (s.swimPh * 360 + 180) % 360;
+    var aR = (s.armR + idleA) * (1 - s.swim) + crawlR * s.swim, aL = (s.armL + idleA) * (1 - s.swim) + crawlL * s.swim;
+    rot(c.j.armR1, -aR + swingR);
+    rot(c.j.armR2, -s.armRf * (1 - s.swim));
+    rot(c.j.armL1, -aL - swingL);
+    rot(c.j.armL2, -s.armLf * (1 - s.swim));
     var big = 1 + 0.28 * s.rpop, wob = s.reaction ? 6 * Math.sin(t * 22) * s.rpop : 0;
-    c.head.setAttribute('transform', 'rotate(' + (s.headTilt + sway * 2.5 + wob).toFixed(2) + ') translate(0,-39) scale(' + big.toFixed(3) + ') translate(0,39)');
-    var blinking = !s.reaction && BLINKERS[s.expr] && ((t + c.seed * 2.1) % 3.7) < 0.13;
-    var face = s.reaction ? '' : (blinking ? 'blink' : s.expr);
+    c.head.setAttribute('transform', 'rotate(' + (s.headTilt + sway * 2.5 + wob).toFixed(2) + ') translate(0,-38) scale(' + big.toFixed(3) + ') translate(0,38)');
+    if (c.tail) c.tail.setAttribute('transform', 'rotate(' + (8 * Math.sin(t * 4 + c.seed) + w * 18 + s.chute * 25 + s.swim * 30).toFixed(2) + ')');
+    var want = FACES[s.expr] ? s.expr : (FACE_ALIAS[s.expr] || 'neutral');
+    var blinking = !s.reaction && (want === 'neutral' || want === 'happy' || want === 'curious') && ((t + c.seed * 2.1) % 3.7) < 0.13;
+    var face = s.reaction ? '' : (blinking ? 'blink' : want);
     c.exprEls.forEach(function (g) { g.setAttribute('opacity', g.getAttribute('data-expr') === face && s.draw > 0.6 ? '1' : '0'); });
     c.reactEls.forEach(function (g) { g.setAttribute('opacity', g.getAttribute('data-react') === s.reaction ? '1' : '0'); });
-    // draw-in: strokes in DOM order
+    c.chute.setAttribute('opacity', Math.min(1, s.chute * 1.5).toFixed(3));
+    c.chute.setAttribute('transform', 'translate(0,-312) scale(1,' + (0.25 + 0.75 * s.chute).toFixed(3) + ') translate(0,312)');
+    c.snorkel.setAttribute('opacity', s.snorkel.toFixed(2));
+    // draw-in: strokes in DOM order, then the colour fills (faded right down when he is a "ghost" in the dark)
     var n = c.strokes.length, d = s.draw * (n + 3);
     for (var i = 0; i < n; i++) {
       var k = Math.min(1, Math.max(0, d - i));
       c.strokes[i].setAttribute('stroke-dashoffset', (1 - Math.min(1, k)).toFixed(4));
     }
-    var heads = c.el.querySelectorAll('[data-fill]');
-    heads.forEach(function (h) { h.setAttribute('fill-opacity', s.draw > 0.3 ? h.getAttribute('data-fill') : 0); });
+    c.fills.forEach(function (fl) {
+      var o = s.draw > 0.3 ? fl[1] * (fl[2] ? 1 : 1 - 0.88 * s.ghost) : 0;
+      fl[0].setAttribute('fill-opacity', o.toFixed(3));
+    });
   }
+
 
   // captions
   var capEl = document.getElementById('captions');
@@ -705,7 +971,6 @@
     capEl.style.transform = 'translateX(-50%) scale(' + pop.toFixed(3) + ')';
   }
 
-  var BLINKERS = { neutral: 1, speaking: 1, happy: 1, focused: 1, thinking: 1 };
 
   // ambient motion: every drawing keeps living a little once it is on screen (time-pure)
   var AMBIENT = {
@@ -726,7 +991,7 @@
   };
   var ambObjs = Object.keys(objs).map(function (id) {
     var ob = objs[id];
-    return { ob: ob, amb: ob.el.querySelector('.amb'), fn: AMBIENT[ob.def.type], k: (hash(id) % 628) / 100,
+    return { ob: ob, amb: ob.el.querySelector('.amb'), fn: ob.def.still ? null : AMBIENT[ob.def.type], k: (hash(id) % 628) / 100,
              tw: ob.el.querySelectorAll('.tw'), spk: ob.el.querySelectorAll('.spk-i'), img: ob.el.querySelector('.inset-img') };
   });
   var pending = [];
@@ -761,27 +1026,46 @@
     hudIn.setAttribute('transform', 'scale(' + (1 + 0.15 * hudState.pop).toFixed(3) + ') rotate(' + (-6 * hudState.pop).toFixed(2) + ')');
   }
 
+  function renderLight(t) {
+    var L = lightState;
+    darkEl.setAttribute('opacity', (0.9 * L.dark).toFixed(3));
+    var on = L.wash > 0.002 || L.glow > 0.002 || L.rays > 0.002;
+    lightEl.setAttribute('visibility', on ? 'visible' : 'hidden');
+    if (!on) return;
+    lightWash.setAttribute('opacity', (0.35 * L.wash).toFixed(3));
+    lightGlow.setAttribute('opacity', (0.8 * L.glow).toFixed(3));
+    lightSrc.setAttribute('transform', 'translate(' + L.x.toFixed(1) + ',' + L.y.toFixed(1) + ')');
+    lightRays.setAttribute('opacity', L.rays.toFixed(3));
+    lightRays.setAttribute('transform', 'rotate(' + (t * 4 % 360).toFixed(2) + ') scale(' + L.spread.toFixed(3) + ')');
+  }
+
   var lastOrder = '';
   function render(t) {
     var ids = Object.keys(chars);
     ids.forEach(function (id) { renderChar(chars[id], t); });
     // z-order: a walking character is always in front of everyone else
     var order = ids.slice().sort(function (a, b) { return (chars[a].s.walk > 0.01) - (chars[b].s.walk > 0.01); });
-    if (order.join() !== lastOrder) {
-      lastOrder = order.join();
-      order.forEach(function (id) { chars[id].el.parentNode.appendChild(chars[id].el); });
+    var key = order.join() + '|' + ids.map(function (id) { return chars[id].s.behind; }).join();
+    if (key !== lastOrder) {
+      lastOrder = key;
+      order.forEach(function (id) {
+        var c = chars[id], ob = c.s.behind && objs[c.s.behind];
+        if (ob) ob.el.parentNode.insertBefore(c.el, ob.el); else charEnd.parentNode.insertBefore(c.el, charEnd);
+      });
     }
     var z = cam.z;
     world.setAttribute('transform', 'translate(' + (W / 2) + ',' + (H / 2) + ') rotate(' + cam.r.toFixed(3) + ') scale(' + z.toFixed(4) + ') translate(' + (-cam.x).toFixed(2) + ',' + (-cam.y).toFixed(2) + ')');
     renderCaptions(t);
     renderObjects(t);
+    renderLight(t);
     renderHud();
   }
 
   var SAFE = D.safe;
   // backdrops / marks meant to sit on or under other drawings
-  var NO_OVERLAP_CHECK = { strike: 1, cross: 1, rays: 1, darkness: 1, frame: 1, line: 1, inset: 1, sparkle: 1, circle: 1, light: 1 };
-  var transitions = D.events.filter(function (e) { return e.do === 'walk' && e.camera; }).map(function (e) { return [e.t, e.t + e.dur + 0.3]; });
+  var NO_OVERLAP_CHECK = { strike: 1, cross: 1, rays: 1, darkness: 1, frame: 1, line: 1, inset: 1, sparkle: 1, splash: 1, circle: 1, light: 1 };
+  var transitions = D.events.filter(function (e) { return (e.do === 'walk' && e.camera) || e.transition || e.do === 'wipe'; })
+    .map(function (e) { return [e.t - 0.1, e.t + (e.dur || 0.6) + (e.turn || 0) + 0.4]; });
   function inter(a, b) { return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); }
   function shown(el) { return el.getAttribute('visibility') !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0.3; }
   function glyphBox(ob) {        // a <text> box includes the font's tall line gap: keep the glyph band only
@@ -799,7 +1083,7 @@
   }
   window.kiCheck = function (t) {
     var out = [], moving = transitions.some(function (w) { return t >= w[0] && t <= w[1]; });
-    var words = [], people = [];
+    var words = [], people = [], boxes = {};
     Object.keys(objs).forEach(function (id) {
       var ob = objs[id]; if (!shown(ob.el)) return;
       var r = glyphBox(ob); if (offScreen(r)) return;
@@ -812,6 +1096,8 @@
       var r = null;
       c.strokes.forEach(function (el) {
         if (el.closest('.expr') || el.closest('.react')) return;
+        var prop = el.closest('.chute') || el.closest('.snorkel');
+        if (prop && parseFloat(prop.getAttribute('opacity') || '1') < 0.1) return;
         var b = el.getBoundingClientRect();
         if (!b.width && !b.height) return;
         r = r ? { left: Math.min(r.left, b.left), top: Math.min(r.top, b.top), right: Math.max(r.right, b.right), bottom: Math.max(r.bottom, b.bottom) } : { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
@@ -820,7 +1106,33 @@
       r.width = r.right - r.left; r.height = r.bottom - r.top;
       if (offScreen(r)) return;
       if (!moving) safeIssues(id, r, out);
+      boxes[id] = r;
       people.push([id, r, c.s.walk > 0.01]);
+    });
+    // CONTACT: a pose that touches something (ground, animal, tree, water) must really touch it
+    var m = world.getCTM(), sy = function (y) { return m.d * y + m.f; }, sx = function (x) { return m.a * x + m.e; }, tol = 14 * m.d;
+    Object.keys(boxes).forEach(function (id) {
+      var c = chars[id], ct = c.s.contact, r = boxes[id];
+      if (!ct || moving) return;
+      if (ct === 'ground' || ct.indexOf('tree:') === 0) {
+        var g = sy(GROUND), d = r.bottom - g;
+        if (d < -tol) out.push('CONTACT: ' + id + ' floats ' + Math.round(-d) + ' px above the ground');
+        if (d > 2 * tol) out.push('CONTACT: ' + id + ' sinks ' + Math.round(d) + ' px into the ground');
+      }
+      if (ct.indexOf('tree:') === 0 && objs[ct.slice(5)]) {
+        var tb = worldBox(ct.slice(5)), cx = sx(tb.x + tb.w / 2), half = 11 * (objs[ct.slice(5)].def.scale || 1) * m.a;
+        var gap = Math.min(Math.abs(r.left - cx), Math.abs(r.right - cx)) - half;
+        if (gap > tol && !(r.left < cx && r.right > cx)) out.push('CONTACT: ' + id + ' is ' + Math.round(gap) + ' px off the trunk');
+      }
+      if (ct.indexOf('ride:') === 0 && objs[ct.slice(5)]) {
+        var orr = objs[ct.slice(5)].el.getBoundingClientRect();
+        if (r.bottom < orr.top + 0.3 * orr.height || r.right < orr.left || r.left > orr.right) out.push('CONTACT: ' + id + ' is not seated on ' + ct.slice(5));
+      }
+      if (ct === 'water' && c.s.clipY) {
+        var hip = sy(GROUND + c.s.y + HIP_Y * c.scale), wl = sy(c.s.clipY);
+        if (hip < wl - 4) out.push('CONTACT: ' + id + ' swims on top of the water (hips above the water line)');
+        if (r.top > wl) out.push('CONTACT: ' + id + ' is fully under water');
+      }
     });
     if (capEl.textContent.trim()) {
       var cr = null, pad = 8;      // real text extent (+ the outline stroke)
@@ -877,6 +1189,7 @@
     return pending.length ? Promise.all(pending).then(function () { return true; }) : true;
   };
   window.kiDuration = D.duration;
+  window.kiState = function (id) { var o = {}; var st = chars[id].s; Object.keys(st).forEach(function (k) { o[k] = st[k]; }); return o; };
   window.kiSeek(0);
   window.KI_READY = true;
 })();

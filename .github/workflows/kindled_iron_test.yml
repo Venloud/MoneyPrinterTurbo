@@ -157,7 +157,9 @@ jobs:
           stamp=$(date -u +%Y%m%d-%H%M)
           cp storage/kindled_iron/test.mp4 "genesis-test-$stamp.mp4"
           cp storage/kindled_iron/test_safebox.mp4 "genesis-test-$stamp-safebox.mp4"
-          gh release upload test-renders --repo "$VOICE_REPO" --clobber "genesis-test-$stamp.mp4" "genesis-test-$stamp-safebox.mp4"
+          cp storage/kindled_iron/test_novoice.mp4 "genesis-test-$stamp-novoice.mp4"
+          gh release upload test-renders --repo "$VOICE_REPO" --clobber "genesis-test-$stamp.mp4" "genesis-test-$stamp-safebox.mp4" \
+            "genesis-test-$stamp-novoice.mp4"
           echo "Uploaded to https://github.com/$VOICE_REPO/releases/tag/test-renders"
 
       - name: Upload stills, metadata, sources (no voice audio)
@@ -169,6 +171,8 @@ jobs:
             storage/kindled_iron/test.srt
             storage/kindled_iron/test_meta.json
             storage/kindled_iron/test_sources.json
+            storage/kindled_iron/test_sounds.json
+            storage/kindled_iron/test_insets.jpg
             storage/kindled_iron/work/stills/**
             storage/kindled_iron/work/checks.json
           if-no-files-found: warn
@@ -182,6 +186,7 @@ jobs:
           path: |
             storage/kindled_iron/test.mp4
             storage/kindled_iron/test_safebox.mp4
+            storage/kindled_iron/test_novoice.mp4
           retention-days: 14
 
       - name: my_voice without a private repo

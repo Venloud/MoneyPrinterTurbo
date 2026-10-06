@@ -19,7 +19,7 @@
       },
       "monthly_char_budget": 40000,
       "min_remaining_fraction": 0.1,
-      "use_break_tags": true
+      "use_break_tags": false
     },
     "chatterbox": {
       "reference_clip": "kindled_iron_ref_1.wav",
@@ -53,7 +53,7 @@
       },
       "monthly_char_budget": 40000,
       "min_remaining_fraction": 0.1,
-      "use_break_tags": true
+      "use_break_tags": false
     },
     "chatterbox": {
       "reference_clip": "night_files_ref.wav",
@@ -87,7 +87,7 @@
       },
       "monthly_char_budget": 40000,
       "min_remaining_fraction": 0.1,
-      "use_break_tags": true
+      "use_break_tags": false
     },
     "chatterbox": {
       "reference_clip": "bouriko_ref.wav",

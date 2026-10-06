@@ -1,0 +1,22 @@
+{
+ "_comment": "Freesound ids picked from the CC0 search results by title/fit (tried first). The owner listens and swaps ids here, then reruns python -m kindled_iron.sfx_library --roles <role>.",
+ "pencil_long": [46624, 650994],
+ "scribble": [211247, 451646],
+ "marker": [351145, 400914],
+ "handwriting": [234016, 383866],
+ "scratch": [320154, 407405],
+ "eraser": [383861, 119143],
+ "rumble": [217657, 336023],
+ "whoosh_fall": [325256, 238375],
+ "boom": [165109, 268084],
+ "riser": [218354, 334525],
+ "burst": [351408, 639429],
+ "water_rush": [253607, 161717],
+ "whoosh_slow": [369698, 325256],
+ "amb_hum": [638914],
+ "amb_wind": [459977],
+ "amb_waves": [578524],
+ "amb_birds": [50619],
+ "amb_crickets": [522299],
+ "music": [455855]
+}

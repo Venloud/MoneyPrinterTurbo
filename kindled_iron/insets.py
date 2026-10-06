@@ -156,4 +156,38 @@ def fetch(scene: dict, work: Path, log) -> dict:
                         "start": start, "duration": round(len(frames) / fps, 2)})
         log(f"inset {ev['id']}: {c['source']} {c['id']} ({c['title'][:50]})")
     (work / "sources.json").write_text(json.dumps(sources, indent=1))
+    contact_sheet(found, sources, work, log)
     return found
+
+
+def contact_sheet(found: dict, sources: list, work: Path, log) -> None:
+    """One image with first / middle / last frame of every auto-picked clip, for eye-checking."""
+    if not found:
+        return
+    from urllib.parse import urlparse
+    font = (Path(__file__).resolve().parent / "vendor" / "fonts" / "Caveat.ttf").as_posix()
+    rows = []
+    for k, src in enumerate(sources):
+        fr = found[src["inset"]]["frames"]
+        picks = [fr[0], fr[len(fr) // 2], fr[-1]]
+        label = f"{src['inset']}  {src['source']} {src['id']}  ({src['query']})".replace(":", r"\:").replace("'", "")
+        row = work / f"_cs_row{k}.jpg"
+        inputs = []
+        for p in picks:
+            inputs += ["-i", urlparse(p).path]
+        subprocess.run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex",
+                        "[0]scale=360:240:force_original_aspect_ratio=decrease,pad=360:240:(ow-iw)/2:(oh-ih)/2:color=white[a];"
+                        "[1]scale=360:240:force_original_aspect_ratio=decrease,pad=360:240:(ow-iw)/2:(oh-ih)/2:color=white[b];"
+                        "[2]scale=360:240:force_original_aspect_ratio=decrease,pad=360:240:(ow-iw)/2:(oh-ih)/2:color=white[c];"
+                        f"[a][b][c]hstack=3,pad=1080:300:0:60:color=0xF4F1EA,drawtext=fontfile='{font}':text='{label}':fontsize=40:x=12:y=10:fontcolor=0x222222",
+                        "-frames:v", "1", str(row)], check=True)
+        rows.append(row)
+    out = work / "insets_contact_sheet.jpg"
+    args = []
+    for r in rows:
+        args += ["-i", str(r)]
+    subprocess.run(["ffmpeg", "-y", "-v", "error", *args, "-filter_complex", f"vstack={len(rows)}" if len(rows) > 1 else "null",
+                    "-frames:v", "1", str(out)], check=True)
+    for r in rows:
+        r.unlink()
+    log(f"inset contact sheet: {out}")

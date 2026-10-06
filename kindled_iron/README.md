@@ -64,13 +64,32 @@ Other channels can still use the older sentence pauses (`pause_sentence`, `pause
   `"at": "pause"` / `"pause#2"` puts any event in the 1st / 2nd pause of its beat (the DAY counter ticks
   in the pause before each "Day N" line).
 
-## Voice from the owner's own reading (recording_voice.py)
+## Voice paced by the owner's own reading (recording_voice.py)
 `render.py --recording <file>` (workflow input `recording`, a path inside the private repo, e.g.
-`recordings/where-did-god-come-from_take3.m4a`): the recording is cleaned (noise reduction, start/end silence
-trim, loudness) and turned into the cloned voice with ElevenLabs Speech to Speech (`eleven_multilingual_sts_v2`),
-keeping his exact pace, pauses and emphasis. If that fails: one text-to-speech request punctuated the way he spoke
-(pauses measured on the recording) at the closest speed, no post-processing. No pause trimming or insertion on
-either path; captions and timing come from whisper on the final audio. Recordings live ONLY in the private repo.
+`recordings/where-did-god-come-from_take3.m4a`). The recording is a SILENT timing guide, never heard: it is measured
+(words per minute, every pause, the words he leans on) and the cloned voice reads the script with normal
+ElevenLabs text-to-speech, ONE request, tts_text punctuated the way he spoke (a sentence he ran on ends with a comma,
+a real pause gets a full stop, a long one an ellipsis), speed chosen for his pace within 0.90-1.05. Never cut,
+re-spaced or stretched; if the clone's pauses at his 4 biggest beats are far off, that punctuation is strengthened
+and it is regenerated ONCE. Recordings live ONLY in the private repo.
+
+## Clean voice (sound.py, every provider)
+High-pass 85 Hz, de-plosive (the band under 160 Hz is compressed hard only above its own loud level), light
+de-esser, gentle compression; voice at -16 LUFS, true peak -1.5 dBTP; effects follow the voice (sound_levels.json
+offsets). A clip's own audio is matched to 1 dB under the voice. The render FAILS if true peak > -1.0 dBTP or a
+low-frequency burst (< 120 Hz) is more than 10 dB above the voice's average level.
+
+## Publishing (publish.py, kindled_iron_publish.yml: the ONLY thing that posts)
+1. Approve: the render's file name goes into the private repo's `approved/index.json`.
+2. Run **Kindled Iron Publish** (input `render`, empty = latest approved; `check_only` = connections only).
+   It refuses fallback-voice renders and renders that failed a check, checks every platform first, skips a
+   platform whose check fails, and one failing platform never stops the others. One ntfy with the links.
+- TikTok: refreshes the token first (saved back to secrets); direct post when the app has `video.publish` and
+  TikTok accepts it, otherwise the TikTok inbox (draft). YouTube: resumable upload, public Short, not made for kids,
+  AI-voice disclosure on. Instagram: Reel by resumable upload (no public URL); Threads: video fetched from a
+  temporary public release of this repo, deleted at the end of the run. Facebook: Page Reel.
+- `publish_config.json` -> `publish_mode` per platform: live | draft | off.
+- Mondays the workflow refreshes the Instagram / Threads / TikTok tokens and alerts (ntfy) before any expires.
 
 ## Voice (tts.py)
 Providers with one interface: `elevenlabs_tts.py` (owner's cloned voice), `chatterbox_tts.py`

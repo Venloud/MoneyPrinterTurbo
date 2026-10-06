@@ -137,7 +137,8 @@ def _tts(text: str, out_wav: Path, profile: dict, speed: float, log) -> dict:
         before = _used()
         meta = el.synthesize([(text, 0.0)], out_wav, prof)
         after = _used(before)
-        meta["credits"] = (after - before) if before is not None and after is not None else meta.get("chars")
+        diff = (after - before) if before is not None and after is not None else 0
+        meta["credits"] = diff if diff > 0 else meta.get("chars")      # usage can show up late: text-to-speech bills characters
         meta["provider_used"] = "elevenlabs"
         return meta
     # local preview without the key: Kokoro reads the same tts_text (never the recording)

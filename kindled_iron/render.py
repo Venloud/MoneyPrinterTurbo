@@ -608,7 +608,7 @@ def main() -> None:
             from kindled_iron import recording_voice
 
             voice_meta = recording_voice.voice(Path(a.recording), [w for txt in texts for w in words_of(txt)], raw,
-                                               profile, work, log)
+                                               profile, work, log, scene.get("recording_edits"))
         else:
             voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",

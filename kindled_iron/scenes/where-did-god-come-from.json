@@ -943,7 +943,7 @@
   {
    "id": "moses",
    "panel": 6,
-   "narration": "Then Moses asked for His name. Two words: \"I AM.\" [Exodus 3:14] Not I was. I will be. I am.",
+   "narration": "Then Moses asked for His name. Two words: \"I AM.\" [Exodus 3:14] Not I was. Not I will be. I am.",
    "camera_start": false,
    "transition": "wipe",
    "whoosh": true,
@@ -1374,5 +1374,15 @@
   "caption": "If God made everything, who made God? The Bible's answer is one word. #bible #god #faith #christian #jesus #question",
   "description": "If God made everything, who made God? The Bible's answer: nobody."
  },
- "voice_recording": "recordings/where-did-god-come-from_take3.m4a"
+ "voice_recording": "recordings/where-did-god-come-from_take3.m4a",
+ "recording_edits": [
+  {
+   "copy": [
+    54.33,
+    54.6
+   ],
+   "paste_at": 55.38,
+   "why": "take 3 skipped the second 'Not': his own 'not' from 'Not I was' placed in the pause before 'I will be' (owner asked)"
+  }
+ ]
 }

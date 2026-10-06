@@ -180,8 +180,8 @@ jobs:
               problems.append("video is not 1080x1920")
           if not a:
               problems.append("no audio stream")
-          if not 30.0 <= dur <= 75.0:
-              problems.append(f"duration {dur:.1f} s is outside 30-75 s")
+          if not 30.0 <= dur <= 120.0:          # an owner's own reading sets its own length
+              problems.append(f"duration {dur:.1f} s is outside 30-120 s")
           meta = json.load(open("storage/kindled_iron/test_meta.json"))
           tp = meta.get("third_party", {})
           used = bool(tp.get("clips") or tp.get("images"))

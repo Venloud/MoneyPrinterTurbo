@@ -51,11 +51,18 @@ def _cache(name: str) -> Path:
     return d / name
 
 
-def _used() -> int | None:
-    try:
-        return int(el._get("/user/subscription").get("character_count", 0))
-    except Exception:  # noqa: BLE001
-        return None
+def _used(before: int | None = None) -> int | None:
+    """Characters used this month. After a request the count can lag a few seconds: wait for it to move."""
+    import time
+    for k in range(6 if before is not None else 1):
+        try:
+            n = int(el._get("/user/subscription").get("character_count", 0))
+        except Exception:  # noqa: BLE001
+            return None
+        if before is None or n != before:
+            return n
+        time.sleep(2)
+    return n
 
 
 def speech_to_speech(clean_wav: Path, out_wav: Path, profile: dict, log) -> dict:
@@ -78,7 +85,7 @@ def speech_to_speech(clean_wav: Path, out_wav: Path, profile: dict, log) -> dict
     parts.append(f'--{bnd}\r\nContent-Disposition: form-data; name="audio"; filename="take.wav"\r\n'
                  f'Content-Type: audio/wav\r\n\r\n'.encode() + blob + b"\r\n")
     parts.append(f"--{bnd}--\r\n".encode())
-    req = urllib.request.Request(f"{el.API}/speech-to-speech/{cfg['voice_id']}?output_format=mp3_44100_192",
+    req = urllib.request.Request(f"{el.API}/speech-to-speech/{cfg['voice_id']}?output_format=mp3_44100_128",
                                  data=b"".join(parts), method="POST",
                                  headers={"xi-api-key": el._key() or "", "Accept": "audio/mpeg",
                                           "Content-Type": f"multipart/form-data; boundary={bnd}"})
@@ -101,7 +108,7 @@ def speech_to_speech(clean_wav: Path, out_wav: Path, profile: dict, log) -> dict
     finally:
         os.unlink(mp3)
     shutil.copy(out_wav, cached)
-    after = _used()
+    after = _used(before)
     credits = (after - before) if before is not None and after is not None else None
     return {"path": "speech_to_speech", "model": STS_MODEL, "cached": False, "credits": credits}
 
@@ -165,15 +172,46 @@ def match_tts(script_words: list[str], clean_wav: Path, out_wav: Path, profile: 
         f"(wanted {want:.2f}), punctuated as spoken: {text[:160]}...")
     before = _used()
     meta = el.synthesize([(text, 0.0)], out_wav, prof)
-    after = _used()
+    after = _used(before)
     meta.update({"path": "tts_matched", "tts_text": text, "recording": {k: v for k, v in m.items() if k != "aligned"},
                  "credits": (after - before) if before is not None and after is not None else meta.get("chars")})
     return meta
 
 
-def voice(recording: Path, script_words: list[str], out_wav: Path, profile: dict, work: Path, log) -> dict:
+def apply_edits(wav: Path, edits: list[dict], log) -> None:
+    """Owner-approved word fixes, ONLY into silence (nothing moves, nothing is stretched):
+    {"copy": [start, end], "paste_at": t, "why": "..."} copies his own word (times in the CLEANED recording)
+    into a pause."""
+    import numpy as np
+    import soundfile as sf
+
+    x, sr = sf.read(wav, dtype="float32")
+    for ed in edits:
+        a, b = int(ed["copy"][0] * sr), int(ed["copy"][1] * sr)
+        seg = x[a:b].copy()
+        f = int(0.015 * sr)
+        seg[:f] *= np.linspace(0, 1, f)
+        seg[-f:] *= np.linspace(1, 0, f)
+        # the quietest spot within 0.2 s of the planned one (cleaning can shift times by a few ms)
+        cands = [int((ed["paste_at"] + d) * sr) for d in np.arange(-0.2, 0.201, 0.01)]
+        t = min(cands, key=lambda c: float(np.sqrt(np.mean(x[c:c + len(seg)] ** 2))))
+        room = float(np.sqrt(np.mean(x[t:t + len(seg)] ** 2)))
+        if room > 0.01:
+            log(f"WARNING: recording edit skipped: no pause near {ed['paste_at']} s (level {room:.3f})")
+            continue
+        ed["paste_at"] = round(t / sr, 3)
+        x[t:t + len(seg)] += seg
+        log(f"recording edit: copied {ed['copy'][0]:.2f}-{ed['copy'][1]:.2f} s into the pause at {ed['paste_at']:.2f} s"
+            f" ({ed.get('why', '')})")
+    sf.write(wav, x, sr)
+
+
+def voice(recording: Path, script_words: list[str], out_wav: Path, profile: dict, work: Path, log,
+          edits: list | None = None) -> dict:
     cleaned = clean(recording, work / "recording_clean.wav")
     log(f"recording: {recording.name} cleaned (noise reduction, start/end trim, loudness), {_dur(cleaned):.1f} s")
+    if edits:
+        apply_edits(cleaned, edits, log)
     q = el.quota(profile.get("elevenlabs") or {}) if el._key() else None
     if q and "remaining" in q:
         log(f"ElevenLabs quota: {q['remaining']}/{q['budget']} characters left this month ({q['remaining_fraction']:.0%})")

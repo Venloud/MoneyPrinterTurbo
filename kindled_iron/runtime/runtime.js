@@ -283,6 +283,51 @@
       return p('M-40,-110 L-40,60 M-40,0 L45,0 L45,60 M-40,0 L-40,-110 Q-38,-118 -30,-118', { w: 9, c: 'trunk' }) +
         p('M-46,-6 L52,-6 L52,8 L-46,8 Z', { w: 6, fill: 'trunk', fo: 0.9 }) + p('M-40,-100 L-40,-20', { w: 22, c: 'trunk', op: 0.5 });
     },
+    voxel: function (o) {      // a generic blocky world (our own drawing: no game textures, logo or UI)
+      var cols = o.cols || 9, b = o.block || 80, w = cols * b, s = '', y0 = 0, x0 = -w / 2;
+      var heights = o.heights || [1, 1, 2, 2, 1, 1, 3, 2, 1];
+      for (var c = 0; c < cols; c++) {
+        var hh = heights[c % heights.length];
+        for (var r = 0; r < hh; r++) {
+          var x = x0 + c * b, y = y0 - (r + 1) * b, top = r === hh - 1;
+          s += p('M' + x + ',' + y + ' l' + b + ',0 l0,' + b + ' l' + (-b) + ',0 Z', { w: 5, fill: top ? 'green' : 'trunk', fo: 0.95 });
+          if (top) s += p('M' + x + ',' + (y + b * 0.28) + ' l' + b + ',0', { w: 4, c: 'greenLine' });
+          else s += p('M' + (x + b * 0.25) + ',' + (y + b * 0.3) + ' l' + (b * 0.15) + ',0 M' + (x + b * 0.6) + ',' + (y + b * 0.65) + ' l' + (b * 0.15) + ',0', { w: 4, c: 'inkSoft' });
+        }
+      }
+      // a blocky tree on the 7th column
+      var tx = x0 + 6 * b + b / 2, ty = y0 - heights[6 % heights.length] * b;
+      s += p('M' + (tx - b * 0.18) + ',' + ty + ' l0,' + (-b * 1.6) + ' l' + (b * 0.36) + ',0 l0,' + (b * 1.6), { w: 5, fill: 'trunk', fo: 1 }) +
+        p('M' + (tx - b * 0.9) + ',' + (ty - b * 1.5) + ' l' + (b * 1.8) + ',0 l0,' + (-b * 1.3) + ' l' + (-b * 1.8) + ',0 Z', { w: 5, fill: 'leaf', fo: 1 });
+      return s;
+    },
+    blockfolk: function (o) {   // a generic blocky villager: box head, robe, folded arms
+      var k = o.k || 1;
+      return p('M' + (-30 * k) + ',' + (-150 * k) + ' l' + (60 * k) + ',0 l0,' + (60 * k) + ' l' + (-60 * k) + ',0 Z', { w: 5, fill: 'skin', fo: 1 }) +
+        p(circlePath(-12 * k, -124 * k, 4 * k) + ' ' + circlePath(12 * k, -124 * k, 4 * k), { w: 3, fill: 'ink', fo: 1 }) +
+        p('M' + (-34 * k) + ',' + (-90 * k) + ' l' + (68 * k) + ',0 l' + (6 * k) + ',' + (90 * k) + ' l' + (-80 * k) + ',0 Z', { w: 5, fill: 'robe', fo: 1 }) +
+        p('M' + (-40 * k) + ',' + (-62 * k) + ' l' + (80 * k) + ',0 l0,' + (20 * k) + ' l' + (-80 * k) + ',0 Z', { w: 5, fill: 'robeDark', fo: 1 });
+    },
+    cursor: function (o) {      // a mouse pointer ("the player")
+      var k = o.k || 1;
+      return p('M0,0 L0,' + (90 * k) + ' L' + (24 * k) + ',' + (68 * k) + ' L' + (40 * k) + ',' + (104 * k) + ' L' + (56 * k) + ',' + (96 * k) +
+        ' L' + (40 * k) + ',' + (62 * k) + ' L' + (72 * k) + ',' + (60 * k) + ' Z', { w: 6, fill: 'page', fo: 1 });
+    },
+    controller: function (o) {  // a generic game controller
+      var k = o.k || 1, P = function (d) { return d.replace(/-?[\d.]+/g, function (n) { return (parseFloat(n) * k).toFixed(1); }); };
+      return p(P('M-150,-40 C-150,-80 150,-80 150,-40 C175,30 165,95 120,95 C90,95 75,55 50,45 L-50,45 C-75,55 -90,95 -120,95 C-165,95 -175,30 -150,-40 Z'), { w: 7, fill: 'controller', fo: 1 }) +
+        p(P('M-95,-30 l0,50 M-120,-5 l50,0'), { w: 12 }) +
+        p(circlePath(85 * k, -25 * k, 13 * k) + ' ' + circlePath(115 * k, 0, 13 * k) + ' ' + circlePath(55 * k, 0, 13 * k) + ' ' + circlePath(85 * k, 25 * k, 13 * k), { w: 4, fill: 'accent', fo: 0.9 });
+    },
+    popup: function (o) {       // a game-style notification: rounded box with a short label
+      var w = o.w || 420, h = o.h || 120, r = 24, t = esc(o.text || 'CHEAT ON');
+      var d = 'M' + (-w / 2 + r) + ',' + (-h / 2) + ' L' + (w / 2 - r) + ',' + (-h / 2) + ' Q' + (w / 2) + ',' + (-h / 2) + ' ' + (w / 2) + ',' + (-h / 2 + r) +
+        ' L' + (w / 2) + ',' + (h / 2 - r) + ' Q' + (w / 2) + ',' + (h / 2) + ' ' + (w / 2 - r) + ',' + (h / 2) + ' L' + (-w / 2 + r) + ',' + (h / 2) +
+        ' Q' + (-w / 2) + ',' + (h / 2) + ' ' + (-w / 2) + ',' + (h / 2 - r) + ' L' + (-w / 2) + ',' + (-h / 2 + r) + ' Q' + (-w / 2) + ',' + (-h / 2) + ' ' + (-w / 2 + r) + ',' + (-h / 2) + ' Z';
+      return p(d, { w: 7, c: 'accent', fill: 'ink', fo: 0.92 }) +
+        '<text x="0" y="4" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + (o.size || 80) +
+        '" fill="' + C.page + '">' + t + '</text>';
+    },
     check: function (o) { var k = o.k || 1; return p('M' + (-110 * k) + ',' + (-5 * k) + ' L' + (-35 * k) + ',' + (75 * k) + ' L' + (130 * k) + ',' + (-110 * k), { c: 'accent', w: 22 }); },
     arrow: function (o) {
       var x = o.dx == null ? 200 : o.dx, y = o.dy || 0, bend = o.bend == null ? 40 : o.bend, mx = x / 2 - y * bend / 200, my = y / 2 + x * bend / 200;
@@ -329,6 +374,12 @@
   var FACE_ALIAS = { speaking: 'neutral', thinking: 'curious', focused: 'curious', sad: 'neutral', look_up: 'awe' };
   var RAISED = 'M-19,-55 q7,-6 14,-2 M5,-57 q7,-4 14,2';      // raised brows (surprise / wonder), never angry
   var REACT = {
+    confused_math: eyes(3, -3) + p('M-6,-24 q6,-4 12,0', { w: 3 }) + p('M-19,-52 L-5,-50 M5,-58 q7,-6 14,1', { w: 4 }) +
+      ['+', '\u00F7', '\u221A', '\u03C0', '=', 'x\u00B2', '?'].map(function (ch, i) {
+        var a = -2.6 + i * 0.75, R = 78 + (i % 2) * 22;
+        return '<text x="' + (Math.cos(a) * R).toFixed(0) + '" y="' + (-40 + Math.sin(a) * R * 0.8).toFixed(0) + '" text-anchor="middle" dominant-baseline="central" ' +
+          'font-family="Caveat" font-weight="700" font-size="' + (i % 3 ? 30 : 38) + '" fill="' + (i % 2 ? C.accent : C.ink) + '">' + ch + '</text>';
+      }).join(''),
     puzzled: eyes(3, -3) + p('M-6,-24 L7,-26', { w: 3 }) + p('M-19,-51 L-5,-50 M5,-58 q7,-6 14,1', { w: 4 }) +
       p('M38,-100 q0,-14 12,-14 q12,0 12,12 q0,8 -10,12 l0,8 M50,-66 l0,2', { w: 5, c: 'accent' }),
     surprised: eyes(0, -1, 4.4) + mouthO(0, 4.6) + p(RAISED, { w: 4 }),
@@ -413,6 +464,9 @@
       '<g id="lightsrc"><g id="lightrays"></g><circle id="lightglow" r="900" fill="url(#glowg)" opacity="0"/></g></g>' +
         '<g filter="url(#rough)"><g id="world">' + objMarkup + charMarkup + '<g id="charEnd"/>' +
       '<rect id="darkpaper" x="-6000" y="-6000" width="40000" height="14000" fill="#16141B" opacity="0"/>' + topMarkup + '</g></g>' +
+'<g id="freeze" visibility="hidden"><rect width="' + W + '" height="' + H + '" fill="none" stroke="' + C.ink + '" stroke-width="18"/>' +
+      '<text x="' + (W / 2) + '" y="330" text-anchor="middle" font-family="Caveat" font-weight="700" font-size="76" fill="' + C.ink + '" ' +
+      'stroke="' + C.board + '" stroke-width="10" paint-order="stroke">*record scratch*</text></g>' +
 '<g id="wipe" transform="translate(' + (-W - 200) + ',0)"><path d="M0,0 L' + (W + 60) + ',0 C' + (W + 140) + ',' + (H * 0.3) + ' ' + (W + 20) + ',' + (H * 0.6) + ' ' + (W + 120) + ',' + H + ' L0,' + H + ' Z" fill="' + C.board + '" stroke="none"/></g>' +
     '<g id="hud" visibility="hidden" transform="translate(' + D.hud.x + ',' + D.hud.y + ') scale(' + (D.hud.scale || 1) + ')"><g id="hud-in">' +
       '<path d="M-110,-48 L110,-46 Q122,-46 122,-34 L120,40 Q120,52 108,52 L-108,50 Q-120,50 -120,38 L-122,-36 Q-122,-48 -110,-48 Z" fill="' + C.page + '" stroke="' + C.accent + '" stroke-width="6"/>' +
@@ -421,6 +475,7 @@
     '</g></g>' +
     '<rect width="' + W + '" height="' + H + '" fill="url(#vig)" pointer-events="none"/>';
   var world = document.getElementById('world'), charEnd = document.getElementById('charEnd');
+  var freezeEl = document.getElementById('freeze');
   var darkEl = document.getElementById('darkpaper'), lightEl = document.getElementById('light');
   var lightWash = document.getElementById('lightwash'), lightGlow = document.getElementById('lightglow');
   var lightRays = document.getElementById('lightrays'), lightSrc = document.getElementById('lightsrc');
@@ -544,6 +599,7 @@
   // ---------------------------------------------------------------- timeline
   var tl = gsap.timeline({ paused: true });
   var hudState = { day: 0, pop: 0 };
+  var freezeState = { v: 0 };
   var lightState = { dark: 0, wash: 0, glow: 0, rays: 0, spread: 0.2, x: W / 2, y: H * 0.3 };
   var REST = { armR: 8, armRf: 12, armL: 8, armLf: 12, busyR: 0, busyL: 0, lean: 0, headTilt: 0, legSpread: 0, y: 0,
                lR: 0, lRs: 0, lL: 0, lLs: 0, rotB: 0, floatAmt: 0, swim: 0 };
@@ -860,6 +916,28 @@
         tl.to(cam, { z: e.zoom || 1.35, duration: e.dur || 0.3, ease: 'power2.in' }, e.t); break;
       case 'camera':
         tl.to(cam, { x: e.x, y: e.y, z: e.zoom, r: e.rotate || 0, duration: e.dur || 0.8, ease: e.ease || 'power2.inOut' }, e.t); break;
+      case 'freeze': {         // record-scratch freeze-frame: the picture goes grey, the camera snaps onto the guide
+        var fg = chars[e.who || 'guide'], fd = e.dur || 1.0;
+        if (fg) {
+          var fsc = fg.scale * (fg.s.k || 1), gx = charX(e.who || 'guide', e.t), gy = GROUND - 230 * fsc;
+          var px = Math.floor(gx / 1080) * 1080 + 540;
+          tl.to(cam, { x: gx, y: gy + 120, z: e.zoom || 1.4, duration: 0.12, ease: 'power3.out' }, e.t);
+          tl.to(cam, { x: px, y: D.camera.y, z: 1, duration: 0.35, ease: 'power2.inOut' }, e.t + fd);
+          tl.set(fg.s, { expr: 'surprised' }, e.t);
+        }
+        tl.set(freezeState, { v: 1 }, e.t);
+        tl.set(freezeState, { v: 0 }, e.t + fd);
+        break;
+      }
+      case 'lean_on': {        // stand right next to a drawing / card and lean on it with one arm
+        var lb = worldBox(e.toward), lsc = c.scale * (c.s.k || 1), lside = e.side || -1;     // -1 = guide on its left
+        var lx = lside < 0 ? lb.x - 34 * lsc : lb.x + lb.w + 34 * lsc;
+        tl.set(s, { x: lx, flipX: -lside }, e.t); s._facing = -lside;
+        pose(s, { rotB: lside * 9, lean: 6, armR: 118, armRf: 30, busyR: 1, armL: 20, armLf: 40, busyL: 1, lR: 0, lL: -14 }, e.t, 0.35);
+        tl.set(s, { expr: 'happy' }, e.t + 0.2);
+        if (e.hold) standUp(s, e.t + e.hold, 0.35);
+        break;
+      }
       case 'shake':
         if (!c) { tl.to(cam, { r: 0.6, duration: 0.06, yoyo: true, repeat: 5, ease: 'sine.inOut' }, e.t); break; }
         tl.to(s, { headTilt: 12, duration: 0.14, yoyo: true, repeat: 5, ease: 'sine.inOut' }, e.t);
@@ -1123,6 +1201,9 @@
     renderCaptions(t);
     renderObjects(t);
     renderLight(t);
+    var fz = freezeState.v > 0.5;
+    board.style.filter = fz ? 'grayscale(0.85) contrast(1.12)' : '';
+    freezeEl.setAttribute('visibility', fz ? 'visible' : 'hidden');
     renderHud();
   }
 

@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-MAX_INSETS = 6
+MAX_INSETS = 8
 UA = {"User-Agent": "KindledIronBot/1.0 (test renders)"}
 LICENSES = {
     "nasa": "NASA media: public domain, not copyrighted (NASA images and media guidelines)",
@@ -79,7 +79,7 @@ def _pixabay(query: str, pin: str | None) -> list[dict]:
     out = []
     for h in hits:
         v = h.get("videos", {})
-        f = v.get("small") or v.get("medium") or v.get("tiny")
+        f = v.get("medium") or v.get("small") or v.get("tiny")          # big insets: ~1280 px wide
         if f and f.get("url"):
             out.append({"source": "pixabay", "file_url": f["url"], "title": h.get("tags", ""), "page": h.get("pageURL", ""),
                         "id": str(h["id"])})

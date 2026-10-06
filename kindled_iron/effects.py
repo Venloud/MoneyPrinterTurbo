@@ -13,8 +13,8 @@ HERE = Path(__file__).resolve().parent
 INBOX = HERE / "reactions_inbox"
 SR = 44100
 
-BUILTIN_FACES = {"puzzled", "surprised", "shocked", "mind_blown", "side_eye", "crying_laughing", "thinking", "wait_what"}
-MAX_REACTIONS, MIN_GAP = 2, 3.0
+BUILTIN_FACES = {"confused_math", "puzzled", "surprised", "shocked", "mind_blown", "side_eye", "crying_laughing", "thinking", "wait_what"}
+MAX_REACTIONS, MIN_GAP = 3, 3.0
 
 
 # --------------------------------------------------------------- reactions
@@ -43,7 +43,7 @@ def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, wor
             why = f"within {MIN_GAP:.0f} s of the previous one"
         elif any(a - 0.3 <= e["t"] <= b + 0.3 for a, b in serious):
             why = "on a serious/holy beat"
-        elif any(abs(e["t"] - g) < 0.4 for g in god_times):
+        elif not e.get("allow_god") and any(abs(e["t"] - g) < 0.4 for g in god_times):
             why = "on the word 'God'"
         if why:
             log(f"WARNING: reaction at {e['t']:.1f} s dropped ({why})")
@@ -51,7 +51,8 @@ def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, wor
             continue
         e["dur"] = min(1.5, float(e.get("dur", 1.2)))
         want = e.get("face") or e.get("emotion")
-        pick = next((r for r in inbox if r["emotion"] == want), None) if e.get("use_inbox") else None
+        # the owner's own approved images in reactions_inbox/ win over the drawn faces
+        pick = next((r for r in inbox if r["emotion"] == want), None) if e.get("use_inbox", True) else None
         if pick:
             key = f"inbox_{len(inbox_used)}"
             shutil.copy(INBOX / pick["file"], work / f"{key}{Path(pick['file']).suffix}")

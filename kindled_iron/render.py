@@ -39,6 +39,7 @@ PALETTE = {
     "trunk": "#9A6A43", "wool": "#F3EBD7", "woolGray": "#9C9C98", "fishBody": "#EBCF7E", "fishBelly": "#BDBDBA",
     "cloud": "#FFFFFF", "cloudShade": "#D7E7F3", "page": "#FBF6E8", "moon": "#F3E4A2", "starFill": "#F6D66A",
     "shadow": "#DCD5C8", "leafDark": "#5C9A4C", "marker": "#F7D3AE",
+    "skin": "#E9C9A0", "robe": "#8A6A4F", "robeDark": "#6C503A", "controller": "#C9CED6",
 }
 HUD = {"x": 300, "y": 248, "scale": 1.25}   # DAY counter badge (top-left of the safe box: x 148-452, y 188-313)
 NO_POP = {"darkness", "line", "frame", "waves", "hill", "rays", "strike", "cross", "inset", "sparkle"}
@@ -158,7 +159,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         words = beat_words[b]
         used: dict = {}
         if beat.get("captions", True):
-            captions += caption_chunks(words)
+            captions += caption_chunks(words, **(scene.get("captions_chunk") or {}))
         cam = beat.get("camera_start")
         prev_panel = scene["beats"][b - 1].get("panel", 0) if b else None
         trans = beat.get("transition")
@@ -204,7 +205,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                         continue                      # no clip found: the inset is simply left out
                     e.update(insets[e["id"]])
                     # a real clip lands in the nearest pause (within 1.5 s before / 0.5 s after)
-                    near = [p for p in pauses if p[1] - p[0] >= 0.3 and e["t"] - 1.5 <= p[0] <= e["t"] + 0.5]
+                    near = [p for p in pauses if p[1] - p[0] >= 0.3 and e["t"] - 1.5 <= p[0] <= e["t"] + 0.5] \
+                        if scene.get("inset_snap", True) else []
                     if near:
                         p0 = min(near, key=lambda p: abs(p[0] - e["t"]))
                         e["t"] = round(p0[0] + 0.05, 3)
@@ -427,7 +429,7 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
     return out
 
 
-VISUAL_EVENTS = {"place", "sit", "lie_down", "swim", "float", "parachute", "pop_up", "climb", "jump", "fall", "ride",
+VISUAL_EVENTS = {"freeze", "lean_on", "place", "sit", "lie_down", "swim", "float", "parachute", "pop_up", "climb", "jump", "fall", "ride",
                  "peek", "pet", "shield_eyes", "stand", "look_viewer", "ghost", "wipe", "touch", "size", "drift",
                  "rise", "drop", "light_burst", "paper", "express", "fade",
                  "move", "wiggle", "draw", "walk", "point", "reach", "wave", "cheer", "react", "shrug", "present", "look", "shake",

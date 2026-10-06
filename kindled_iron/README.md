@@ -47,14 +47,14 @@ Show a small "Bible text: WEB" on the end card.
 Kindled Iron uses `"pacing": "tight"` (voice_profiles.json):
 - No pause padding. ElevenLabs reads the whole script in ONE request (speed 1.0-1.05, no break tags) and
   its natural read is kept.
-- On the final audio every silence longer than `trim_over` (0.30 s) is cut to `keep_gap` (0.25 s); the
-  lead-in is cut to 0.05 s.
-- Deliberate beats only where the script says `[beat]`: max 3 a video (`max_beats`), each 0.4 s
-  (`max_beat`); more than 3 fails the render. Example: `The Bible's answer: [beat] nobody.`
-- Target **165-185 words a minute** (`wpm_target`); 61-68 s, shorter is fine, never pad.
+- On the final audio every silence longer than `trim_over` (0.45 s) is cut to `keep_gap` (0.40 s); natural
+  shorter pauses stay; the lead-in is cut to 0.05 s.
+- No added pauses: `max_beats` is 0 (a `[beat]` tag fails the render).
+- Target **165-175 words a minute** (`wpm_target`), ElevenLabs speed 1.0; 61-66 s, shorter is fine, never pad.
   Log: `pacing: tight - N silences trimmed ..., longest silence X s` and `Length: X s ...; pace N words/min`.
 - A visual change at least every 1.5 s (scene `"max_visual_gap": 1.5`, `PACING WARNING` otherwise);
-  captions 2-3 words at a time.
+  captions 2-3 words at a time, bold, big (scene `captions_box` {x, y, w, size}, `captions_chunk`
+  {max_words, max_chars}), inside the safe box and clear of the button column.
 Other channels can still use the older sentence pauses (`pause_sentence`, `pause_beat`, `max_pause`,
 `[pause 0.8]` tags).
 - Captions and every animation follow the final audio. A beat starts inside the pause before it, so
@@ -93,14 +93,23 @@ Word timings always come from whisper on the audio actually used.
 "pin": {"nasa": "<nasa_id>"}, "start": 12.0, "clip_dur": 2.2, "crop": [x, y, w, h], "w": 340, "h": 230,
 "rotate": -4}`: a 1.5-3 s real clip in a tilted hand-drawn frame that pops in and out on top of the
 drawing. NASA (public domain), Pexels and Pixabay (no attribution needed; keys `PEXELS_API_KEY`,
-`PIXABAY_API_KEY`). Never CC BY. Max 6 a video; no clip found = the inset is silently left out.
+`PIXABAY_API_KEY`). Never CC BY. Max 8 a video; no clip found = the inset is silently left out.
+Big clips: `w` 820 / `h` 470 at (540, 410) fills the upper half of the safe box; drawings go beside or on
+top. `"inset_snap": false` on the scene keeps clips on their words (no snapping to pauses). Every render
+logs each clip's source + licence and writes `insets_contact_sheet.jpg` (CI artifact `insets.jpg`).
 NASA search results are mixed (press conferences...), so pin NASA clips after checking frames.
 
 ## Reactions (use sparingly)
-`{"do": "reaction", "who": "guide", "face": "shocked", "dur": 1.2}`: faces `shocked`, `mind_blown`,
-`side_eye`, `crying_laughing`, `thinking`, `wait_what`. Eyebrows exist ONLY inside a reaction (never
-angled down = never angry). Hard limits (extra ones are dropped with a WARNING): max 2 a video, 15 s
-apart, under 1.5 s, never on the word "God" or on a beat marked `"serious": true`.
+`{"do": "reaction", "who": "guide", "face": "shocked", "dur": 1.2}`: faces `confused_math` (floating math
+symbols), `puzzled`, `surprised`, `shocked`, `mind_blown`, `side_eye`, `crying_laughing`, `thinking`, `wait_what`.
+Images in `reactions_inbox/` are preferred when present. Eyebrows exist ONLY inside a reaction (never angled
+down = never angry). Hard limits (extra ones are dropped with a WARNING): max 3 a video, 3 s apart, under
+1.5 s, never on a scripture card or on GOD (`"allow_god": true` only lifts the word-timing rule for a question
+like "who made God?", where GOD is not drawn). Record-scratch meme: `{"do": "freeze", "zoom": 1.45}` (gray
+freeze-frame + "*record scratch*" + zoom).
+Guide moves: walk in, `lean_on` a card, `size`, `drift`, point, react; change side, size and pose every scene.
+Pop-culture drawings are our own generic shapes: `voxel` world, `blockfolk` villager, `cursor`, `clock`,
+`controller`, `popup` ("CHEAT ON"); no game textures, logos, characters or UI.
 
 ## Faces
 Everyone (guide, man, woman) has the same simple face: two dot eyes and a small mouth, friendly and
@@ -109,14 +118,15 @@ calm by default. `express` / `look` expressions: `neutral`, `happy`, `surprised`
 orange scarf; people are told apart by hair, clothes and height.
 
 ## Sound (sound.py, library built once by sfx_library.py)
-Few effects, each one meaning something. Hard cap 15 a video, never two within 0.8 s, in this priority:
+Few effects, each one meaning something. Hard cap 10 a video (`max_effects`), never two within 1 s
+(`min_spacing_s`), all 4 dB lower (`sfx_gain_db` -4), nothing sharp, in this priority:
 1. a big hit on the key moments only: events marked `"hit": true` (max 3), e.g. "nobody", "I AM", the last line
-2. a soft chime when each scripture reference appears (dropped when a hit lands within 0.8 s)
-3. a soft whoosh on every other scene change
-4. one short pencil sound per scene, only on the drawing marked `"main": true`
+2. a soft chime when each scripture reference appears (dropped when a hit lands within 1 s)
+3. a soft whoosh on big scene changes (beat `"whoosh": true`)
+4. pencil sounds are off (`"pencil": false`)
 No per-stroke sounds (no marker, scribble, eraser, scratch) and no ambience beds. `"sound": "<role>"` /
 `"sound": false` on an event overrides.
-Music: one track per channel (`voice_profiles.json` -> `music_track`, file `vendor/sfx/lib/music_<name>.ogg`;
+Music: none for Kindled Iron (`music_track` "none"). Otherwise one track per channel (`music_track`, file `vendor/sfx/lib/music_<name>.ogg`;
 `--music <name>` on render.py overrides), from frame 0, ducked under the voice, a +3 dB lift from the beat's
 `"music_lift": "<word>"`. `python -m kindled_iron.music_samples` mixes every track under the same 10 s of voice.
 Levels live in `sound_levels.json` (`sfx_levels` in dB relative to the voice, plus a master `sfx_gain_db`):

@@ -129,13 +129,14 @@ def _ytdlp(query: str, start: float, dur: float, log) -> dict | None:
     return {"path": out, "origin": f"yt-dlp:{query}", "start": 0.0, "end": dur} if out.exists() else None
 
 
-def _frames(src: Path, start: float, dur: float, w: int, h: int, out_dir: Path, still: bool) -> list[str]:
+def _frames(src: Path, start: float, dur: float, w: int, h: int, out_dir: Path, still: bool, crop=None) -> list[str]:
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob("f_*.jpg"):
         old.unlink()
     inp = (["-loop", "1"] if still and src.suffix.lower() != ".gif" else ["-stream_loop", "-1"] if still else ["-ss", f"{start:.2f}"])
     subprocess.run(["ffmpeg", "-y", "-v", "error", *inp, "-i", str(src), "-t", f"{dur:.2f}", "-an",
-                    "-vf", f"fps=30,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}",
+                    "-vf", (f"crop=iw*{crop[2]}:ih*{crop[3]}:iw*{crop[0]}:ih*{crop[1]}," if crop else "") +
+                    f"fps=30,scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}",
                     "-q:v", "4", str(out_dir / "f_%04d.jpg")], check=True)
     return [p.as_uri() for p in sorted(out_dir.glob("f_*.jpg"))]
 
@@ -181,7 +182,8 @@ def resolve_scene(scene: dict, profile: dict, work: Path, log) -> list[dict]:
             dur = round(min(max_s, end - start), 2)
             w, h = int(ev.get("w", 820)), int(ev.get("h", 470))
             iid = ev.get("id", f"meme{len(used) + 1}")
-            frames = _frames(hit["path"], start, dur, w, h, work / "insets" / iid, still=False)
+            # crop [x, y, w, h] in fractions: the scene's wins, else the folder index.json entry
+            frames = _frames(hit["path"], start, dur, w, h, work / "insets" / iid, still=False, crop=ev.get("crop") or hit.get("crop"))
             e = {k: v for k, v in ev.items() if k not in ("meme_clip", "fallback")}
             e.update({"do": "draw", "type": "inset", "id": iid, "frames": frames, "fps": 30, "clip_dur": round(len(frames) / 30, 3)})
             if spec.get("audio", hit.get("audio", False)):

@@ -353,17 +353,40 @@
   ]
  },
  {
-  "file": "music_0.ogg",
+  "file": "music_backup.ogg",
   "role": "music",
-  "source": "freesound",
-  "id": 455855,
-  "title": "Wandering",
-  "author": "Andrewkn",
-  "url": "https://freesound.org/people/Andrewkn/sounds/455855/",
+  "name": "backup",
+  "source": "opengameart",
+  "title": "Backup Plan",
+  "author": "Zane Little Music",
+  "url": "https://opengameart.org/content/backup-plan",
   "license": "CC0 1.0",
   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "query": "ambient pad calm",
-  "segment": "loop"
+  "segment": "4-94 s"
+ },
+ {
+  "file": "music_orbital.ogg",
+  "role": "music",
+  "name": "orbital",
+  "source": "opengameart",
+  "title": "Orbital Graveyard",
+  "author": "vitalezzz",
+  "url": "https://opengameart.org/content/orbital-graveyard",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "segment": "0-90 s"
+ },
+ {
+  "file": "music_trailer.ogg",
+  "role": "music",
+  "name": "trailer",
+  "source": "opengameart",
+  "title": "Generic Trailer Music",
+  "author": "emmama",
+  "url": "https://opengameart.org/content/generic-trailer-music",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "segment": "1.5-91.5 s"
  },
  {
   "file": "pencil_long_0.ogg",

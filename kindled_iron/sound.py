@@ -1,21 +1,17 @@
-"""Sound design, driven automatically by the scene's events (event type + weight), with a manual
-override per event ("sound": "<role>" or "sound": false).
+"""Sound design: few effects, each one meaning something (owner, round 6: 88 cues was spam).
 
-  DRAWN things      -> pencil / pen on paper, starting and stopping with the stroke:
-                       outlines = long pencil strokes, short marks = quick scribbles, colour fill = soft marker,
-                       text = fast handwriting, cross-outs = two sharp scratches, removals = eraser rub
-  BIG things ANIMATED in -> a physical sound that starts BEFORE they appear, then the impact:
-                       rise from the ground = rumble + soft thud, drop from above = falling whoosh + landing boom,
-                       light / sun bursting in = riser + bright burst, water filling = water rush,
-                       big text ("GOD", "VERY GOOD") = riser + deep soft boom, sky lifting = slow whoosh
-  SMALL / background -> no sound (the guide's little actions, birds, waves, clouds, stars, sparkles)
-  Also: a soft pop for things that appear already finished (insets, the DAY counter tick),
-  low ambience per scene, a soft music bed.
+  - a big hit on the key moments only (events marked "hit": true, max 3)
+  - a soft chime when each scripture reference appears
+  - a soft whoosh on every other scene change
+  - one short pencil sound per scene, on its main drawing only ("main": true)
+  Hard cap 15 effects, never two within 0.8 s. No per-stroke sounds (no marker, scribble, eraser,
+  scratch), no ambience beds. "sound": "<role>" / "sound": false on an event overrides.
 
-"Big" = the main subject or over ~25 % of the safe box ("weight": "big" | "small" on the event or the
-object; otherwise estimated from its size). One big sound at a time; never two booms within 1.5 s.
-Mix (sound_levels.json): pencil family -20 dB, pops/ticks/chime -18, big sounds -14 (never peaking above
-the voice), ambience -26, music -24, all 4 dB lower while someone speaks; the voice is set to -14 LUFS.
+Music: one track per channel (voice_profiles.json music_track -> vendor/sfx/lib/music_<name>.ogg),
+from frame 0, ducked under the voice, a small lift at the ending.
+Levels (sound_levels.json, dB relative to the voice): pencil -20, pops/chime -18, big sounds -14 (never
+peaking above the voice), music -24; everything 4 dB lower while someone speaks. The voice alone is set to
+-14 LUFS; effects and music are never boosted to reach it.
 """
 from __future__ import annotations
 
@@ -30,11 +26,6 @@ HERE = Path(__file__).resolve().parent
 LIB = HERE / "vendor" / "sfx" / "lib"
 SR = 44100
 
-SAFE_AREA = 840 * 1280
-BACKGROUND = {"birds", "waves", "cloud", "stars", "star", "sparkle", "splash", "line", "darkness", "rays"}
-OUTLINE = {"book", "tree", "hill", "animal", "sun", "moon", "globe", "fish", "frame", "light", "figure", "blob", "cloud", "waves"}
-FILLED = {"book", "tree", "hill", "animal", "sun", "moon", "globe", "fish", "light", "cloud", "waves"}
-MARKS = {"plant", "check", "voice", "arrow", "star", "circle", "underline"}
 BIG_ROLES = {"rumble", "thud", "whoosh_fall", "boom", "riser", "burst", "water_rush", "whoosh_slow"}
 BOOMS = {"boom", "thud"}
 # level of each role relative to the voice (dB under the voice's speech RMS)
@@ -44,29 +35,6 @@ SFX_GAIN = float(CONFIG.get("sfx_gain_db", 0.0))
 DUCK_DB = float(CONFIG.get("duck_db", 4.0))
 VOICE_LUFS = float(CONFIG.get("voice_lufs", -14.0))
 ROLE_FILES = {"chime": "burst"}              # a soft chime = the gentlest burst variants, at chime level
-AMBIENCE = {"hum": "amb_hum", "wind": "amb_wind", "waves": "amb_waves", "birds": "amb_birds", "crickets": "amb_crickets"}
-
-
-def area(o: dict) -> float:
-    t, s = o.get("type"), float(o.get("scale", 1) or 1)
-    if t == "word":
-        size = o.get("size", 120)
-        return len(o.get("text", "")) * size * 0.5 * size
-    if t in ("waves",):
-        return o.get("w", 600) * ((o.get("rows", 3) - 1) * 42 + 34) * s * s
-    if t in ("hill", "darkness", "frame", "inset"):
-        return o.get("w", 420) * o.get("h", 160) * s * s
-    size = {"cloud": (330, 140), "tree": (230, 300), "book": (380, 200), "animal": (240, 180), "sun": (236, 236),
-            "moon": (120, 135), "globe": (2 * o.get("r", 90), 2 * o.get("r", 90)), "fish": (165, 80), "plant": (80, 100),
-            "light": (2 * (o.get("r", 80) + 155),) * 2, "check": (240 * o.get("k", 1), 190 * o.get("k", 1))}.get(t, (100, 100))
-    return size[0] * size[1] * s * s
-
-
-def weight(e: dict, o: dict | None) -> str:
-    w = e.get("weight") or (o or {}).get("weight")
-    if w:
-        return w
-    return "big" if o and area(o) > 0.25 * SAFE_AREA else "small"
 
 
 class Picker:
@@ -90,104 +58,54 @@ class Picker:
         return f, 1.0 + self.rng.uniform(-0.04, 0.04)
 
 
+MAX_EFFECTS, MIN_SPACING, MAX_HITS = 15, 0.8, 3
+
+
 def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, picker: Picker | None = None) -> list[dict]:
-    """Cues: {t, role, dur?, weight, why, file, pitch}. Build-ups are scheduled BEFORE their event."""
+    """Few, meaningful effects (a cap of 15, never two within 0.8 s), in priority order:
+      1. a big hit on the key moments: events marked "hit": true (max 3)
+      2. a soft chime when each scripture reference appears
+      3. a soft whoosh on some scene changes (every other one)
+      4. one short pencil sound per scene, only on the drawing marked "main": true
+    No per-stroke sounds, no ambience. "sound": "<role>" on an event forces one, "sound": false mutes it."""
     picker = picker or Picker()
     objs = {o["id"]: o for o in objects}
-    cues: list[dict] = []
+    cand: list[dict] = []
 
-    def add(t, role, why, w="small", dur=None, group=None):
-        cues.append({"t": round(max(0.0, t), 3), "role": role, "why": why, "weight": w, "dur": dur, "group": group})
+    def add(prio, t, role, why, dur=None):
+        cand.append({"prio": prio, "t": round(max(0.0, t), 3), "role": role, "why": why, "dur": dur,
+                     "weight": "big" if role in BIG_ROLES else "small", "group": None})
 
-    big_drawn = {e["id"] for e in events if e["do"] in ("rise", "drop") or (e["do"] == "move" and e.get("weight") == "big")}
-    for i, e in enumerate(events):
-        do, t = e["do"], e["t"]
+    hits, scene_changes, pencil_beats = 0, 0, set()
+    for e in events:
+        t, do, o = e["t"], e["do"], objs.get(e.get("id"))
         if e.get("sound") is False:
             continue
-        if e.get("sound"):                                   # manual override
-            add(t, e["sound"], f"override on {do}", e.get("weight", "small"), e.get("sound_dur"), group=i)
+        if e.get("sound"):
+            add(2, t, e["sound"], f"override on {do} {e.get('id', '')}", e.get("sound_dur"))
             continue
-        o = objs.get(e.get("id")) if do in ("draw", "rise", "drop", "move", "fade") else None
-        if do == "draw" and o:
-            typ, w = o["type"], weight(e, o)
-            if typ in ("sparkle", "splash"):
-                continue
-            if typ == "inset":
-                add(t, "pop", "inset appears (already finished)")
-                continue
-            if typ == "scripture":
-                d = float(e.get("dur") or 1.5)
-                add(t, "handwriting", f"writes the quote {o.get('ref')}", "small", d)
-                add(t + d + 0.1, "chime", f"reference {o.get('ref')} appears")
-                continue
-            if e.get("instant"):
-                continue                                     # pre-set, or animated in by rise / drop / move
-            if typ == "word" and w == "big":
-                add(t - 1.0, "riser", f"big text {o.get('text')!r}: build-up", "big", 1.05, group=i)
-                add(t + 0.05, "boom", f"big text {o.get('text')!r}: deep soft boom", "big", group=i)
-                continue
-            if w == "small" and typ in BACKGROUND:
-                continue
-            d = float(e.get("dur") or o.get("dur") or 1.1)
-            if typ == "word":
-                add(t, "handwriting", f"writes {o.get('text')!r}", w, d)
-            elif typ in ("cross", "strike"):
-                add(t, "scratch", f"crosses out {o.get('target', '')}", w, 0.25)
-                add(t + 0.14, "scratch", "second scratch", w, 0.25)
-            elif typ in MARKS or (typ not in OUTLINE and w == "small"):
-                add(t, "scribble", f"quick marks: {typ} {o['id']}", w, min(0.6, d))
-            else:
-                add(t, "pencil_long", f"outline: {typ} {o['id']}", w, d * 0.8)
-                if typ in FILLED:
-                    add(t + d * 0.8, "marker", f"colour fill: {typ} {o['id']}", w, 0.5)
-        elif do == "rise" and o:
-            d = float(e.get("dur") or 0.9)
-            if o["type"] == "waves":
-                add(t - 0.3, "water_rush", f"water fills: {o['id']}", "big", d + 0.8, group=i)
-            else:
-                add(t - 0.6, "rumble", f"{o['type']} rises from the ground: rumble", "big", d + 0.5, group=i)
-                add(t + d * 0.8, "thud", f"{o['type']} settles: soft thud", "big", group=i)
-        elif do == "drop" and o:
-            d = float(e.get("dur") or 0.6)
-            add(t - 0.25, "whoosh_fall", f"{o['type']} falls in: whoosh", "big", d + 0.25, group=i)
-            add(t + d, "boom", f"{o['type']} lands: boom", "big", group=i)
-        elif do == "move" and e.get("weight") == "big":
-            add(t - 0.15, "whoosh_slow", f"{(o or {}).get('type', 'drawing')} {e.get('id')} sweeps away/up: slow whoosh",
-                "big", float(e.get("dur") or 1.2) + 0.3, group=i)
-        elif do == "light_burst":
-            add(t - 1.0, "riser", "light bursts in: build-up", "big", 1.05, group=i)
-            add(t, "burst", "light bursts in: bright burst", "big", group=i)
-        elif do == "fade" and e.get("erase"):
-            add(t, "eraser", f"erases {', '.join(e.get('ids', []))[:40]}", "small", 0.6)
-        elif do == "counter" and e.get("day"):
-            add(t, "pop", f"DAY {e['day']} tick")
-        elif do == "enter":
-            add(t, "pencil_long", f"draws {e.get('who')}", "small", float(e.get("dur") or 1.0) * 0.9)
-
-    cues.sort(key=lambda c: c["t"])
-    # one big sound at a time; never two booms within 1.5 s; pencil sounds never pile up
-    kept, big_end, last_boom, last_small = [], -9.0, -9.0, {}
-    for c in cues:
-        if c["role"] in BIG_ROLES:
-            if c["role"] in BOOMS and c["t"] - last_boom < 1.5:
-                continue                                     # never two booms within 1.5 s
-            if c["t"] < big_end - 0.15 and c["role"] not in BOOMS and c["role"] != "burst":
-                if c["role"] in ("riser", "rumble", "whoosh_fall"):
-                    c["t"] = round(big_end - 0.15, 3)        # a build-up waits for the big sound before it
-                    if c["dur"]:
-                        c["dur"] = max(0.3, c["dur"] - 0.3)
-                else:
-                    continue
-            length = c["dur"] or 1.2
-            big_end = max(big_end, c["t"] + length)
-            if c["role"] in BOOMS:
-                last_boom = c["t"]
-        else:
-            fam = c["role"]
-            if c["t"] - last_small.get(fam, -9) < 0.12:
-                continue
-            last_small[fam] = c["t"]
+        if e.get("hit") and hits < MAX_HITS:
+            hits += 1
+            add(1, t, e.get("hit_sound", "boom"), f"key moment: {e.get('why') or (o or {}).get('text') or do}")
+        if do == "draw" and o and o["type"] == "scripture":
+            add(2, t + float(e.get("dur") or 1.5) + 0.1, "chime", f"reference {o.get('ref')} appears")
+        elif do == "camera" and e.get("transition"):
+            scene_changes += 1
+            if scene_changes % 2 == 1:
+                add(3, t - 0.05, "whoosh_slow", f"scene change ({e['transition']})", 0.7)
+        elif do == "draw" and o and e.get("main"):
+            beat = next((b for b, (a, z) in enumerate(spans) if a - 0.3 <= t <= z + 0.3), None)
+            if beat not in pencil_beats:
+                pencil_beats.add(beat)
+                add(4, t, "pencil_long", f"draws {o['type']} {o['id']}", min(0.8, float(e.get("dur") or 0.8)))
+    kept: list[dict] = []
+    for c in sorted(cand, key=lambda c: (c["prio"], c["t"])):
+        if len(kept) >= MAX_EFFECTS:
+            break
+        if any(abs(c["t"] - k["t"]) < MIN_SPACING for k in kept):
+            continue
         kept.append(c)
+    kept.sort(key=lambda c: c["t"])
     for c in kept:
         f, pitch = picker.pick(c["role"])
         c["file"], c["pitch"] = (f.name if f else None), round(pitch, 3)
@@ -258,7 +176,8 @@ def _speech_mask(words: list[dict], n: int) -> np.ndarray:
 
 
 def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list[dict], duration: float,
-        out: Path, out_novoice: Path, music_from: float | None, log) -> dict:
+        out: Path, out_novoice: Path, music: dict | None, log) -> dict:
+    """music = {"track": name (vendor/sfx/lib/music_<name>.ogg), "lift_at": seconds} or None."""
     voice = _decode(narration)
     n = max(len(voice), int(duration * SR)) + SR // 2
     v = np.zeros(n, np.float32)
@@ -277,33 +196,25 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
         i = int(c["t"] * SR)
         seg = seg[: max(0, n - i)]
         fx[i:i + len(seg)] += seg
-    # ambience per scene (crossfaded) + the music bed, both ducked under speech
     bed = np.zeros(n, np.float32)
     duck = (10 ** (-DUCK_DB / 20)) ** _speech_mask(words, n)
-    amb_g = vr * 10 ** ((LEVELS["ambience"] + SFX_GAIN) / 20) / 0.1
-    mus_g = vr * 10 ** ((LEVELS["music"] + SFX_GAIN) / 20) / 0.1
-    amb_used = []
-    for b, beat in enumerate(scene["beats"]):
-        role = AMBIENCE.get(beat.get("ambience") or "")
-        if not role or not (LIB / f"{role}_0.ogg").exists():
-            continue
-        a = spans[b][0] - 0.3
-        z = (spans[b + 1][0] if b + 1 < len(spans) else duration) + 0.5
-        ia, iz = int(max(0, a) * SR), min(n, int(z * SR))
-        x = _loop(_decode(LIB / f"{role}_0.ogg"), iz - ia)
-        k = min(len(x) // 2, int(0.6 * SR))
-        x[:k] *= np.linspace(0, 1, k, dtype=np.float32)
-        x[-k:] *= np.linspace(1, 0, k, dtype=np.float32)
-        bed[ia:iz] += x * amb_g
-        amb_used.append({"t": round(max(0, a), 2), "to": round(z, 2), "role": role, "file": f"{role}_0.ogg"})
-    if music_from is not None and (LIB / "music_0.ogg").exists():
-        ia = int(max(0, music_from - 0.5) * SR)
-        x = _loop(_decode(LIB / "music_0.ogg"), n - ia, xf=2.0)
-        k1, k2 = int(2.5 * SR), int(1.5 * SR)
-        x[:k1] *= np.linspace(0, 1, k1, dtype=np.float32)
-        x[-k2:] *= np.linspace(1, 0, k2, dtype=np.float32)
-        bed[ia:] += x * mus_g
-        amb_used.append({"t": round(ia / SR, 2), "to": round(n / SR, 2), "role": "music", "file": "music_0.ogg"})
+    beds = []
+    track = (music or {}).get("track")
+    if track and (LIB / f"music_{track}.ogg").exists():
+        x = _loop(_decode(LIB / f"music_{track}.ogg"), n, xf=2.0)
+        x = x * (0.1 / (float(np.sqrt(np.mean(x[: SR * 20] ** 2))) or 0.1))     # same reference level as the effects
+        env = np.ones(n, np.float32)
+        lift = music.get("lift_at")
+        if lift is not None:                                                   # a small lift at the ending (+3 dB)
+            a = int(lift * SR)
+            ramp = min(n - a, int(0.4 * SR))
+            if ramp > 0:
+                env[a:a + ramp] = np.linspace(1, 1.41, ramp)
+                env[a + ramp:] = 1.41
+        k2 = int(1.2 * SR)
+        env[-k2:] *= np.linspace(1, 0, k2)
+        bed += x * env * (vr * 10 ** ((LEVELS["music"] + SFX_GAIN) / 20) / 0.1)
+        beds.append({"t": 0.0, "to": round(n / SR, 2), "role": "music", "file": f"music_{track}.ogg"})
     bed *= duck
     fx *= duck                                    # everything ducks under speech
     # the VOICE alone is set to the target (gentle compressor, then gain + limiter at -1 dBFS); effects, ambience
@@ -321,9 +232,9 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     _write(vn + (fx + bed) * k, out, 0.0)
     _write((fx + bed) * k, out_novoice, 0.0)
     lufs = _measure_lufs(out)
-    log(f"mix: {len(cues)} sound cues + {len(amb_used)} ambience/music beds, voice {voice_lufs:.1f} LUFS "
+    log(f"mix: {len(cues)} effects + music {track or 'none'}, voice {voice_lufs:.1f} LUFS "
         f"(target {VOICE_LUFS:.0f}), final mix {lufs:.1f} LUFS")
-    return {"lufs": lufs, "voice_lufs": voice_lufs, "beds": amb_used}
+    return {"lufs": lufs, "voice_lufs": voice_lufs, "beds": beds}
 
 
 def _ff(x: np.ndarray, af: str) -> np.ndarray:

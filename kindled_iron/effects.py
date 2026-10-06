@@ -43,7 +43,7 @@ def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, wor
             why = f"within {MIN_GAP:.0f} s of the previous one"
         elif any(a - 0.3 <= e["t"] <= b + 0.3 for a, b in serious):
             why = "on a serious/holy beat"
-        elif any(abs(e["t"] - g) < 0.8 for g in god_times):
+        elif any(abs(e["t"] - g) < 0.4 for g in god_times):
             why = "on the word 'God'"
         if why:
             log(f"WARNING: reaction at {e['t']:.1f} s dropped ({why})")

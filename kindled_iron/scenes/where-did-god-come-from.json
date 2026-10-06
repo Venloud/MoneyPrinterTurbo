@@ -4,15 +4,22 @@
  "voice_profile": "kindled_iron",
  "format": "one question: question in 2 s, answer by 10 s, reasons with scripture cards, closing line",
  "exact_narration": true,
- "end_hold": 1.4,
- "ground": 1170,
+ "end_hold": 1.2,
+ "ground": 1430,
  "camera_y": 960,
  "fill_min": 0.45,
+ "max_visual_gap": 1.5,
+ "captions_box": {
+  "x": 585,
+  "y": 1185,
+  "w": 360,
+  "size": 92
+ },
  "cast": {
   "guide": {
    "panel": 0,
-   "x": 250,
-   "scale": 1.8,
+   "x": 255,
+   "scale": 2.0,
    "facing": 1,
    "accent": true
   }
@@ -21,24 +28,23 @@
   {
    "id": "question",
    "panel": 0,
-   "narration": "If God created everything... [pause 0.6] then who created God?",
+   "narration": "If God made everything, who made God?",
    "camera_start": {
     "x": 540,
     "y": 960,
     "zoom": 1.0,
     "dur": 0.01
    },
-   "interaction": true,
    "events": [
     {
      "at": 0,
      "do": "draw",
      "id": "q_who",
      "type": "word",
-     "text": "WHO CREATED",
+     "text": "WHO MADE",
      "x": 540,
-     "y": 270,
-     "size": 140,
+     "y": 290,
+     "size": 170,
      "instant": true,
      "pop": false
     },
@@ -47,23 +53,10 @@
      "do": "draw",
      "id": "q_god",
      "type": "word",
-     "text": "GOD",
-     "x": 470,
-     "y": 470,
-     "size": 250,
-     "color": "accent",
-     "instant": true,
-     "pop": false
-    },
-    {
-     "at": 0,
-     "do": "draw",
-     "id": "q_mark",
-     "type": "word",
-     "text": "?",
-     "x": 750,
-     "y": 460,
-     "size": 250,
+     "text": "GOD?",
+     "x": 540,
+     "y": 520,
+     "size": 260,
      "color": "accent",
      "instant": true,
      "pop": false
@@ -71,77 +64,79 @@
     {
      "at": 0.05,
      "do": "wiggle",
-     "id": "q_mark"
+     "id": "q_god"
     },
     {
-     "at": "everything-0.1",
+     "at": "everything-0.15",
      "do": "draw",
      "id": "e_globe",
      "type": "globe",
-     "x": 510,
-     "y": 760,
-     "r": 95,
-     "dur": 0.35,
-     "allow_overlap": true
+     "x": 220,
+     "y": 780,
+     "r": 78,
+     "dur": 0.3,
+     "main": true
     },
     {
-     "at": "everything+0.1",
+     "at": "everything",
      "do": "draw",
      "id": "e_tree",
      "type": "tree",
-     "x": 660,
+     "x": 420,
+     "y": 745,
+     "scale": 0.75,
+     "dur": 0.25
+    },
+    {
+     "at": "everything+0.15",
+     "do": "draw",
+     "id": "e_sun",
+     "type": "sun",
+     "x": 620,
      "y": 780,
-     "scale": 1.0,
-     "dur": 0.35,
-     "allow_overlap": true
+     "scale": 0.62,
+     "dur": 0.25
     },
     {
      "at": "everything+0.3",
      "do": "draw",
-     "id": "e_sun",
-     "type": "sun",
-     "x": 500,
-     "y": 1020,
-     "scale": 0.7,
-     "dur": 0.3,
-     "allow_overlap": true
-    },
-    {
-     "at": "everything+0.45",
-     "do": "draw",
      "id": "e_fish",
      "type": "fish",
-     "x": 650,
-     "y": 1060,
-     "scale": 1.0,
-     "dur": 0.3,
-     "allow_overlap": true
+     "x": 820,
+     "y": 780,
+     "scale": 0.9,
+     "dur": 0.25
     },
     {
-     "at": "everything+0.5",
+     "at": "who",
      "do": "reaction",
      "who": "guide",
      "face": "puzzled",
      "dur": 1.3
     },
     {
-     "at": "who",
+     "at": "God#2",
      "do": "point",
      "who": "guide",
      "toward": "q_god",
-     "hold": 1.0
+     "hold": 0.8
     }
-   ],
-   "music_from": "If"
+   ]
   },
   {
-   "id": "answer",
+   "id": "nobody",
    "panel": 0,
-   "narration": "The Bible's answer is simple. [pause 1.0] Nobody. God wasn't created. God has always existed.",
+   "narration": "Fair question. The Bible's answer: [beat] nobody.",
    "camera_start": false,
    "events": [
     {
-     "at": 0.05,
+     "at": "Fair",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "nobody-0.2",
      "do": "fade",
      "ids": [
       "e_globe",
@@ -150,128 +145,186 @@
       "e_fish"
      ],
      "opacity": 0,
-     "dur": 0.3,
-     "erase": true
+     "dur": 0.3
     },
     {
-     "at": "answer",
+     "at": "Bible's-0.1",
      "do": "draw",
      "id": "a_book",
      "type": "book",
-     "x": 560,
-     "y": 930,
-     "scale": 1.0,
-     "dur": 0.45
+     "x": 575,
+     "y": 1010,
+     "scale": 0.9,
+     "dur": 0.35,
+     "main": true
     },
     {
-     "at": "Nobody-0.15",
+     "at": "answer",
+     "do": "point",
+     "who": "guide",
+     "toward": "a_book",
+     "hold": 0.6
+    },
+    {
+     "at": "nobody-0.2",
      "do": "fade",
      "ids": [
       "q_who"
      ],
      "opacity": 0,
-     "dur": 0.2,
-     "erase": true
+     "dur": 0.15
     },
     {
-     "at": "Nobody-0.05",
+     "at": "nobody-0.05",
      "do": "draw",
-     "id": "nobody",
+     "id": "nobody_w",
      "type": "word",
      "text": "NOBODY.",
      "x": 540,
-     "y": 260,
-     "size": 170,
-     "dur": 0.4,
-     "underline": true
+     "y": 290,
+     "size": 200,
+     "dur": 0.3,
+     "underline": true,
+     "hit": true,
+     "why": "nobody"
     },
     {
-     "at": "Nobody",
+     "at": "nobody",
      "do": "reaction",
      "who": "guide",
      "face": "surprised",
-     "dur": 1.2
-    },
-    {
-     "at": "wasn't",
-     "do": "fade",
-     "ids": [
-      "q_mark"
-     ],
-     "opacity": 0,
-     "dur": 0.3,
-     "erase": true
-    },
-    {
-     "at": "wasn't+0.1",
-     "do": "move",
-     "id": "q_god",
-     "dx": 40,
-     "dur": 0.5
-    },
-    {
-     "at": "always-0.3",
-     "do": "light_burst",
-     "x": 580,
-     "y": 440,
-     "dur": 1.0,
-     "hold": 1.2
-    },
-    {
-     "at": "always",
-     "do": "pulse",
-     "id": "q_god"
-    },
-    {
-     "at": "existed",
-     "do": "point",
-     "who": "guide",
-     "toward": "q_god",
-     "hold": 1.0
+     "dur": 1.1
     }
    ]
   },
   {
-   "id": "before",
+   "id": "start",
    "panel": 1,
-   "narration": "Before the universe. Before the earth. Before time as we know it. God was already there.",
+   "narration": "Everything you've ever seen had a start. You. This planet. The universe itself.",
    "camera_start": false,
    "transition": "slide",
-   "ambience": "hum",
    "events": [
     {
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 250
+     "x": 255
     },
     {
-     "at": 0,
+     "at": 0.05,
      "do": "draw",
-     "id": "b_god",
-     "type": "word",
-     "text": "GOD",
+     "id": "s_chart",
+     "type": "frame",
      "x": 540,
-     "y": 270,
-     "size": 220,
-     "color": "accent",
-     "dur": 0.4
+     "y": 515,
+     "w": 820,
+     "h": 620,
+     "dur": 0.3,
+     "allow_overlap": true,
+     "main": true
     },
     {
-     "at": 0.1,
+     "at": "Everything",
+     "do": "draw",
+     "id": "s_head",
+     "type": "word",
+     "text": "everything had a start",
+     "x": 540,
+     "y": 205,
+     "size": 84,
+     "dur": 0.5
+    },
+    {
+     "at": "start",
+     "do": "point",
+     "who": "guide",
+     "toward": "s_head",
+     "hold": 0.6
+    },
+    {
+     "at": "You-0.1",
+     "do": "draw",
+     "id": "s_you",
+     "type": "figure",
+     "x": 220,
+     "y": 430,
+     "scale": 2.0,
+     "dur": 0.2
+    },
+    {
+     "at": "You",
+     "do": "draw",
+     "id": "s_dot1",
+     "type": "dot",
+     "x": 350,
+     "y": 430,
+     "r": 30,
+     "dur": 0.12
+    },
+    {
+     "at": "You+0.05",
+     "do": "draw",
+     "id": "s_l1",
+     "type": "arrow",
+     "x": 350,
+     "y": 430,
+     "dx": 580,
+     "dy": 0,
+     "bend": 0,
+     "dur": 0.35,
+     "over": [
+      "s_dot1"
+     ]
+    },
+    {
+     "at": "planet-0.1",
+     "do": "draw",
+     "id": "s_globe",
+     "type": "globe",
+     "x": 230,
+     "y": 610,
+     "r": 95,
+     "dur": 0.2
+    },
+    {
+     "at": "planet",
+     "do": "draw",
+     "id": "s_dot2",
+     "type": "dot",
+     "x": 350,
+     "y": 610,
+     "r": 30,
+     "dur": 0.12
+    },
+    {
+     "at": "planet+0.05",
+     "do": "draw",
+     "id": "s_l2",
+     "type": "arrow",
+     "x": 350,
+     "y": 610,
+     "dx": 580,
+     "dy": 0,
+     "bend": 0,
+     "dur": 0.35,
+     "over": [
+      "s_dot2"
+     ]
+    },
+    {
+     "at": "universe-0.2",
      "do": "draw",
      "id": "in_universe",
      "type": "inset",
-     "x": 600,
-     "y": 560,
-     "w": 500,
-     "h": 320,
+     "x": 320,
+     "y": 780,
+     "w": 340,
+     "h": 220,
      "rotate": -3,
      "query": "orion nebula",
      "sources": [
       "nasa"
      ],
-     "clip_dur": 3.0,
      "pin": {
       "nasa": "JPL-20221122-SOLSYSf-0001-Orion Dust and Death"
      },
@@ -281,378 +334,86 @@
       0.08,
       0.7,
       0.75
-     ]
+     ],
+     "clip_dur": 3.0
     },
     {
-     "at": "earth-0.4",
+     "at": "universe",
      "do": "draw",
-     "id": "in_earth",
-     "type": "inset",
-     "x": 570,
-     "y": 900,
-     "w": 350,
-     "h": 250,
-     "rotate": 3,
-     "query": "earth from space",
-     "sources": [
-      "nasa"
-     ],
-     "pin": {
-      "nasa": "jscm001441_Top_20_Earth_Images_of_2020-4kMP4"
-     },
-     "start": 150.0,
-     "clip_dur": 3.0,
-     "crop": [
-      0.2,
-      0.0,
-      0.6,
-      0.68
-     ]
+     "id": "s_dot3",
+     "type": "dot",
+     "x": 530,
+     "y": 780,
+     "r": 30,
+     "dur": 0.12
     },
     {
-     "at": "time-0.4",
+     "at": "universe+0.05",
      "do": "draw",
-     "id": "b_clock",
-     "type": "clock",
-     "x": 590,
-     "y": 1010,
-     "r": 130,
-     "dur": 0.4
-    },
-    {
-     "at": "know",
-     "do": "fade",
-     "ids": [
-      "b_clock"
-     ],
-     "opacity": 0,
-     "dur": 0.35,
-     "erase": true
-    },
-    {
-     "at": "already-0.3",
-     "do": "light_burst",
-     "x": 540,
-     "y": 260,
-     "dur": 1.0,
-     "hold": 1.0
-    },
-    {
-     "at": "already",
-     "do": "pulse",
-     "id": "b_god"
-    },
-    {
-     "at": "already",
-     "do": "point",
-     "who": "guide",
-     "toward": "b_god",
-     "hold": 1.0
-    }
-   ]
-  },
-  {
-   "id": "psalm",
-   "panel": 1,
-   "narration": "The Bible says: [pause 0.8] \"From everlasting to everlasting, you are God.\" [Psalm 90:2]",
-   "camera_start": false,
-   "ambience": "hum",
-   "serious": true,
-   "events": [
-    {
-     "at": 0.05,
-     "do": "fade",
-     "ids": [
-      "b_god"
-     ],
-     "opacity": 0,
+     "id": "s_l3",
+     "type": "arrow",
+     "x": 530,
+     "y": 780,
+     "dx": 400,
+     "dy": 0,
+     "bend": 0,
      "dur": 0.3,
-     "erase": true
-    },
-    {
-     "scripture": {
-      "ref": "Psalm 90:2",
-      "text": "From everlasting to everlasting, you are God."
-     },
-     "x": 540,
-     "y": 440,
-     "size": 88,
-     "w": 780
-    },
-    {
-     "at": "you",
-     "do": "point",
-     "who": "guide",
-     "toward": "card1",
-     "hold": 1.2
-    },
-    {
-     "at": "everlasting",
-     "do": "draw",
-     "id": "p_god",
-     "type": "word",
-     "text": "GOD",
-     "x": 590,
-     "y": 860,
-     "size": 160,
-     "color": "accent",
-     "dur": 0.35
-    },
-    {
-     "at": "everlasting+0.2",
-     "do": "draw",
-     "id": "p_left",
-     "type": "arrow",
-     "x": 470,
-     "y": 1010,
-     "dx": -60,
-     "dy": 0,
-     "bend": 0,
-     "dur": 0.3
-    },
-    {
-     "at": "everlasting#2",
-     "do": "draw",
-     "id": "p_right",
-     "type": "arrow",
-     "x": 700,
-     "y": 1010,
-     "dx": 60,
-     "dy": 0,
-     "bend": 0,
-     "dur": 0.3
-    },
-    {
-     "at": "everlasting#2+0.2",
-     "do": "draw",
-     "id": "p_forever",
-     "type": "word",
-     "text": "always",
-     "x": 585,
-     "y": 1010,
-     "size": 60,
-     "dur": 0.4
+     "over": [
+      "s_dot3"
+     ]
     }
    ]
   },
   {
-   "id": "beginning",
-   "panel": 2,
-   "narration": "Think about it. Everything we know has a beginning. You. The trees. The stars. So we expect God to have one too.",
+   "id": "assume",
+   "panel": 1,
+   "narration": "So your brain assumes God needs one too.",
    "camera_start": false,
-   "transition": "wipe",
-   "ambience": "birds",
    "events": [
     {
-     "at": 0,
-     "do": "place",
+     "at": "brain",
+     "do": "look",
      "who": "guide",
-     "x": 650
-    },
-    {
-     "at": "Everything",
-     "do": "draw",
-     "id": "t_head",
-     "type": "word",
-     "text": "everything has a start",
-     "x": 540,
-     "y": 190,
-     "size": 80,
-     "dur": 0.6
-    },
-    {
-     "at": "You-0.1",
-     "do": "draw",
-     "id": "t_you",
-     "type": "figure",
-     "x": 200,
-     "y": 310,
-     "scale": 1.4,
-     "dur": 0.25
-    },
-    {
-     "at": "You",
-     "do": "draw",
-     "id": "t_dot1",
-     "type": "dot",
-     "x": 320,
-     "y": 290,
-     "r": 22,
-     "dur": 0.15
-    },
-    {
-     "at": "You+0.1",
-     "do": "draw",
-     "id": "t_l1",
-     "type": "arrow",
-     "x": 320,
-     "y": 290,
-     "dx": 580,
-     "dy": 0,
-     "bend": 0,
-     "dur": 0.4,
-     "over": [
-      "t_dot1"
-     ]
-    },
-    {
-     "at": "trees-0.1",
-     "do": "draw",
-     "id": "t_tree",
-     "type": "tree",
-     "x": 200,
-     "y": 440,
-     "scale": 0.8,
-     "dur": 0.25
-    },
-    {
-     "at": "trees",
-     "do": "draw",
-     "id": "t_dot2",
-     "type": "dot",
-     "x": 320,
-     "y": 480,
-     "r": 22,
-     "dur": 0.15
-    },
-    {
-     "at": "trees+0.1",
-     "do": "draw",
-     "id": "t_l2",
-     "type": "arrow",
-     "x": 320,
-     "y": 480,
-     "dx": 580,
-     "dy": 0,
-     "bend": 0,
-     "dur": 0.4,
-     "over": [
-      "t_dot2"
-     ]
-    },
-    {
-     "at": "stars-0.1",
-     "do": "draw",
-     "id": "t_star",
-     "type": "star",
-     "x": 200,
-     "y": 620,
-     "r": 70,
-     "dur": 0.2
-    },
-    {
-     "at": "stars",
-     "do": "draw",
-     "id": "t_dot3",
-     "type": "dot",
-     "x": 320,
-     "y": 620,
-     "r": 22,
-     "dur": 0.15
-    },
-    {
-     "at": "stars+0.1",
-     "do": "draw",
-     "id": "t_l3",
-     "type": "arrow",
-     "x": 320,
-     "y": 620,
-     "dx": 580,
-     "dy": 0,
-     "bend": 0,
-     "dur": 0.4,
-     "over": [
-      "t_dot3"
-     ]
+     "dir": "up",
+     "expression": "curious",
+     "hold": 0.8
     },
     {
      "at": "God-0.1",
      "do": "draw",
-     "id": "t_god",
+     "id": "s_god",
      "type": "word",
      "text": "GOD",
-     "x": 230,
-     "y": 850,
-     "size": 130,
+     "x": 580,
+     "y": 970,
+     "size": 140,
      "color": "accent",
-     "dur": 0.35
+     "dur": 0.25
     },
     {
      "at": "one",
      "do": "draw",
-     "id": "t_q",
+     "id": "s_q",
      "type": "word",
      "text": "?",
-     "x": 380,
-     "y": 850,
-     "size": 130,
-     "dur": 0.25
+     "x": 715,
+     "y": 965,
+     "size": 140,
+     "dur": 0.2
     },
     {
-     "at": "expect",
+     "at": "too",
      "do": "point",
      "who": "guide",
-     "toward": "t_l2",
-     "hold": 1.0
+     "toward": "s_god",
+     "hold": 0.7
     }
    ]
   },
   {
-   "id": "began",
+   "id": "time",
    "panel": 2,
-   "narration": "But God isn't something that began.",
-   "camera_start": false,
-   "ambience": "birds",
-   "interaction": true,
-   "events": [
-    {
-     "at": "isn't",
-     "do": "fade",
-     "ids": [
-      "t_q"
-     ],
-     "opacity": 0,
-     "dur": 0.25,
-     "erase": true
-    },
-    {
-     "at": "began-0.3",
-     "do": "draw",
-     "id": "t_godline",
-     "type": "line",
-     "x": 540,
-     "y": 960,
-     "w": 1500,
-     "weight": 9,
-     "color": "accent",
-     "dur": 0.8,
-     "offscreen_ok": true
-    },
-    {
-     "at": "began+0.4",
-     "do": "draw",
-     "id": "t_nostart",
-     "type": "word",
-     "text": "no start, no end",
-     "x": 360,
-     "y": 1040,
-     "size": 58,
-     "color": "accent",
-     "dur": 0.5
-    },
-    {
-     "at": "something",
-     "do": "point",
-     "who": "guide",
-     "toward": "t_god",
-     "hold": 1.0
-    }
-   ]
-  },
-  {
-   "id": "creator",
-   "panel": 3,
-   "narration": "He is the Creator, not part of creation.",
+   "narration": "But that question only works for things inside time. And time is one of the things He made.",
    "camera_start": false,
    "transition": "cut",
    "events": [
@@ -660,358 +421,123 @@
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 250
+     "x": 255
     },
     {
-     "at": 0,
+     "at": "question",
      "do": "draw",
-     "id": "c_chair",
-     "type": "chair",
-     "x": 600,
-     "y": 1040,
-     "dur": 0.25,
-     "scale": 1.2
+     "id": "t_clock",
+     "type": "clock",
+     "x": 540,
+     "y": 490,
+     "r": 280,
+     "dur": 0.5,
+     "main": true
     },
     {
-     "at": 0.15,
-     "do": "draw",
-     "id": "c_a1",
-     "type": "arrow",
-     "x": 600,
-     "y": 880,
-     "dx": 0,
-     "dy": -50,
-     "bend": 0,
-     "dur": 0.2
+     "at": "works",
+     "do": "point",
+     "who": "guide",
+     "toward": "t_clock",
+     "hold": 0.6
     },
     {
-     "at": 0.3,
+     "at": "inside",
+     "do": "pulse",
+     "id": "t_clock"
+    },
+    {
+     "at": "time-0.1",
      "do": "draw",
-     "id": "c_who",
+     "id": "t_label",
      "type": "word",
-     "text": "who made that?",
-     "x": 760,
-     "y": 640,
-     "size": 46,
+     "text": "TIME",
+     "x": 560,
+     "y": 845,
+     "size": 100,
      "dur": 0.3
     },
     {
-     "at": 0.35,
-     "do": "draw",
-     "id": "c_carp",
-     "type": "figure",
-     "x": 600,
-     "y": 760,
-     "scale": 1.1,
-     "dur": 0.2
+     "at": "time#2",
+     "do": "wiggle",
+     "id": "t_clock"
     },
     {
-     "at": 0.5,
+     "at": "He-0.1",
      "do": "draw",
-     "id": "c_a2",
-     "type": "arrow",
-     "x": 600,
-     "y": 650,
-     "dx": 0,
-     "dy": -45,
-     "bend": 0,
-     "dur": 0.2
-    },
-    {
-     "at": 0.65,
-     "do": "draw",
-     "id": "c_par1",
-     "type": "figure",
-     "x": 545,
-     "y": 540,
-     "scale": 1.1,
-     "dur": 0.2
-    },
-    {
-     "at": 0.75,
-     "do": "draw",
-     "id": "c_par2",
-     "type": "figure",
-     "x": 655,
-     "y": 540,
-     "scale": 1.1,
-     "dur": 0.2
-    },
-    {
-     "at": 0.9,
-     "do": "draw",
-     "id": "c_dots",
-     "type": "word",
-     "text": "...",
-     "x": 600,
-     "y": 400,
-     "size": 100,
-     "dur": 0.2
-    },
-    {
-     "at": "Creator-0.15",
-     "do": "draw",
-     "id": "c_god",
+     "id": "t_god",
      "type": "word",
      "text": "GOD",
      "x": 600,
-     "y": 250,
-     "size": 210,
+     "y": 1010,
+     "size": 150,
      "color": "accent",
-     "dur": 0.35,
-     "weight": "big"
-    },
-    {
-     "at": "Creator+0.4",
-     "do": "point",
-     "who": "guide",
-     "toward": "c_god",
-     "hold": 1.2
-    },
-    {
-     "at": "creation",
-     "do": "draw",
-     "id": "c_ring",
-     "type": "circle",
-     "target": "c_carp",
-     "dur": 0.4
-    }
-   ]
-  },
-  {
-   "id": "john",
-   "panel": 3,
-   "narration": "The Bible says: [pause 0.8] \"All things were made through him.\" [John 1:3]",
-   "camera_start": false,
-   "serious": true,
-   "events": [
-    {
-     "at": 0.05,
-     "do": "fade",
-     "ids": [
-      "c_chair",
-      "c_a1",
-      "c_who",
-      "c_carp",
-      "c_a2",
-      "c_par1",
-      "c_par2",
-      "c_dots",
-      "c_god",
-      "c_ring"
-     ],
-     "opacity": 0,
-     "dur": 0.35,
-     "erase": true
-    },
-    {
-     "scripture": {
-      "ref": "John 1:3",
-      "text": "All things were made through him."
-     },
-     "x": 540,
-     "y": 440,
-     "size": 88,
-     "w": 780
-    },
-    {
-     "at": "things",
-     "do": "draw",
-     "id": "j_sun",
-     "type": "sun",
-     "x": 480,
-     "y": 800,
-     "scale": 0.7,
-     "dur": 0.25
-    },
-    {
-     "at": "things+0.2",
-     "do": "draw",
-     "id": "j_tree",
-     "type": "tree",
-     "x": 650,
-     "y": 830,
-     "scale": 0.95,
      "dur": 0.25
     },
     {
      "at": "made",
      "do": "draw",
-     "id": "j_fish",
-     "type": "fish",
-     "x": 490,
+     "id": "t_arrow",
+     "type": "arrow",
+     "x": 700,
+     "y": 935,
+     "dx": 0,
+     "dy": -130,
+     "bend": 0,
+     "dur": 0.25
+    }
+   ]
+  },
+  {
+   "id": "before",
+   "panel": 2,
+   "narration": "Before the first second ever ticked, He was already there.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "Before",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "curious",
+     "hold": 0.8
+    },
+    {
+     "at": "second",
+     "do": "wiggle",
+     "id": "t_clock"
+    },
+    {
+     "at": "ticked",
+     "do": "pulse",
+     "id": "t_clock"
+    },
+    {
+     "at": "already-0.2",
+     "do": "light_burst",
+     "x": 600,
      "y": 1010,
-     "scale": 1.1,
-     "dur": 0.25
+     "dur": 0.8,
+     "hold": 0.8
     },
     {
-     "at": "made+0.2",
-     "do": "draw",
-     "id": "j_animal",
-     "type": "animal",
-     "x": 650,
-     "y": 1040,
-     "scale": 0.75,
-     "dur": 0.25
+     "at": "already",
+     "do": "pulse",
+     "id": "t_god"
     },
     {
-     "at": "through",
+     "at": "there",
      "do": "point",
      "who": "guide",
-     "toward": "card2",
-     "hold": 1.2
+     "toward": "t_god",
+     "hold": 0.6
     }
    ]
   },
   {
-   "id": "moses",
-   "panel": 4,
-   "narration": "And when Moses asked for His name, God answered: [pause 0.8] \"I AM.\" [Exodus 3:14]",
-   "camera_start": false,
-   "transition": "zoom",
-   "ambience": "wind",
-   "serious": true,
-   "events": [
-    {
-     "at": 0,
-     "do": "place",
-     "who": "guide",
-     "x": 250
-    },
-    {
-     "at": "Moses-0.1",
-     "do": "draw",
-     "id": "m_moses",
-     "type": "figure",
-     "x": 540,
-     "y": 950,
-     "scale": 2.6,
-     "dur": 0.35
-    },
-    {
-     "at": "name-0.1",
-     "do": "draw",
-     "id": "m_q",
-     "type": "word",
-     "text": "your name?",
-     "x": 640,
-     "y": 700,
-     "size": 70,
-     "dur": 0.4
-    },
-    {
-     "at": "answered",
-     "do": "draw",
-     "id": "m_voice",
-     "type": "voice",
-     "x": 650,
-     "y": 920,
-     "dur": 0.35
-    },
-    {
-     "scripture": {
-      "ref": "Exodus 3:14",
-      "text": "I AM."
-     },
-     "x": 540,
-     "y": 360,
-     "size": 150,
-     "w": 680
-    },
-    {
-     "at": "AM",
-     "do": "point",
-     "who": "guide",
-     "toward": "card3",
-     "hold": 1.0
-    }
-   ]
-  },
-  {
-   "id": "iam",
-   "panel": 4,
-   "narration": "Not I was. Not I will be. I am.",
-   "camera_start": false,
-   "ambience": "wind",
-   "serious": true,
-   "events": [
-    {
-     "at": 0.0,
-     "do": "fade",
-     "ids": [
-      "m_moses",
-      "m_q",
-      "m_voice"
-     ],
-     "opacity": 0,
-     "dur": 0.3,
-     "erase": true
-    },
-    {
-     "at": "was-0.2",
-     "do": "draw",
-     "id": "i_was",
-     "type": "word",
-     "text": "I WAS",
-     "x": 600,
-     "y": 610,
-     "size": 100,
-     "dur": 0.3
-    },
-    {
-     "at": "was+0.2",
-     "do": "draw",
-     "id": "x_was",
-     "type": "strike",
-     "target": "i_was",
-     "dur": 0.2
-    },
-    {
-     "at": "will-0.2",
-     "do": "draw",
-     "id": "i_will",
-     "type": "word",
-     "text": "I WILL BE",
-     "x": 600,
-     "y": 760,
-     "size": 100,
-     "dur": 0.35
-    },
-    {
-     "at": "be+0.15",
-     "do": "draw",
-     "id": "x_will",
-     "type": "strike",
-     "target": "i_will",
-     "dur": 0.2
-    },
-    {
-     "at": "am-0.25",
-     "do": "draw",
-     "id": "i_am",
-     "type": "word",
-     "text": "I AM",
-     "x": 560,
-     "y": 960,
-     "size": 190,
-     "color": "accent",
-     "dur": 0.35,
-     "marker": true,
-     "weight": "big"
-    },
-    {
-     "at": "am+0.2",
-     "do": "point",
-     "who": "guide",
-     "toward": "i_am",
-     "hold": 1.0
-    }
-   ]
-  },
-  {
-   "id": "genesis",
-   "panel": 5,
-   "narration": "And Genesis starts with that truth: [pause 0.8] \"In the beginning, God created.\" [Genesis 1:1]",
+   "id": "psalm",
+   "panel": 3,
+   "narration": "The Bible puts it like this: \"From everlasting to everlasting, you are God.\" [Psalm 90:2] No start date. No expiration.",
    "camera_start": false,
    "transition": "slide",
    "serious": true,
@@ -1020,17 +546,531 @@
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 250
+     "x": 255
     },
     {
-     "at": "Genesis",
+     "at": "puts",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "curious",
+     "hold": 0.5
+    },
+    {
+     "at": "Bible",
+     "do": "draw",
+     "id": "p_book",
+     "type": "book",
+     "x": 585,
+     "y": 1010,
+     "scale": 0.9,
+     "dur": 0.3
+    },
+    {
+     "scripture": {
+      "ref": "Psalm 90:2",
+      "text": "From everlasting to everlasting, you are God."
+     },
+     "x": 540,
+     "y": 440,
+     "size": 100,
+     "w": 820
+    },
+    {
+     "at": "everlasting",
+     "do": "point",
+     "who": "guide",
+     "toward": "card1",
+     "hold": 0.8
+    },
+    {
+     "at": "No-0.1",
+     "do": "fade",
+     "ids": [
+      "p_book"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "No",
+     "do": "draw",
+     "id": "p_line",
+     "type": "line",
+     "x": 540,
+     "y": 800,
+     "w": 1500,
+     "weight": 10,
+     "color": "accent",
+     "dur": 0.5,
+     "offscreen_ok": true
+    },
+    {
+     "at": "date-0.1",
+     "do": "draw",
+     "id": "p_nostart",
+     "type": "word",
+     "text": "no start",
+     "x": 585,
+     "y": 950,
+     "size": 84,
+     "dur": 0.3
+    },
+    {
+     "at": "expiration-0.1",
+     "do": "draw",
+     "id": "p_noend",
+     "type": "word",
+     "text": "no end",
+     "x": 585,
+     "y": 1060,
+     "size": 84,
+     "color": "accent",
+     "dur": 0.3
+    },
+    {
+     "at": "everlasting#2",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "awe",
+     "hold": 0.6
+    },
+    {
+     "at": "to",
+     "do": "express",
+     "who": "guide",
+     "expression": "awe"
+    },
+    {
+     "at": "are",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "awe",
+     "hold": 0.5
+    }
+   ]
+  },
+  {
+   "id": "john",
+   "panel": 4,
+   "narration": "It goes further: \"All things were made through him.\" [John 1:3] All things.",
+   "camera_start": false,
+   "transition": "zoom",
+   "serious": true,
+   "events": [
+    {
+     "at": 0,
+     "do": "place",
+     "who": "guide",
+     "x": 255
+    },
+    {
+     "at": "further",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "curious",
+     "hold": 0.6
+    },
+    {
+     "scripture": {
+      "ref": "John 1:3",
+      "text": "All things were made through him."
+     },
+     "x": 540,
+     "y": 440,
+     "size": 100,
+     "w": 820
+    },
+    {
+     "at": "through",
+     "do": "point",
+     "who": "guide",
+     "toward": "card2",
+     "hold": 0.6
+    },
+    {
+     "at": "All#2-0.1",
+     "do": "draw",
+     "id": "j_sun",
+     "type": "sun",
+     "x": 470,
+     "y": 960,
+     "scale": 0.55,
+     "dur": 0.2
+    },
+    {
+     "at": "All#2",
+     "do": "draw",
+     "id": "j_tree",
+     "type": "tree",
+     "x": 650,
+     "y": 930,
+     "scale": 0.7,
+     "dur": 0.2
+    },
+    {
+     "at": "things#2-0.1",
+     "do": "draw",
+     "id": "j_fish",
+     "type": "fish",
+     "x": 470,
+     "y": 1110,
+     "scale": 0.8,
+     "dur": 0.2
+    },
+    {
+     "at": "things#2",
+     "do": "draw",
+     "id": "j_animal",
+     "type": "animal",
+     "x": 660,
+     "y": 1100,
+     "scale": 0.65,
+     "dur": 0.2,
+     "main": true
+    }
+   ]
+  },
+  {
+   "id": "list",
+   "panel": 5,
+   "narration": "If He made everything that was ever made, He can't be on that list. He's the only one who isn't.",
+   "camera_start": false,
+   "transition": "cut",
+   "events": [
+    {
+     "at": 0,
+     "do": "place",
+     "who": "guide",
+     "x": 255
+    },
+    {
+     "at": 0.1,
+     "do": "draw",
+     "id": "l_page",
+     "type": "frame",
+     "x": 450,
+     "y": 510,
+     "w": 620,
+     "h": 640,
+     "dur": 0.35,
+     "main": true
+    },
+    {
+     "at": "everything",
+     "do": "draw",
+     "id": "l_1",
+     "type": "word",
+     "text": "stars",
+     "x": 400,
+     "y": 300,
+     "size": 80,
+     "dur": 0.2
+    },
+    {
+     "at": "that",
+     "do": "draw",
+     "id": "l_2",
+     "type": "word",
+     "text": "earth",
+     "x": 400,
+     "y": 410,
+     "size": 80,
+     "dur": 0.2
+    },
+    {
+     "at": "ever",
+     "do": "draw",
+     "id": "l_3",
+     "type": "word",
+     "text": "time",
+     "x": 400,
+     "y": 520,
+     "size": 80,
+     "dur": 0.2
+    },
+    {
+     "at": "made#2",
+     "do": "draw",
+     "id": "l_4",
+     "type": "word",
+     "text": "you",
+     "x": 400,
+     "y": 630,
+     "size": 80,
+     "dur": 0.2
+    },
+    {
+     "at": "can't-0.1",
+     "do": "draw",
+     "id": "l_god",
+     "type": "word",
+     "text": "GOD",
+     "x": 420,
+     "y": 740,
+     "size": 90,
+     "color": "accent",
+     "dur": 0.2
+    },
+    {
+     "at": "list-0.1",
+     "do": "draw",
+     "id": "x_god",
+     "type": "strike",
+     "target": "l_god",
+     "dur": 0.2
+    },
+    {
+     "at": "list",
+     "do": "point",
+     "who": "guide",
+     "toward": "l_page",
+     "hold": 0.6
+    },
+    {
+     "at": "only-0.1",
+     "do": "draw",
+     "id": "l_godout",
+     "type": "word",
+     "text": "GOD",
+     "x": 820,
+     "y": 420,
+     "size": 140,
+     "color": "accent",
+     "dur": 0.25
+    },
+    {
+     "at": "only",
+     "do": "light_burst",
+     "x": 820,
+     "y": 420,
+     "dur": 0.7,
+     "hold": 0.6
+    },
+    {
+     "at": "isn't",
+     "do": "point",
+     "who": "guide",
+     "toward": "l_godout",
+     "hold": 0.6
+    }
+   ]
+  },
+  {
+   "id": "moses",
+   "panel": 6,
+   "narration": "Then Moses asks God for His name. The answer is two words: [beat] \"I AM.\" [Exodus 3:14]",
+   "camera_start": false,
+   "transition": "wipe",
+   "serious": true,
+   "events": [
+    {
+     "at": 0,
+     "do": "place",
+     "who": "guide",
+     "x": 255
+    },
+    {
+     "at": "Moses-0.1",
+     "do": "draw",
+     "id": "m_moses",
+     "type": "figure",
+     "x": 330,
+     "y": 560,
+     "scale": 3.0,
+     "dur": 0.3,
+     "main": true
+    },
+    {
+     "at": "God",
+     "do": "draw",
+     "id": "m_bush",
+     "type": "tree",
+     "x": 720,
+     "y": 560,
+     "scale": 1.9,
+     "dur": 0.3
+    },
+    {
+     "at": "God+0.15",
+     "do": "draw",
+     "id": "m_fire",
+     "type": "light",
+     "x": 720,
+     "y": 420,
+     "r": 70,
+     "dur": 0.25,
+     "allow_overlap": true
+    },
+    {
+     "at": "name-0.1",
+     "do": "draw",
+     "id": "m_q",
+     "type": "word",
+     "text": "your name?",
+     "x": 420,
+     "y": 230,
+     "size": 100,
+     "dur": 0.35
+    },
+    {
+     "at": "answer",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "curious",
+     "hold": 0.6
+    },
+    {
+     "at": "I-0.2",
+     "do": "fade",
+     "ids": [
+      "m_moses",
+      "m_q",
+      "m_bush",
+      "m_fire"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "scripture": {
+      "ref": "Exodus 3:14",
+      "text": "I AM."
+     },
+     "x": 540,
+     "y": 470,
+     "size": 220,
+     "w": 820
+    },
+    {
+     "at": "AM",
+     "do": "express",
+     "who": "guide",
+     "expression": "awe",
+     "hit": true,
+     "why": "I AM"
+    },
+    {
+     "at": "answer",
+     "do": "point",
+     "who": "guide",
+     "toward": "m_bush",
+     "hold": 0.6
+    }
+   ]
+  },
+  {
+   "id": "iam",
+   "panel": 6,
+   "narration": "Not I was. Not I will be. Present tense. Forever.",
+   "camera_start": false,
+   "serious": true,
+   "events": [
+    {
+     "at": "was-0.2",
+     "do": "draw",
+     "id": "i_was",
+     "type": "word",
+     "text": "I WAS",
+     "x": 300,
+     "y": 780,
+     "size": 90,
+     "dur": 0.25
+    },
+    {
+     "at": "was+0.15",
+     "do": "draw",
+     "id": "x_was",
+     "type": "strike",
+     "target": "i_was",
+     "dur": 0.15
+    },
+    {
+     "at": "will-0.2",
+     "do": "draw",
+     "id": "i_will",
+     "type": "word",
+     "text": "I WILL BE",
+     "x": 720,
+     "y": 780,
+     "size": 90,
+     "dur": 0.3
+    },
+    {
+     "at": "be+0.1",
+     "do": "draw",
+     "id": "x_will",
+     "type": "strike",
+     "target": "i_will",
+     "dur": 0.15
+    },
+    {
+     "at": "Present-0.1",
+     "do": "draw",
+     "id": "i_present",
+     "type": "word",
+     "text": "present tense",
+     "x": 585,
+     "y": 930,
+     "size": 64,
+     "dur": 0.3
+    },
+    {
+     "at": "Forever-0.1",
+     "do": "draw",
+     "id": "i_forever",
+     "type": "word",
+     "text": "FOREVER",
+     "x": 590,
+     "y": 1050,
+     "size": 90,
+     "color": "accent",
+     "dur": 0.3
+    },
+    {
+     "at": "Forever",
+     "do": "point",
+     "who": "guide",
+     "toward": "card3",
+     "hold": 0.6
+    }
+   ]
+  },
+  {
+   "id": "genesis",
+   "panel": 7,
+   "narration": "Now read the first line of the Bible again. \"In the beginning, God created.\" [Genesis 1:1]",
+   "camera_start": false,
+   "transition": "slide",
+   "serious": true,
+   "events": [
+    {
+     "at": 0,
+     "do": "place",
+     "who": "guide",
+     "x": 255
+    },
+    {
+     "at": "read-0.1",
      "do": "draw",
      "id": "g_book",
      "type": "book",
-     "x": 580,
-     "y": 900,
-     "scale": 1.0,
-     "dur": 0.4
+     "x": 575,
+     "y": 1010,
+     "scale": 0.9,
+     "dur": 0.35,
+     "main": true
+    },
+    {
+     "at": "line",
+     "do": "point",
+     "who": "guide",
+     "toward": "g_book",
+     "hold": 0.6
     },
     {
      "scripture": {
@@ -1039,102 +1079,117 @@
      },
      "x": 540,
      "y": 440,
-     "size": 88,
-     "w": 780
+     "size": 100,
+     "w": 820
     },
     {
      "at": "beginning",
-     "do": "point",
-     "who": "guide",
-     "toward": "card4",
-     "hold": 1.2
-    },
-    {
-     "at": "created",
-     "do": "draw",
-     "id": "g_web",
-     "type": "word",
-     "text": "Bible text: WEB",
-     "x": 640,
-     "y": 1110,
-     "size": 40,
-     "color": "inkSoft",
-     "dur": 0.3
+     "do": "pulse",
+     "id": "g_book"
     }
    ]
   },
   {
    "id": "end",
-   "panel": 5,
-   "narration": "[pause 1.0] Not God began. God was already there.",
+   "panel": 7,
+   "narration": "It never explains where God came from. It just assumes He was already there. [beat] Because He was.",
    "camera_start": false,
    "serious": true,
    "interaction": false,
+   "music_lift": "Because",
    "events": [
     {
-     "at": 0,
+     "at": "never-0.1",
      "do": "fade",
      "ids": [
       "g_book"
      ],
      "opacity": 0,
-     "dur": 0.3,
-     "erase": true
+     "dur": 0.2
     },
     {
-     "at": "God-0.1",
+     "at": "where-0.1",
+     "do": "draw",
+     "id": "e_where",
+     "type": "word",
+     "text": "where from?",
+     "x": 585,
+     "y": 960,
+     "size": 70,
+     "dur": 0.3
+    },
+    {
+     "at": "came",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "curious",
+     "hold": 0.6
+    },
+    {
+     "at": "assumes-0.1",
+     "do": "draw",
+     "id": "x_where",
+     "type": "strike",
+     "target": "e_where",
+     "dur": 0.2
+    },
+    {
+     "at": "already-0.1",
      "do": "draw",
      "id": "e_god",
      "type": "word",
      "text": "GOD",
-     "x": 520,
-     "y": 800,
-     "size": 150,
+     "x": 585,
+     "y": 1075,
+     "size": 130,
      "color": "accent",
-     "dur": 0.3
+     "dur": 0.25
     },
     {
-     "at": "began-0.15",
-     "do": "draw",
-     "id": "e_began",
-     "type": "word",
-     "text": "began",
-     "x": 780,
-     "y": 770,
-     "size": 120,
-     "dur": 0.3
+     "at": "there",
+     "do": "point",
+     "who": "guide",
+     "toward": "e_god",
+     "hold": 0.5
     },
     {
-     "at": "began+0.3",
-     "do": "draw",
-     "id": "x_began",
-     "type": "strike",
-     "target": "e_began",
-     "dur": 0.2
-    },
-    {
-     "at": "already-0.3",
+     "at": "Because-0.1",
      "do": "light_burst",
-     "x": 480,
-     "y": 790,
-     "dur": 1.0,
-     "hold": 1.4
+     "x": 585,
+     "y": 1075,
+     "dur": 0.8,
+     "hold": 1.6,
+     "hit": true,
+     "why": "Because He was"
     },
     {
-     "at": "already",
+     "at": "Because",
      "do": "pulse",
      "id": "e_god"
     },
     {
-     "at": "there",
+     "at": "was#2",
      "do": "look_viewer",
      "who": "guide"
     },
     {
-     "at": "there+0.2",
+     "at": "was#2+0.1",
      "do": "express",
      "who": "guide",
      "expression": "happy"
+    },
+    {
+     "at": "was#2",
+     "do": "draw",
+     "id": "e_web",
+     "type": "word",
+     "text": "Bible text: WEB",
+     "x": 590,
+     "y": 1150,
+     "size": 32,
+     "color": "inkSoft",
+     "dur": 0.2
     }
    ]
   }

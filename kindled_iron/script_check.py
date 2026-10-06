@@ -1,6 +1,6 @@
 """Script length rule for Kindled Iron, checked before anything is voiced.
 
-Target: a 61-68 s video, i.e. a script of about 145-155 words. Shorter is fine only when
+Target: a 61-68 s video, i.e. a script of about 170-190 words (165-185 wpm). Shorter is fine only when
 the story is complete; never pad. A scene under MIN_WORDS words gets ONE automatic rewrite
 pass (Gemini, needs GEMINI_API_KEY) asking for a fuller version of the same story. The
 rewrite returns the whole scene JSON (narration + events, since events are keyed to words)
@@ -18,7 +18,7 @@ REWRITE_MODEL = os.environ.get("KI_REWRITE_MODEL", "gemini-2.5-flash")
 
 WRITING_RULES = """Writing rules:
 - The hook (first line) must be explained in the next 1-2 lines.
-- Use words a 6-year-old understands. No theology jargon.
+- Write for adults: simple words, no kid voice, never repeat a point, never explain the obvious. No theology jargon.
 - Leave out side details. Summarize; never read verses.
 - Only the Bible's 66 books. Make no claim the chapter itself does not support.
 - Never pad: no filler lines, no long goodbye. Every line moves the story."""
@@ -47,7 +47,7 @@ def rewrite_fuller(scene: dict, log) -> dict | None:
         log("WARNING: rewrite pass skipped (no GEMINI_API_KEY)")
         return None
     prompt = (f"This Kindled Iron scene JSON has a {word_count(scene)}-word script. Rewrite it as a FULLER "
-              f"version of the same story, 145-155 words in total, so the video runs 61-68 seconds. "
+              f"version of the same story, 170-190 words in total, so the video runs 61-68 seconds. "
               f"Add real story content, never filler.\n{WRITING_RULES}\n"
               "Keep the exact same JSON format, cast, panels and object types. Update the events so every word "
               "anchor (\"at\") is a word of its own beat's narration. Return ONLY the JSON.\n\n" + json.dumps(scene))
@@ -71,7 +71,7 @@ def rewrite_fuller(scene: dict, log) -> dict | None:
 
 def check(scene: dict, log, min_words: int) -> dict:
     n = word_count(scene)
-    log(f"Script: {n} words (target ~145-155)")
+    log(f"Script: {n} words (target ~170-190)")
     if n >= min_words:
         return scene
     if scene.get("exact_narration"):

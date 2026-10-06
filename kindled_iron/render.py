@@ -215,7 +215,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 objects.append(obj)
                 pop = e.get("pop", obj["type"] not in NO_POP)
                 events.append({"t": e["t"], "do": "draw", "id": e["id"], "dur": e.get("dur"), "pop": pop, "hold": e.get("hold"),
-                               "instant": e.get("instant")})
+                               "instant": e.get("instant"),
+                               **{k: e[k] for k in ("hit", "why", "main", "sound", "sound_dur", "hit_sound") if k in e}})
                 if e.get("sparkle"):                  # a burst of little stars as it lands
                     sid = e["id"] + "_spk"
                     objects.append({"id": sid, "type": "sparkle", "x": obj["x"], "y": obj["y"], "r": e.get("sparkle_r", 120),
@@ -255,8 +256,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
     return {"width": WIDTH, "height": HEIGHT, "fps": FPS, "duration": duration, "ground": ground,
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
-            "captionSize": CAPTION["size"], "hud": HUD, "paper": None, "inboxReactions": [],
-            "fillMin": scene.get("fill_min", 0.45)}
+            "captionSize": (scene.get("captions_box") or {}).get("size", CAPTION["size"]), "hud": HUD, "paper": None, "inboxReactions": [],
+            "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {}}
 
 
 def _norm_words(text: str) -> list[str]:
@@ -333,7 +334,7 @@ def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float) -> li
 GUIDE_TOUCHES = {"point", "reach", "touch", "pet", "ride", "peek", "climb", "shield_eyes", "look"}
 RESPONSE = {"tree": "wiggle", "plant": "wiggle", "cloud": "wiggle", "waves": "splash", "fish": "splash",
             "animal": "wiggle", "sun": "pulse", "light": "pulse", "moon": "pulse", "star": "pulse", "stars": "pulse",
-            "hill": "dirt", "globe": "wiggle", "book": "pulse"}
+            "hill": "dirt", "globe": "wiggle", "book": "pulse", "scripture": None, "frame": None, "inset": None}
 
 
 def respond(events: list[dict], objects: list[dict]) -> None:
@@ -346,6 +347,8 @@ def respond(events: list[dict], objects: list[dict]) -> None:
         if not o:
             continue
         kind = RESPONSE.get(o["type"], "pulse")
+        if kind is None:
+            continue
         t = round(e["t"] + 0.25, 3)
         if kind in ("splash", "dirt"):
             sid = f"{o['id']}_{kind}_{int(t * 100)}"
@@ -370,10 +373,11 @@ def interaction_check(scene: dict, events: list[dict], objects: list[dict], span
 
 def write_page(data: dict, work: Path) -> Path:
     page = (HERE / "runtime" / "page.html").read_text(encoding="utf-8")
+    cap = {**CAPTION, **(data.get("captionBox") or {})}
     rep = {
         "__W__": str(WIDTH), "__H__": str(HEIGHT), "__BOARD__": PALETTE["board"], "__INK__": PALETTE["ink"],
-        "__ACCENT__": PALETTE["accent"], "__CAPTION_X__": str(CAPTION["x"]), "__CAPTION_Y__": str(CAPTION["y"]), "__CAPTION_W__": str(CAPTION["w"]),
-        "__CAPTION_SIZE__": str(CAPTION["size"]),
+        "__ACCENT__": PALETTE["accent"], "__CAPTION_X__": str(cap["x"]), "__CAPTION_Y__": str(cap["y"]), "__CAPTION_W__": str(cap["w"]),
+        "__CAPTION_SIZE__": str(cap["size"]),
         "__FONT__": (VENDOR / "fonts" / "Caveat.ttf").as_uri(),
         "__GSAP__": (VENDOR / "gsap" / "gsap.min.js").as_uri(),
         "__RUNTIME__": (HERE / "runtime" / "runtime.js").as_uri(),
@@ -532,6 +536,7 @@ def main() -> None:
                     help="voice provider (default: the voice profile's tts_provider)")
     ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
     ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
+    ap.add_argument("--music", default=None, help="music track name (vendor/sfx/lib/music_<name>.ogg); default: channel music_track")
     a = ap.parse_args()
 
     scene_path = Path(a.scene)
@@ -600,12 +605,17 @@ def main() -> None:
     clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
     duration = round(spans[-1][1] + end_hold, 3)
     lo, hi = TARGET_LEN
+    from kindled_iron import tts as tts_mod
+
+    chan = tts_mod.load_profile(scene.get("voice_profile", "kindled_iron"))
+    w_lo, w_hi = chan.get("wpm_target", [165, 185])
     n_words = sum(len(words_of(x)) for x in texts)
     wpm = n_words / duration * 60
     voice_meta["wpm"] = round(wpm, 1)
-    log(f"Length: {duration:.1f} s (target {lo:.0f}-{hi:.0f}); pace {wpm:.0f} words/min over {n_words} words (target 140-150)")
-    if not 140 <= wpm <= 150:
-        log(f"WARNING: pace {wpm:.0f} wpm is outside 140-150 (pauses already scaled to their limit)")
+    log(f"Length: {duration:.1f} s (target {lo:.0f}-{hi:.0f}); pace {wpm:.0f} words/min over {n_words} words "
+        f"(target {w_lo}-{w_hi})")
+    if not w_lo <= wpm <= w_hi:
+        log(f"WARNING: pace {wpm:.0f} wpm is outside {w_lo}-{w_hi}")
     if duration < lo:
         log(f"WARNING: under {lo:.0f} s. Fine only if the story is complete; never pad it.")
     elif duration > hi:
@@ -615,7 +625,7 @@ def main() -> None:
     data["events"] = [e for e in data["events"] if not e.get("_drop")]
     data["paper"] = effects.paper_texture(work, PALETTE["board"])
     data["debugSafe"] = a.safe_box
-    pacing_check(data["events"], duration)
+    pacing_check(data["events"], duration, float(scene.get("max_visual_gap", 2.0)))
     (work / "captions.srt").write_text(srt(data["captions"]), encoding="utf-8")
     page = write_page(data, work)
     log(f"{len(data['objects'])} objects, {len(data['events'])} events, {len(data['captions'])} caption chunks, {duration:.2f} s")
@@ -629,13 +639,12 @@ def main() -> None:
     from kindled_iron import sound
 
     cues = sound.plan(data["events"], data["objects"], scene, spans)
-    music_from = None
+    music = {"track": a.music or scene.get("music_track") or chan.get("music_track"), "lift_at": None}
     for b, beat in enumerate(scene["beats"]):
-        if beat.get("music_from") is not None:
-            music_from = resolve_at(beat["music_from"], beat_words[b], spans[b][0], spans[b][1], {})
-            break
+        if beat.get("music_lift") is not None:      # a small lift at the ending, from this word on
+            music["lift_at"] = resolve_at(beat["music_lift"], beat_words[b], spans[b][0], spans[b][1], {})
     flat_words = [w for bw in beat_words for w in bw]
-    mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music_from, log)
+    mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music, log)
     snd = sound.report(cues, mixed["beds"], duration)
     snd["lufs"] = mixed["lufs"]
     (work / "sounds.json").write_text(json.dumps(snd, indent=1))

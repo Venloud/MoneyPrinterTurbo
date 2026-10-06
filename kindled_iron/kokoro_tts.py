@@ -80,11 +80,11 @@ def available(profile: dict, chars: int = 0) -> tuple[bool, str, dict]:
 def synthesize(segments: list[tuple[str, float]], out_wav: Path, profile: dict) -> dict:
     """Common provider interface: one sentence at a time, joined with each sentence's pause."""
     k = profile.get("kokoro") or {}
-    speed = max(0.92, float(k.get("speed", 1.0)))       # never slower than 0.92 (pauses give length)
+    speed = float(k.get("speed", 1.0))
     parts = [np.zeros(int(0.15 * SAMPLE_RATE), np.float32)]
     for text, pause in segments:
         parts += [synth_text(text, k.get("voice", "am_michael"), speed, k.get("lang", "a")),
-                  np.zeros(int(pause * SAMPLE_RATE), np.float32)]
+                  np.zeros(int(max(pause, 0.12) * SAMPLE_RATE), np.float32)]   # tight pacing: a natural breath
     out_wav.parent.mkdir(parents=True, exist_ok=True)
     sf.write(out_wav, np.concatenate(parts), SAMPLE_RATE)
     return {"model": "kokoro-82m", "voice": k.get("voice", "am_michael"), "speed": speed,

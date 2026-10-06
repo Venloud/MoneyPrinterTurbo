@@ -55,7 +55,7 @@ ROLES = {
     "amb_waves": {"q": ["calm sea waves", "gentle ocean waves"], "src": 1, "loop": 30},
     "amb_birds": {"q": ["birds morning ambience", "birdsong forest"], "src": 1, "loop": 30},
     "amb_crickets": {"q": ["crickets night ambience", "night crickets"], "src": 1, "loop": 30},
-    "music": {"q": ["ambient pad calm", "warm ambient pad", "calm ambient music"], "src": 1, "loop": 75},
+    # music lives in music_<name>.ogg (picked by hand, see sources.json), not built here
 }
 # Kenney CC0 roles (vendored: vendor/sfx/*.ogg + the Impact Sounds pack)
 KENNEY_ROLES = {

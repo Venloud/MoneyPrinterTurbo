@@ -1,11 +1,8 @@
 {
-  "_comment": "Per-channel voice settings. Settings are sent per request only; the ElevenLabs voice itself is never edited. pause_sentence = silence after a normal sentence; pause_beat = after the hook, a question, a 1-2 word punch line, a 'Day N' line and before the last line; max_pause caps auto-scaled pauses; [pause 0.8] in a script sets one exactly. Speeds never below 0.92. Only kindled_iron is wired into render.py for now.",
+  "_comment": "Per-channel voice settings. Settings are sent per request only; the ElevenLabs voice itself is never edited. pacing 'tight' (kindled_iron): no added pauses; the natural read is kept, every silence over trim_over (0.30 s) is cut to keep_gap (0.25 s), and only the script's [beat] tags (max_beats, each max_beat s) are set on purpose. Other channels: pause_sentence / pause_beat / max_pause add pauses between sentences; [pause 0.8] sets one exactly. music_track = the channel's music bed (sound_levels.json 'music_tracks').",
   "kindled_iron": {
-    "description": "warm, calm, clear, kid-friendly",
+    "description": "direct, confident, for adults; natural read, tight pacing",
     "tts_provider": "elevenlabs",
-    "pause_sentence": 0.35,
-    "pause_beat": 0.7,
-    "max_pause": 1.2,
     "elevenlabs": {
       "voice_id": "jRFiEvaIrFDZO8HLTCKI",
       "model_id": "eleven_multilingual_v2",
@@ -15,7 +12,7 @@
         "similarity_boost": 0.8,
         "style": 0.15,
         "use_speaker_boost": true,
-        "speed": 0.95
+        "speed": 1.05
       },
       "monthly_char_budget": 40000,
       "min_remaining_fraction": 0.1,
@@ -29,10 +26,20 @@
     },
     "kokoro": {
       "voice": "am_fenrir",
-      "speed": 0.92,
+      "speed": 1.1,
       "lang": "a"
     },
-    "eq": "highpass=f=70,equalizer=f=3200:t=q:w=1.2:g=1.5"
+    "eq": "highpass=f=70,equalizer=f=3200:t=q:w=1.2:g=1.5",
+    "pacing": "tight",
+    "trim_over": 0.3,
+    "keep_gap": 0.25,
+    "max_beat": 0.4,
+    "max_beats": 3,
+    "wpm_target": [
+      165,
+      185
+    ],
+    "music_track": "trailer"
   },
   "night_files": {
     "description": "slow, serious, tense",

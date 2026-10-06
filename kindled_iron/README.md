@@ -43,19 +43,20 @@ Show a small "Bible text: WEB" on the end card.
   swaying trees/plants, twinkling stars, blinking characters).
 - A small `DAY n` counter with progress dots (`{"do": "counter", "day": 3}`, `day: 0` hides it).
 
-## Pacing (pacing.py): pauses between sentences, every voice
-- The script is split into sentences. Silence after each: `pause_sentence` (0.35 s) normally,
-  `pause_beat` (0.7 s) after the hook, a question, a 1-2 word punch line ("Wrong."), a "Day N" line,
-  and before the last line. Per channel in `voice_profiles.json` (`pause_sentence`, `pause_beat`,
-  `max_pause`). A manual tag sets one exactly: `The very first words are: [pause 0.5] In the beginning, God.`
-  Tags are never spoken or captioned.
-- Kokoro / Chatterbox voice one sentence at a time and join with the pauses. ElevenLabs gets the whole
-  script in ONE request (consistent tone) with `<break time="0.7s" />` tags on models that support
-  them (`use_break_tags`; tags add ~400 characters a video).
-- Then, for every provider, the pauses are enforced on the final audio: each sentence gap is measured
-  (word timings refined from the audio's own silences) and silence is inserted or trimmed to hit the
-  target. Pauses are scaled (0.6x-1.8x, max `max_pause`) to aim at **140-150 words a minute**; the voice
-  is never slowed below 0.92. Log: `pauses: ...` and `Length: X s ...; pace N words/min`.
+## Pacing (pacing.py)
+Kindled Iron uses `"pacing": "tight"` (voice_profiles.json):
+- No pause padding. ElevenLabs reads the whole script in ONE request (speed 1.0-1.05, no break tags) and
+  its natural read is kept.
+- On the final audio every silence longer than `trim_over` (0.30 s) is cut to `keep_gap` (0.25 s); the
+  lead-in is cut to 0.05 s.
+- Deliberate beats only where the script says `[beat]`: max 3 a video (`max_beats`), each 0.4 s
+  (`max_beat`); more than 3 fails the render. Example: `The Bible's answer: [beat] nobody.`
+- Target **165-185 words a minute** (`wpm_target`); 61-68 s, shorter is fine, never pad.
+  Log: `pacing: tight - N silences trimmed ..., longest silence X s` and `Length: X s ...; pace N words/min`.
+- A visual change at least every 1.5 s (scene `"max_visual_gap": 1.5`, `PACING WARNING` otherwise);
+  captions 2-3 words at a time.
+Other channels can still use the older sentence pauses (`pause_sentence`, `pause_beat`, `max_pause`,
+`[pause 0.8]` tags).
 - Captions and every animation follow the final audio. A beat starts inside the pause before it, so
   its walk / first drawing lands in the silence; footage insets snap into the nearest pause; and
   `"at": "pause"` / `"pause#2"` puts any event in the 1st / 2nd pause of its beat (the DAY counter ticks
@@ -108,23 +109,20 @@ calm by default. `express` / `look` expressions: `neutral`, `happy`, `surprised`
 orange scarf; people are told apart by hair, clothes and height.
 
 ## Sound (sound.py, library built once by sfx_library.py)
-Driven by the events, automatic, with `"sound": "<role>"` / `"sound": false` on an event to override:
-- DRAWN things: pencil/pen on paper, starting and stopping with the stroke: `pencil_long` (outlines),
-  `scribble` (short marks), `marker` (colour fill), `handwriting` (text), two `scratch`es (cross-outs),
-  `eraser` (a `fade` with `"erase": true`). 4+ variants each, rotated, slight random pitch.
-- BIG things animated in (build-up starts BEFORE they appear, then the impact): `rise` = rumble + soft
-  thud, `drop` = falling whoosh + landing boom, `light_burst` = riser + bright burst, water `rise` = water
-  rush, big text = riser + deep soft boom, a big `move` (sky lifting, dark sweeping away) = slow whoosh.
-- SMALL / background: no sound (the guide's little actions, birds, waves, clouds, stars, sparkles).
-- A soft pop for things that appear finished (insets, the DAY counter tick).
-- Per beat `"ambience"`: hum | wind | waves | birds | crickets. `"music_from": "<word>"` on one beat
-  starts the soft music bed there.
-`"weight": "big" | "small"` on the event or object; default = big when over ~25 % of the safe box.
-One big sound at a time; never two booms within 1.5 s. Levels live in `sound_levels.json` (`sfx_levels` in dB relative to the voice, plus a master `sfx_gain_db`):
-pencil family -20, pops/ticks/chime -18, big sounds -14 (never peaking above the voice), ambience -26, music -24,
-all 4 dB lower while someone speaks. The -14 LUFS target is set on the VOICE; effects are never boosted to reach it.
-Each render writes `<name>_sounds.json`: every sound with its time, file and source (the owner's
-listen-check), plus the longest stretch without a new sound.
+Few effects, each one meaning something. Hard cap 15 a video, never two within 0.8 s, in this priority:
+1. a big hit on the key moments only: events marked `"hit": true` (max 3), e.g. "nobody", "I AM", the last line
+2. a soft chime when each scripture reference appears (dropped when a hit lands within 0.8 s)
+3. a soft whoosh on every other scene change
+4. one short pencil sound per scene, only on the drawing marked `"main": true`
+No per-stroke sounds (no marker, scribble, eraser, scratch) and no ambience beds. `"sound": "<role>"` /
+`"sound": false` on an event overrides.
+Music: one track per channel (`voice_profiles.json` -> `music_track`, file `vendor/sfx/lib/music_<name>.ogg`;
+`--music <name>` on render.py overrides), from frame 0, ducked under the voice, a +3 dB lift from the beat's
+`"music_lift": "<word>"`. `python -m kindled_iron.music_samples` mixes every track under the same 10 s of voice.
+Levels live in `sound_levels.json` (`sfx_levels` in dB relative to the voice, plus a master `sfx_gain_db`):
+pencil -20, pops/chime -18, big sounds -14 (never peaking above the voice), music -24, all 4 dB lower while
+someone speaks. The -14 LUFS target is set on the VOICE; effects and music are never boosted to reach it.
+Each render writes `<name>_sounds.json`: every sound with its time, file and source.
 
 Library: `vendor/sfx/lib/*.ogg` + `vendor/sfx/lib/sources.json` (licence per file). Source order:
 Kenney CC0 -> Freesound CC0 only (API with FREESOUND_API_KEY, else the public CC0 search page; every
@@ -133,11 +131,11 @@ no Shutterstock. Picks are pinned in `vendor/sfx/lib_pins.json`; to swap one, ch
 `python -m kindled_iron.sfx_library --roles <role>`.
 
 ## Writing rules (every script)
-- The hook (first line) is explained in the next 1-2 lines.
-- Words a 6-year-old understands. No theology jargon.
+- Write for adults: simple words, but no kid voice. Never repeat a point, never explain the obvious.
+- The hook (first line) is answered fast; no theology jargon.
 - Leave out side details. Summarize; never read verses.
 - Only the Bible's 66 books; no claims the chapter itself doesn't support.
-- **Length:** target a 61-68 s video (script ~145-155 words). Shorter is fine only when the story is
+- **Length:** target a 61-68 s video (script ~170-190 words at 165-185 wpm). Shorter is fine only when the story is
   complete and makes sense. Never pad with filler or a long end card. `render.py` logs
   `Length: X s (target 61-68)` and warns under 61 s (never fails). A script under ~120 words gets ONE
   automatic rewrite pass (Gemini, needs `GEMINI_API_KEY`) asking for a fuller version

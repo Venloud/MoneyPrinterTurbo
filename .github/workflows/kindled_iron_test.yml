@@ -102,6 +102,9 @@ jobs:
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
             --work storage/kindled_iron/work --reuse-audio --safe-box --frames-only 0,1,3,6,10,15,20,25,30,35,40,45,50
 
+      - name: Music candidates under the same 10 s of voice
+        run: python -m kindled_iron.music_samples --work storage/kindled_iron/work --out storage/kindled_iron/music_samples
+
       - name: Delete the reference clip
         if: always()
         run: rm -rf "$RUNNER_TEMP/voice_refs"
@@ -159,8 +162,9 @@ jobs:
           cp storage/kindled_iron/test.mp4 "$name-$stamp.mp4"
           cp storage/kindled_iron/test_safebox.mp4 "$name-$stamp-safebox.mp4"
           cp storage/kindled_iron/test_novoice.mp4 "$name-$stamp-novoice.mp4"
+          for m in storage/kindled_iron/music_samples/music_*.mp3; do cp "$m" "$name-$stamp-$(basename "$m")"; done
           gh release upload test-renders --repo "$VOICE_REPO" --clobber "$name-$stamp.mp4" "$name-$stamp-safebox.mp4" \
-            "$name-$stamp-novoice.mp4"
+            "$name-$stamp-novoice.mp4" "$name-$stamp"-music_*.mp3
           echo "Uploaded to https://github.com/$VOICE_REPO/releases/tag/test-renders"
 
       - name: Upload stills, metadata, sources (no voice audio)
@@ -188,6 +192,7 @@ jobs:
             storage/kindled_iron/test.mp4
             storage/kindled_iron/test_safebox.mp4
             storage/kindled_iron/test_novoice.mp4
+            storage/kindled_iron/music_samples/*.mp3
           retention-days: 14
 
       - name: my_voice without a private repo

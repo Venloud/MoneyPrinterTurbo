@@ -17,8 +17,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-TAG = re.compile(r"\[pause\s+([\d.]+)\s*s?\]", re.I)
-REF = re.compile(r"\[(?!pause\b)[^\]]+\]", re.I)      # [Psalm 90:2]: written on screen, never spoken or captioned
+TAG = re.compile(r"\[(?:pause\s+([\d.]+)\s*s?|beat)\]", re.I)     # [pause 0.8] or [beat] (= max_beat)
+REF = re.compile(r"\[(?!pause\b|beat\])[^\]]+\]", re.I)      # [Psalm 90:2]: written on screen, never spoken or captioned
 DAY = re.compile(r"^\s*day\s+(one|two|three|four|five|six|seven|\d+)\b", re.I)
 WPM_RANGE = (140.0, 150.0)
 MIN_SPEED = 0.92                       # never slow the voice below this to gain length
@@ -57,7 +57,7 @@ def _sentences(text: str) -> list[tuple[str, float | None]]:
             out.append((ptxt.strip(), None))
         if m:
             if out:
-                out[-1] = (out[-1][0], float(m.group(1)))
+                out[-1] = (out[-1][0], float(m.group(1)) if m.group(1) else -1.0)   # -1 = a [beat]
             pos = m.end()
     return out
 
@@ -65,12 +65,21 @@ def _sentences(text: str) -> list[tuple[str, float | None]]:
 def plan(beats: list[str], profile: dict) -> list[Segment]:
     ps = float(profile.get("pause_sentence", 0.35))
     pb = float(profile.get("pause_beat", 0.7))
+    tight = profile.get("pacing") == "tight"
+    max_beat = float(profile.get("max_beat", 0.4))
     segs: list[Segment] = []
     for b, text in enumerate(beats):
         for s, manual in _sentences(text):
-            segs.append(Segment(s, b, len(s.split()), ps, "sentence"))
+            segs.append(Segment(s, b, len(s.split()), 0.0 if tight else ps, "natural" if tight else "sentence"))
             if manual is not None:
-                segs[-1].pause, segs[-1].why = manual, "tag"
+                segs[-1].pause, segs[-1].why = (max_beat if manual < 0 else min(manual, max_beat) if tight else manual), "tag"
+    if tight:
+        beats_used = sum(1 for x in segs if x.why == "tag")
+        if beats_used > int(profile.get("max_beats", 3)):
+            raise SystemExit(f"FAIL: {beats_used} deliberate beats in the script (max {profile.get('max_beats', 3)})")
+        if segs:
+            segs[-1].pause, segs[-1].why = 0.0, "end"
+        return segs
     for i, s in enumerate(segs):
         if s.why == "tag":
             continue
@@ -141,6 +150,8 @@ def _refine_edges(audio: np.ndarray, sr: int, words: list[dict], bounds) -> list
 def enforce(audio: np.ndarray, sr: int, words: list[dict], segs: list[Segment], profile: dict,
             log) -> tuple[np.ndarray, list[dict], dict]:
     """Make every sentence gap match its target pause; returns new audio, shifted words, stats."""
+    if profile.get("pacing") == "tight":
+        return tighten(audio, sr, words, segs, profile, log)
     bounds, k = [], 0
     for s in segs:                                   # word index ranges per segment
         bounds.append((k, k + s.n_words - 1))
@@ -210,3 +221,90 @@ def enforce(audio: np.ndarray, sr: int, words: list[dict], segs: list[Segment], 
     log(f"pauses: {len(segs) - 1} gaps, {len(edits)} adjusted (+{stats['inserted_s']} s / -{stats['trimmed_s']} s), "
         f"pause scale {scale:.2f}")
     return new, shifted, stats
+
+
+# --------------------------------------------------------------------- tight pacing (no added pauses)
+def _cut_and_shift(audio: np.ndarray, sr: int, words: list[dict], edits: list[tuple[int, int]]):
+    """edits = (sample position, +insert / -remove samples); word timings move with them."""
+    out, shifts, last = [], [], 0
+    for at, n in sorted(edits):
+        at = max(at, last)
+        if n > 0:
+            out += [audio[last:at], np.zeros(n, audio.dtype)]
+            last = at
+        else:
+            out.append(audio[last:at])
+            last = min(len(audio), at - n)
+        shifts.append((at / sr, n / sr))
+    out.append(audio[last:])
+    moved = []
+    for w in words:
+        d = sum(dt for t, dt in shifts if t <= w["start"] + 1e-6)
+        moved.append({**w, "start": round(max(0.0, w["start"] + d), 3), "end": round(max(0.0, w["end"] + d), 3)})
+    return np.concatenate(out), moved
+
+
+def tighten(audio: np.ndarray, sr: int, words: list[dict], segs: list[Segment], profile: dict, log):
+    """The natural read, tightened: every silence longer than trim_over (0.30 s) becomes keep (0.25 s),
+    the lead-in is cut to 0.05 s, and only the script's [beat]s (max 3, <= 0.4 s) are set on purpose."""
+    trim_over, keep = float(profile.get("trim_over", 0.30)), float(profile.get("keep_gap", 0.25))
+    bounds, k = [], 0
+    for sg in segs:
+        bounds.append((k, k + sg.n_words - 1))
+        k += sg.n_words
+    assert k == len(words), f"plan has {k} words, timings {len(words)}"
+    words = _refine_edges(audio, sr, words, bounds)
+    hop = int(0.01 * sr)
+    n = len(audio) // hop
+    rms = np.sqrt(np.mean(audio[: n * hop].reshape(n, hop) ** 2, axis=1))
+    quiet = rms <= max(1e-4, 0.06 * float(np.percentile(rms, 90)))
+    beat_after = {bounds[i][1] for i, sg in enumerate(segs) if sg.why == "tag"}   # word index ending a [beat]
+    edits, f = [], 0
+    while f < n:
+        if not quiet[f]:
+            f += 1
+            continue
+        g = f
+        while g < n and quiet[g]:
+            g += 1
+        a, b = f * 0.01, g * 0.01
+        is_lead = a < 0.02 and words and b <= words[0]["start"] + 0.05
+        limit = 0.05 if is_lead else keep
+        if is_lead or (b - a) > trim_over:
+            cut = (b - a) - limit
+            if cut > 0.02 and g < n:                 # never cut the tail (end hold comes later)
+                start = a + (0.0 if is_lead else limit / 2)
+                edits.append((int(start * sr), -int(cut * sr)))
+        f = g
+    audio, words = _cut_and_shift(audio, sr, words, edits)
+    trimmed = -sum(e[1] for e in edits) / sr
+    # the deliberate beats: set the gap after each [beat] sentence to its value
+    beat_edits = []
+    for i, sg in enumerate(segs[:-1]):
+        if sg.why != "tag":
+            continue
+        a, b = words[bounds[i][1]]["end"], words[bounds[i + 1][0]]["start"]
+        delta = sg.pause - (b - a)
+        if abs(delta) >= 0.03:
+            at = int(((a + b) / 2) * sr)
+            beat_edits.append((at, int(delta * sr)) if delta > 0 else (int((a + (b - a + delta) / 2) * sr), int(delta * sr)))
+    audio, words = _cut_and_shift(audio, sr, words, beat_edits)
+    stats = {"mode": "tight", "silences_trimmed": len(edits), "trimmed_s": round(trimmed, 2),
+             "beats": sum(1 for sg in segs if sg.why == "tag"),
+             "longest_silence_s": round(longest_silence(audio, sr, words[-1]["end"]), 2)}
+    log(f"pacing: tight - {len(edits)} silences trimmed (-{trimmed:.2f} s), {stats['beats']} deliberate beat(s), "
+        f"longest silence {stats['longest_silence_s']:.2f} s")
+    return audio, words, stats
+
+
+def longest_silence(audio: np.ndarray, sr: int, speech_end: float) -> float:
+    """Longest quiet stretch (measured on the audio, not the word timings) before the speech ends."""
+    hop = int(0.01 * sr)
+    n = min(len(audio) // hop, int(speech_end / 0.01))
+    rms = np.sqrt(np.mean(audio[: n * hop].reshape(n, hop) ** 2, axis=1))
+    quiet = rms <= max(1e-4, 0.06 * float(np.percentile(rms, 90)))
+    best = run = 0
+    for q in quiet[5:]:
+        run = run + 1 if q else 0
+        best = max(best, run)
+    return best * 0.01

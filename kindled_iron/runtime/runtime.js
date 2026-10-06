@@ -256,11 +256,11 @@
     },
     scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
       var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
-      var refSize = Math.round(size * 0.62), h = pad * 2 + lines.length * lh + refSize * 1.5, top = -h / 2;
+      var refSize = Math.min(64, Math.round(size * 0.62)), h = pad * 2 + lines.length * lh + refSize * 1.5, top = -h / 2;
       var r = 30, x0 = -w / 2, x1 = w / 2, y0 = top, y1 = top + h;
       var card = 'M' + (x0 + r) + ',' + y0 + ' L' + (x1 - r) + ',' + y0 + ' Q' + x1 + ',' + y0 + ' ' + x1 + ',' + (y0 + r) + ' L' + x1 + ',' + (y1 - r) +
         ' Q' + x1 + ',' + y1 + ' ' + (x1 - r) + ',' + y1 + ' L' + (x0 + r) + ',' + y1 + ' Q' + x0 + ',' + y1 + ' ' + x0 + ',' + (y1 - r) + ' L' + x0 + ',' + (y0 + r) + ' Q' + x0 + ',' + y0 + ' ' + (x0 + r) + ',' + y0 + ' Z';
-      var s = '<path d="' + card + '" transform="translate(12,12)" fill="' + C.shadow + '" stroke="none" data-fill="0.9" fill-opacity="0"/>' +
+      var s = '<path d="' + card + '" transform="translate(7,8)" fill="' + C.shadow + '" stroke="none" data-fill="0.9" fill-opacity="0"/>' +
         p(card, { w: 7, fill: 'page', fo: 1 });
       lines.forEach(function (ln, i) {
         var t = (i === 0 ? '\u201C' : '') + ln + (i === lines.length - 1 ? '\u201D' : '');
@@ -463,7 +463,7 @@
       var clip = document.createElementNS(SVGNS, 'clipPath'); clip.id = cid;
       var r = document.createElementNS(SVGNS, 'rect');
       r.setAttribute('x', b.x - 20); r.setAttribute('y', b.y - 20); r.setAttribute('width', 0); r.setAttribute('height', b.height + 40);
-      clip.appendChild(r); el.appendChild(clip); t.setAttribute('clip-path', 'url(#' + cid + ')');
+      clip.appendChild(r); board.querySelector('defs').appendChild(clip); t.setAttribute('clip-path', 'url(#' + cid + ')');   // in defs: never counts in the object's box
       if (o.marker) {            // highlighter band behind the word, revealed with the same wipe
         var mk = document.createElementNS(SVGNS, 'path');
         mk.setAttribute('d', 'M' + (b.x - 12) + ',' + (b.y + b.height * 0.42) + ' L' + (b.x + b.width + 14) + ',' + (b.y + b.height * 0.36) +
@@ -485,7 +485,7 @@
       var clip = document.createElementNS(SVGNS, 'clipPath'); clip.id = cid;
       var r = document.createElementNS(SVGNS, 'rect');
       r.setAttribute('x', b.x - 20); r.setAttribute('y', b.y - 20); r.setAttribute('width', 0); r.setAttribute('height', b.height + 40);
-      clip.appendChild(r); ob.el.appendChild(clip); t.setAttribute('clip-path', 'url(#' + cid + ')');
+      clip.appendChild(r); board.querySelector('defs').appendChild(clip); t.setAttribute('clip-path', 'url(#' + cid + ')');
       ob.lineClips.push({ rect: r, w: b.width + 40, n: t.textContent.length });
     });
     ob.refEl = ob.el.querySelector('.sc-ref');
@@ -641,7 +641,7 @@
       var cardStrokes = Array.prototype.filter.call(ob.strokes, function (st) { return !st.closest('.sc-ref'); });
       tl.to(cardStrokes, { attr: { 'stroke-dashoffset': 0 }, duration: 0.3, ease: 'power1.out' }, e.t - 0.3);
       ob.fills.forEach(function (fl) { if (!fl.closest('.sc-ref')) tl.to(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') }, duration: 0.25 }, e.t - 0.2); });
-      tl.fromTo(ob.inner, { scale: 0.92, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.35, ease: 'back.out(2)', immediateRender: false }, e.t - 0.3);
+      tl.fromTo(ob.inner, { scale: 0.95, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'power2.out', immediateRender: false }, e.t - 0.3);
       var total = ob.lineClips.reduce(function (a, c) { return a + c.n; }, 0) || 1, at = e.t;
       ob.lineClips.forEach(function (c) {
         var ld = d * c.n / total;

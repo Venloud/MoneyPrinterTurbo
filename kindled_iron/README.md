@@ -33,7 +33,8 @@ stays at least 1 s after the quote (a scene change waits for it).
 Translation: World English Bible (public domain, eBible.org). Every card's text must be the WEB verse or a
 contiguous part of it, word for word (case/punctuation ignored); any mismatch, a book outside the 66, or a
 [Ref] without a card FAILS the render. Check one by hand: `python -m kindled_iron.scripture "John 1:3"`.
-Show a small "Bible text: WEB" on the end card.
+The video shows no translation label; the post description carries "Scripture: World English Bible"
+(added automatically to `<name>_meta.json` -> `post`, and to the phone alert).
 
 ## Hook + retention rules
 - First 2 seconds: the question/hook is fully on screen at frame 0 (`"instant": true` draws), with
@@ -50,7 +51,8 @@ Kindled Iron uses `"pacing": "tight"` (voice_profiles.json):
 - On the final audio every silence longer than `trim_over` (0.45 s) is cut to `keep_gap` (0.40 s); natural
   shorter pauses stay; the lead-in is cut to 0.05 s.
 - No added pauses: `max_beats` is 0 (a `[beat]` tag fails the render).
-- Target **165-175 words a minute** (`wpm_target`), ElevenLabs speed 1.0; 61-66 s, shorter is fine, never pad.
+- Target **about 175 words a minute** (`wpm_target` 165-185, a WARNING above 185), ElevenLabs speed 0.90, never
+  below 0.87 (`min_speed`); 61-64 s (`length_target`), shorter is fine, never pad.
   Log: `pacing: tight - N silences trimmed ..., longest silence X s` and `Length: X s ...; pace N words/min`.
 - A visual change at least every 1.5 s (scene `"max_visual_gap": 1.5`, `PACING WARNING` otherwise);
   captions 2-3 words at a time, bold, big (scene `captions_box` {x, y, w, size}, `captions_chunk`
@@ -93,11 +95,35 @@ Word timings always come from whisper on the audio actually used.
 "pin": {"nasa": "<nasa_id>"}, "start": 12.0, "clip_dur": 2.2, "crop": [x, y, w, h], "w": 340, "h": 230,
 "rotate": -4}`: a 1.5-3 s real clip in a tilted hand-drawn frame that pops in and out on top of the
 drawing. NASA (public domain), Pexels and Pixabay (no attribution needed; keys `PEXELS_API_KEY`,
-`PIXABAY_API_KEY`). Never CC BY. Max 8 a video; no clip found = the inset is silently left out.
+`PIXABAY_API_KEY`), Wikimedia Commons (no key; only files whose API metadata says public domain or CC0, so no
+credit lines). Never CC BY / CC BY-SA. Default order Pexels -> Pixabay -> Commons; space / Earth shots put NASA
+first. Max 8 a video; no clip found = the inset is silently left out.
 Big clips: `w` 820 / `h` 470 at (540, 410) fills the upper half of the safe box; drawings go beside or on
 top. `"inset_snap": false` on the scene keeps clips on their words (no snapping to pauses). Every render
 logs each clip's source + licence and writes `insets_contact_sheet.jpg` (CI artifact `insets.jpg`).
 NASA search results are mixed (press conferences...), so pin NASA clips after checking frames.
+
+## Third-party clips and meme images (private_media.py)
+Never stored in this public repo (git ignores `reactions/`, `movie_reference/`, `reactions_inbox/`). They live in
+the PRIVATE repo `Venloud/kindled-iron-voice`: `reactions/` (meme images and reaction clips, named by emotion or
+words: `confused.jpg`, `god_did.mp4`) and `movie_reference/` (film/TV clips named by scene: `burning_bush.mp4`),
+each with an optional `index.json` (tags, words said, start/end seconds, play its audio). The test workflow
+checks them out at render time with `VOICE_REPO_TOKEN`; any render that used them goes ONLY to the private
+`test-renders` release (with its stills), never to a public artifact.
+- Clip request: `{"at": "Moses-0.2", "id": "c_bush", "x": 540, "y": 410, "w": 820, "h": 470,
+  "meme_clip": {"query": "burning bush", "folders": ["movie_reference"], "max_s": 2, "audio": false},
+  "fallback": {<a normal stock inset or guide action>}}`. Order: private folders -> yt-dlp (only with
+  `"yt": "<url or exact search>", "start": s`; YouTube often blocks runners) -> the pinned fallback. A missing
+  clip never fails the render. A clip with `"audio": true` plays its own sound at voice level; the video runs on
+  until it ends.
+- Emotion request: `{"at": "who", "reaction": "confused", "card": {"x", "y", "w", "h", "rotate"}}`: the guide acts
+  the face AND a meme image pops in beside him: private `reactions/` first, then
+  github.com/cheesits456/ReactionPics (hand-picked file names per emotion, downloaded at render time, never copied
+  here). GIPHY is not used in videos: its API terms require a visible "Powered By GIPHY" mark plus creator credit.
+- One switch: `voice_profiles.json` -> `use_third_party_clips` (workflow input `third_party_clips` wins): off =
+  every request uses its fallback / the drawn face only.
+- Add a clip from your PC: `python kindled_iron/tools/fetch_clip.py "<url or search>" --start 12.5 --dur 2
+  --name burning_bush --folder movie_reference` (needs yt-dlp, ffmpeg and a token for the private repo).
 
 ## Reactions (use sparingly)
 `{"do": "reaction", "who": "guide", "face": "shocked", "dur": 1.2}`: faces `confused_math` (floating math
@@ -110,6 +136,20 @@ freeze-frame + "*record scratch*" + zoom).
 Guide moves: walk in, `lean_on` a card, `size`, `drift`, point, react; change side, size and pose every scene.
 Pop-culture drawings are our own generic shapes: `voxel` world, `blockfolk` villager, `cursor`, `clock`,
 `controller`, `popup` ("CHEAT ON"); no game textures, logos, characters or UI.
+
+## The host
+The guide is drawn after the channel owner (`render.HOST_LOOK`): brown skin, shoulder-length twisted locs with a
+middle part, small mustache + chin goatee, a slightly hand-drawn head; hands in the same skin tone. A scene can
+switch it off with `"look": false` on the guide. Pose sheet of the faces:
+`python -m kindled_iron.action_sheet --faces --out faces.png`. He stands low: his feet may sit a little below
+the safe box (scene `ground` 1490); the space above is padding for text.
+
+## Captions vs titles
+Captions never overlap a title (popup, scripture card, a big word of 80 px or more, or `"title": true`) and
+never sit on the guide's head: they move to the nearest free spot, then shrink (to 64 %). When the same words
+are already written big on screen, the caption hides. The layout check logs `CAPTION OVERLAP` and
+`... over the guide's head` otherwise. The record-scratch freeze stays in colour; `"focus": {"x", "y"}` sets
+what the punch-in frames.
 
 ## Faces
 Everyone (guide, man, woman) has the same simple face: two dot eyes and a small mouth, friendly and

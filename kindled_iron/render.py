@@ -41,6 +41,9 @@ PALETTE = {
     "shadow": "#DCD5C8", "leafDark": "#5C9A4C", "marker": "#F7D3AE",
     "skin": "#E9C9A0", "robe": "#8A6A4F", "robeDark": "#6C503A", "controller": "#C9CED6",
 }
+# The host (guide) is drawn after the channel owner: brown skin, shoulder-length twisted locs with a
+# middle part, small mustache + chin goatee, slightly hand-drawn head. A scene can turn it off ("look": false).
+HOST_LOOK = {"head": "hand", "hair": "locs", "beard": "goatee", "colors": {"skin": "#8D5B3E", "hair": "#231915"}}
 HUD = {"x": 300, "y": 248, "scale": 1.25}   # DAY counter badge (top-left of the safe box: x 148-452, y 188-313)
 NO_POP = {"darkness", "line", "frame", "waves", "hill", "rays", "strike", "cross", "inset", "sparkle"}
 # TikTok safe area (owner's template). Important art + captions stay inside the box and out of the
@@ -96,8 +99,9 @@ def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, u
     if isinstance(at, (int, float)):
         return beat_start + float(at)
     s = str(at).strip()
-    if s == "end":
-        return beat_end
+    em = re.fullmatch(r"end([+-][\d.]+)?", s)
+    if em:                                   # "end" / "end+0.2": after the beat's last word
+        return beat_end + float(em.group(1) or 0)
     pm = re.fullmatch(r"pause(?:#(\d+))?([+-][\d.]+)?", s)
     if pm:
         n = int(pm.group(1) or 1)
@@ -150,6 +154,9 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
     pauses = pauses or []                     # [(start, end, beat)] silences between sentences
     ground = scene.get("ground", 1170)
     cast = {cid: {**c, "x": c["x"] + PANEL_W * c.get("panel", 0)} for cid, c in scene["cast"].items()}
+    if "guide" in cast and cast["guide"].get("look", True) is not False:
+        g = cast["guide"]
+        cast["guide"] = {**HOST_LOOK, **g, "colors": {**HOST_LOOK["colors"], **(g.get("colors") or {})}}
     objects, events, captions = [], [], []
     ids = set()
     cam_y = scene.get("camera_y", 960)
@@ -185,6 +192,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 events.append(ev_draw)
                 ids.add(o["id"])
                 continue
+            if "do" not in e and isinstance(e.get("reaction"), str):     # {"reaction": "<emotion>"}
+                e["do"], e["who"], e["emotion"] = "reaction", e.get("who", "guide"), e.pop("reaction")
             if "do" not in e:                     # shorthand {"guide": "parachute", ...}
                 who = next((k for k in scene["cast"] if isinstance(e.get(k), str)), None)
                 if who:
@@ -201,9 +210,9 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 if e["id"] in ids:
                     raise SystemExit(f"duplicate object id {e['id']!r}")
                 if e.get("type") == "inset":
-                    if e["id"] not in insets:
+                    if "frames" not in e and e["id"] not in insets:
                         continue                      # no clip found: the inset is simply left out
-                    e.update(insets[e["id"]])
+                    e.update(insets.get(e["id"], {}))
                     # a real clip lands in the nearest pause (within 1.5 s before / 0.5 s after)
                     near = [p for p in pauses if p[1] - p[0] >= 0.3 and e["t"] - 1.5 <= p[0] <= e["t"] + 0.5] \
                         if scene.get("inset_snap", True) else []
@@ -299,7 +308,7 @@ def scripture_card(e: dict, words: list[dict], off: int, n: int, beat_id) -> tup
         lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
     o = {"id": e.get("id", f"card{n + 1}"), "type": "scripture", "x": off + e.get("x", 540), "y": e.get("y", 430),
          "w": w, "size": size, "lines": lines, "ref": canonical(card["ref"]), "text": card["text"],
-         "quote_end": round(t1, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
+         "quote_end": round(t1, 3), "_t0": round(t0, 3), "_t1": round(t1 + 1.0, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
     return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "pop": False}
 
 
@@ -524,6 +533,17 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         browser.close()
 
 
+def post_text(scene: dict) -> dict:
+    """Title / caption / description for the TikTok draft (the description carries the Bible credit)."""
+    p = dict(scene.get("post") or {})
+    p.setdefault("title", scene.get("title", scene.get("id", "")))
+    if any(isinstance(ev.get("scripture"), dict) for b in scene["beats"] for ev in b.get("events", [])):
+        credit = "Scripture: World English Bible"
+        if credit not in p.get("description", ""):
+            p["description"] = (p.get("description", "") + "\n" + credit).strip()
+    return p
+
+
 # --------------------------------------------------------------- main
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -602,14 +622,17 @@ def main() -> None:
         timing_file.write_text(json.dumps({"texts": texts, "spans": spans, "words": beat_words, "heard": heard,
                                            "pauses": pauses, "voice": voice_meta}, indent=1))
 
-    from kindled_iron import effects, insets as insets_mod
-
-    clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
-    duration = round(spans[-1][1] + end_hold, 3)
-    lo, hi = TARGET_LEN
+    from kindled_iron import effects, insets as insets_mod, private_media
     from kindled_iron import tts as tts_mod
 
     chan = tts_mod.load_profile(scene.get("voice_profile", "kindled_iron"))
+    third_party = private_media.enabled(chan)
+    log(f"third-party clips/images: {'on' if third_party else 'off'}"
+        f"{'' if not third_party else ' (private folders ' + ('found' if private_media.root() else 'NOT available') + ')'}")
+    memes = private_media.resolve_scene(scene, chan, work, log)       # meme clips or their pinned fallbacks
+    clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
+    duration = round(spans[-1][1] + end_hold, 3)
+    lo, hi = chan.get("length_target", TARGET_LEN)
     w_lo, w_hi = chan.get("wpm_target", [165, 185])
     n_words = sum(len(words_of(x)) for x in texts)
     wpm = n_words / duration * 60
@@ -623,7 +646,18 @@ def main() -> None:
     elif duration > hi:
         log(f"WARNING: over {hi:.0f} s")
     data = build_data(scene, spans, beat_words, duration, clips, pauses)
-    data["inboxReactions"] = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log)
+    data["inboxReactions"], meme_images = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log,
+                                                                       data, third_party)
+    data["events"].sort(key=lambda e: e["t"])
+    # a meme clip with its own audio may play after the last word: the video runs until it ends
+    by_id = {o["id"]: o for o in data["objects"]}
+    overlays = [(e["t"], by_id[e["id"]]["audio_file"], by_id[e["id"]]["clip_dur"]) for e in data["events"]
+                if e["do"] == "draw" and by_id.get(e["id"], {}).get("audio_file")]
+    for t0, _, d in overlays:
+        if t0 + d + 0.8 > duration:
+            duration = round(t0 + d + 0.8, 3)
+            data["duration"] = duration
+            log(f"meme clip audio runs to {t0 + d:.1f} s: video length {duration:.1f} s")
     data["events"] = [e for e in data["events"] if not e.get("_drop")]
     data["paper"] = effects.paper_texture(work, PALETTE["board"])
     data["debugSafe"] = a.safe_box
@@ -646,7 +680,8 @@ def main() -> None:
         if beat.get("music_lift") is not None:      # a small lift at the ending, from this word on
             music["lift_at"] = resolve_at(beat["music_lift"], beat_words[b], spans[b][0], spans[b][1], {})
     flat_words = [w for bw in beat_words for w in bw]
-    mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music, log)
+    mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music, log,
+                      overlays=[(t0, Path(f)) for t0, f, _ in overlays])
     snd = sound.report(cues, mixed["beds"], duration)
     snd["lufs"] = mixed["lufs"]
     (work / "sounds.json").write_text(json.dumps(snd, indent=1))
@@ -667,7 +702,8 @@ def main() -> None:
     meta = {"scene": sid, "duration": duration, "words": words, "voice": voice_meta,
             "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues),
             "longest_sound_gap": snd["longest_gap"], "lufs": mixed["lufs"], "empty_stretches": empty,
-            "verse_check": verse_results}
+            "verse_check": verse_results, "third_party": {"enabled": third_party, "clips": memes, "images": meme_images},
+            "post": post_text(scene)}
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
     if a.debug_copy:
         dbg = out.with_name(out.stem + "_safebox.mp4")

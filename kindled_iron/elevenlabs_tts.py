@@ -89,7 +89,8 @@ def synthesize(segments: list[tuple[str, float]], out_wav: Path, profile: dict) 
     text = script_text(segments, model if cfg.get("use_break_tags", True) else "")
     settings = dict(cfg.get("voice_settings", {}))
     if "speed" in settings:
-        settings["speed"] = min(1.2, max(0.7, float(settings["speed"])))     # ElevenLabs' own range
+        # ElevenLabs' own range is 0.7-1.2; the channel's floor (min_speed, 0.87 for Kindled Iron) wins
+        settings["speed"] = min(1.2, max(0.7, float(profile.get("min_speed", 0.7)), float(settings["speed"])))
     body = {"text": text, "model_id": model, "voice_settings": settings}
     fmt = cfg.get("output_format", "mp3_44100_128")
     req = urllib.request.Request(f"{API}/text-to-speech/{cfg['voice_id']}?output_format={fmt}",

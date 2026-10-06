@@ -50,3 +50,12 @@ htmlcov/
 kindled_iron/vendor/sfx/.download/
 kindled_iron/vendor/sfx/.elevenlabs/
 kindled_iron/vendor/sfx/kenney_impact/
+
+# Kindled Iron third-party media (meme images, reaction clips, film references) live ONLY in the private
+# repo Venloud/kindled-iron-voice; these local folders keep just their README
+kindled_iron/reactions_inbox/*
+!kindled_iron/reactions_inbox/README.md
+kindled_iron/reactions/*
+!kindled_iron/reactions/README.md
+kindled_iron/movie_reference/*
+!kindled_iron/movie_reference/README.md

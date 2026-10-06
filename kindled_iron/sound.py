@@ -180,13 +180,22 @@ def _speech_mask(words: list[dict], n: int) -> np.ndarray:
 
 
 def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list[dict], duration: float,
-        out: Path, out_novoice: Path, music: dict | None, log) -> dict:
-    """music = {"track": name (vendor/sfx/lib/music_<name>.ogg), "lift_at": seconds} or None."""
+        out: Path, out_novoice: Path, music: dict | None, log, overlays: list | None = None) -> dict:
+    """music = {"track": name (vendor/sfx/lib/music_<name>.ogg), "lift_at": seconds} or None.
+    overlays = [(t, wav)]: a meme clip's own audio, set to the voice's speech level and mixed in with it."""
     voice = _decode(narration)
     n = max(len(voice), int(duration * SR)) + SR // 2
     v = np.zeros(n, np.float32)
     v[:len(voice)] = voice
     vr = _speech_rms(voice)
+    for t0, wav in overlays or []:
+        x = _decode(Path(wav))
+        xr = _speech_rms(x) if len(x) > SR // 10 else 0.0
+        if xr > 0:
+            x = x * (vr / xr) * 0.9
+        i = int(t0 * SR)
+        x = x[: max(0, n - i)]
+        v[i:i + len(x)] += x
     vpeak = float(np.percentile(np.abs(voice), 99.95)) or 0.5
     fx = np.zeros(n, np.float32)
     for c in cues:

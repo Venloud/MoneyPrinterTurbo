@@ -13,11 +13,18 @@ import subprocess
 from pathlib import Path
 
 from kindled_iron import effects
-from kindled_iron.render import (CAPTION, HUD, PALETTE, SAFE, VENDOR, capture, log, vendor_parts, write_page)
+from kindled_iron.render import (CAPTION, HOST_LOOK, HUD, PALETTE, SAFE, VENDOR, capture, log, vendor_parts, write_page)
 
 PW = 1080
 T = 4.0           # seconds per cell
-GUIDE = {"x": 540, "scale": 1.7, "facing": 1, "accent": True, "faceless": True}
+GUIDE = {"x": 540, "scale": 1.7, "facing": 1, "accent": True, "faceless": True, **HOST_LOOK}
+FACES = [
+    ("neutral", [], [], 0.6),
+    ("happy", [], [{"t": 0.1, "do": "express", "who": "guide", "expression": "happy"}], 0.6),
+    ("surprised", [], [{"t": 0.1, "do": "express", "who": "guide", "expression": "surprised"}], 0.6),
+    ("confused (meme)", [], [{"t": 0.2, "do": "reaction", "who": "guide", "face": "confused_math", "dur": 1.4}], 0.8),
+    ("mind-blown (meme)", [], [{"t": 0.2, "do": "reaction", "who": "guide", "face": "mind_blown", "dur": 1.4}], 0.8),
+]
 
 
 def cells():
@@ -63,10 +70,10 @@ def cells():
     ]
 
 
-def build(work: Path) -> tuple[dict, list[tuple[str, float]]]:
+def build(work: Path, faces: bool = False) -> tuple[dict, list[tuple[str, float]]]:
     objects, events, samples = [], [], []
-    cs = cells()
-    people_panel = next(i for i, c in enumerate(cs) if c[0].startswith("presents"))
+    cs = FACES if faces else cells()
+    people_panel = next((i for i, c in enumerate(cs) if c[0].startswith("presents")), 99)
     cast = {"guide": dict(GUIDE),
             "man": {"x": 260 + PW * people_panel, "scale": 1.5, "facing": 1, "hair": "short",
                     "colors": {"shirt": "#7FA36B", "pants": "#5E6B47", "skin": "#D9A877", "hair": "#3B2A1E"}},
@@ -101,11 +108,12 @@ def main() -> None:
     ap.add_argument("--out", default="storage/kindled_iron/action_sheet.png")
     ap.add_argument("--work", default="storage/kindled_iron/action_sheet_work")
     ap.add_argument("--chrome", default=None)
+    ap.add_argument("--faces", action="store_true", help="pose sheet of the host's faces only (neutral, happy, surprised, confused, mind-blown)")
     a = ap.parse_args()
     work = Path(a.work).resolve()
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
-    data, samples = build(work)
+    data, samples = build(work, a.faces)
     page = write_page(data, work)
     capture(page, None, None, data["duration"], a.chrome, [t for _, t in samples], work / "stills")
     font = (VENDOR / "fonts" / "Caveat.ttf").as_posix()
@@ -115,12 +123,13 @@ def main() -> None:
         src = work / "stills" / f"frame_{t:05.2f}.png"
         txt = label.replace(":", r"\:").replace(",", r"\,")
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vf",
-                        f"crop=1080:1200:0:220,scale=360:400,pad=360:452:0:0:color=0xF4F1EA,"
-                        f"drawtext=fontfile='{font}':text='{txt}':fontsize=34:fontcolor=0x222222:x=(w-text_w)/2:y=410,"
+                        ("crop=640:800:220:560,scale=360:450,pad=360:502:0:0:color=0xF4F1EA," if a.faces else
+                         "crop=1080:1200:0:220,scale=360:400,pad=360:452:0:0:color=0xF4F1EA,") +
+                        f"drawtext=fontfile='{font}':text='{txt}':fontsize=34:fontcolor=0x222222:x=(w-text_w)/2:y={460 if a.faces else 410},"
                         f"drawbox=x=0:y=0:w=iw:h=ih:color=0xCCCCCC:t=2",
                         str(cells_dir / f"cell_{i:02d}.png")], check=True)
     n = len(samples)
-    cols = 6
+    cols = 5 if a.faces else 6
     rows = (n + cols - 1) // cols
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-framerate", "1", "-i", str(cells_dir / "cell_%02d.png"),
                     "-vf", f"tile={cols}x{rows}:color=0xF4F1EA", "-frames:v", "1", str(Path(a.out).resolve())], check=True)

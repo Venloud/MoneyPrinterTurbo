@@ -5,7 +5,7 @@
  "format": "one question: question in 2 s, answer by 10 s, reasons with scripture cards, closing line",
  "exact_narration": true,
  "end_hold": 1.2,
- "ground": 1430,
+ "ground": 1490,
  "camera_y": 960,
  "fill_min": 0.45,
  "max_visual_gap": 1.5,
@@ -45,7 +45,7 @@
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 640
+     "x": 600
     },
     {
      "at": 0,
@@ -67,7 +67,7 @@
      "sources": [
       "nasa"
      ],
-     "clip_dur": 3.0,
+     "clip_dur": 2.2,
      "pin": {
       "nasa": "jscm001441_Top_20_Earth_Images_of_2020-4kMP4"
      },
@@ -99,12 +99,25 @@
      "id": "q_text"
     },
     {
-     "at": "who",
-     "do": "reaction",
+     "at": "everything",
+     "do": "point",
      "who": "guide",
+     "toward": "q_text",
+     "hold": 0.5
+    },
+    {
+     "at": "who",
+     "reaction": "confused",
      "face": "confused_math",
      "dur": 1.4,
-     "allow_god": true
+     "allow_god": true,
+     "card": {
+      "x": 330,
+      "y": 1040,
+      "w": 320,
+      "h": 250,
+      "rotate": -4
+     }
     }
    ]
   },
@@ -114,6 +127,27 @@
    "narration": "Fair question. The Bible's answer: nobody.",
    "camera_start": false,
    "events": [
+    {
+     "at": "Fair-0.05",
+     "do": "draw",
+     "id": "fair_w",
+     "type": "word",
+     "text": "Fair question.",
+     "x": 540,
+     "y": 410,
+     "size": 150,
+     "dur": 0.3,
+     "title": true
+    },
+    {
+     "at": "Fair-0.1",
+     "do": "fade",
+     "ids": [
+      "q_text"
+     ],
+     "opacity": 0,
+     "dur": 0.12
+    },
     {
      "at": "Fair",
      "do": "express",
@@ -125,9 +159,9 @@
      "do": "draw",
      "id": "a_book",
      "type": "book",
-     "x": 360,
-     "y": 1000,
-     "scale": 1.0,
+     "x": 330,
+     "y": 1080,
+     "scale": 0.9,
      "dur": 0.35
     },
     {
@@ -138,10 +172,10 @@
      "hold": 0.5
     },
     {
-     "at": "nobody-0.2",
+     "at": "Bible's-0.15",
      "do": "fade",
      "ids": [
-      "q_text"
+      "fair_w"
      ],
      "opacity": 0,
      "dur": 0.15
@@ -152,20 +186,25 @@
      "id": "nobody_w",
      "type": "word",
      "text": "NOBODY.",
-     "x": 540,
-     "y": 410,
-     "size": 220,
+     "x": 600,
+     "y": 880,
+     "size": 150,
      "dur": 0.25,
      "underline": true,
      "hit": true,
-     "why": "nobody"
+     "why": "nobody",
+     "title": true
     },
     {
      "at": "nobody",
      "do": "freeze",
      "who": "guide",
      "dur": 1.0,
-     "zoom": 1.45
+     "zoom": 1.45,
+     "focus": {
+      "x": 600,
+      "y": 1030
+     }
     }
    ]
   },
@@ -195,9 +234,9 @@
      "do": "draw",
      "id": "ch_pad",
      "type": "controller",
-     "x": 360,
-     "y": 1040,
-     "k": 1.15,
+     "x": 300,
+     "y": 1150,
+     "k": 1.0,
      "dur": 0.35
     },
     {
@@ -225,6 +264,13 @@
      "do": "express",
      "who": "guide",
      "expression": "happy"
+    },
+    {
+     "at": "I-0.05",
+     "do": "drift",
+     "who": "guide",
+     "to": 550,
+     "dur": 0.35
     }
    ]
   },
@@ -287,8 +333,9 @@
      "h": 470,
      "query": "newborn baby hand",
      "sources": [
+      "pexels",
       "pixabay",
-      "pexels"
+      "commons"
      ],
      "clip_dur": 2.0
     },
@@ -303,8 +350,9 @@
      "h": 470,
      "query": "smartphone in hand",
      "sources": [
+      "pexels",
       "pixabay",
-      "pexels"
+      "commons"
      ],
      "clip_dur": 2.0
     },
@@ -321,7 +369,7 @@
      "sources": [
       "nasa"
      ],
-     "clip_dur": 2.6,
+     "clip_dur": 1.6,
      "pin": {
       "nasa": "JPL-20221122-SOLSYSf-0001-Orion Dust and Death"
      },
@@ -339,7 +387,7 @@
      "id": "s_dot",
      "type": "dot",
      "x": 430,
-     "y": 960,
+     "y": 1000,
      "r": 30,
      "dur": 0.15
     },
@@ -349,7 +397,7 @@
      "id": "s_line",
      "type": "arrow",
      "x": 430,
-     "y": 960,
+     "y": 1000,
      "dx": 330,
      "dy": 0,
      "bend": 0,
@@ -371,8 +419,8 @@
      "id": "s_god",
      "type": "word",
      "text": "GOD",
-     "x": 500,
-     "y": 1110,
+     "x": 540,
+     "y": 1240,
      "size": 150,
      "color": "accent",
      "dur": 0.25
@@ -383,10 +431,36 @@
      "id": "s_q",
      "type": "word",
      "text": "?",
-     "x": 690,
-     "y": 1105,
+     "x": 700,
+     "y": 1235,
      "size": 150,
      "dur": 0.2
+    },
+    {
+     "at": "says",
+     "do": "draw",
+     "id": "s_needs",
+     "type": "word",
+     "text": "needs a start?",
+     "x": 540,
+     "y": 420,
+     "size": 100,
+     "dur": 0.35,
+     "title": true
+    },
+    {
+     "at": "brain-0.25",
+     "do": "fade",
+     "ids": [
+      "s_head"
+     ],
+     "opacity": 0,
+     "dur": 0.15
+    },
+    {
+     "at": "seen",
+     "do": "pulse",
+     "id": "s_head"
     }
    ]
   },
@@ -401,7 +475,7 @@
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 640
+     "x": 620
     },
     {
      "at": 0,
@@ -438,8 +512,9 @@
      "h": 470,
      "query": "hourglass sand timer",
      "sources": [
+      "pexels",
       "pixabay",
-      "pexels"
+      "commons"
      ],
      "clip_dur": 2.4
     },
@@ -450,7 +525,7 @@
      "type": "word",
      "text": "TIME",
      "x": 320,
-     "y": 980,
+     "y": 1020,
      "size": 150,
      "dur": 0.3
     },
@@ -461,17 +536,10 @@
      "type": "word",
      "text": "made by Him",
      "x": 320,
-     "y": 1120,
+     "y": 1160,
      "size": 90,
      "color": "accent",
      "dur": 0.3
-    },
-    {
-     "at": "made",
-     "do": "reaction",
-     "who": "guide",
-     "face": "mind_blown",
-     "dur": 1.4
     },
     {
      "at": "only",
@@ -487,6 +555,19 @@
      "who": "guide",
      "toward": "t_clock",
      "hold": 0.5
+    },
+    {
+     "at": "made",
+     "reaction": "mind_blown",
+     "face": "mind_blown",
+     "dur": 1.4,
+     "card": {
+      "x": 540,
+      "y": 430,
+      "w": 420,
+      "h": 320,
+      "rotate": 4
+     }
     }
    ]
   },
@@ -646,7 +727,7 @@
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 640
+     "x": 650
     },
     {
      "at": 0,
@@ -666,8 +747,9 @@
      "h": 470,
      "query": "old bible open pages",
      "sources": [
+      "pexels",
       "pixabay",
-      "pexels"
+      "commons"
      ],
      "clip_dur": 2.4
     },
@@ -708,8 +790,8 @@
      "id": "p_nostart",
      "type": "word",
      "text": "no start",
-     "x": 300,
-     "y": 980,
+     "x": 290,
+     "y": 1020,
      "size": 100,
      "dur": 0.3
     },
@@ -719,8 +801,8 @@
      "id": "p_noend",
      "type": "word",
      "text": "no end",
-     "x": 300,
-     "y": 1110,
+     "x": 290,
+     "y": 1150,
      "size": 100,
      "color": "accent",
      "dur": 0.3
@@ -745,6 +827,14 @@
      "do": "express",
      "who": "guide",
      "expression": "happy"
+    },
+    {
+     "at": "you",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "awe",
+     "hold": 0.5
     }
    ]
   },
@@ -774,10 +864,10 @@
       "ref": "John 1:3",
       "text": "All things were made through him."
      },
-     "x": 560,
-     "y": 1030,
-     "size": 66,
-     "w": 420
+     "x": 590,
+     "y": 1180,
+     "size": 56,
+     "w": 340
     },
     {
      "at": "things",
@@ -833,6 +923,13 @@
      "at": "ever",
      "do": "pulse",
      "id": "l_page"
+    },
+    {
+     "at": "list",
+     "do": "point",
+     "who": "guide",
+     "toward": "l_god",
+     "hold": 0.6
     }
    ]
   },
@@ -849,7 +946,7 @@
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 640
+     "x": 600
     },
     {
      "at": 0,
@@ -860,19 +957,35 @@
     },
     {
      "at": "Moses-0.2",
-     "do": "draw",
-     "id": "c_fire",
-     "type": "inset",
+     "id": "c_bush",
      "x": 540,
      "y": 410,
      "w": 820,
      "h": 470,
-     "query": "fire flames close up",
-     "sources": [
-      "pixabay",
-      "pexels"
-     ],
-     "clip_dur": 2.4
+     "meme_clip": {
+      "query": "burning bush",
+      "folders": [
+       "movie_reference"
+      ],
+      "max_s": 2.0
+     },
+     "fallback": {
+      "at": "Moses-0.2",
+      "do": "draw",
+      "id": "c_fire",
+      "type": "inset",
+      "x": 540,
+      "y": 410,
+      "w": 820,
+      "h": 470,
+      "query": "campfire flames night",
+      "sources": [
+       "pexels",
+       "pixabay",
+       "commons"
+      ],
+      "clip_dur": 2.0
+     }
     },
     {
      "at": "name",
@@ -906,9 +1019,9 @@
      "id": "i_was",
      "type": "word",
      "text": "I WAS",
-     "x": 300,
-     "y": 960,
-     "size": 100,
+     "x": 280,
+     "y": 1000,
+     "size": 92,
      "dur": 0.25
     },
     {
@@ -926,8 +1039,8 @@
      "type": "word",
      "text": "I WILL BE",
      "x": 310,
-     "y": 1100,
-     "size": 96,
+     "y": 1140,
+     "size": 84,
      "dur": 0.3
     },
     {
@@ -950,23 +1063,23 @@
   {
    "id": "genesis",
    "panel": 7,
-   "narration": "So the Bible never explains where God came from. Its first line just says: \"In the beginning, God created.\" [Genesis 1:1] He was already there.",
+   "narration": "So the Bible never explains where God came from. Its first line just says: \"In the beginning, God created.\" [Genesis 1:1] Created. Not was created. He's the one who did the creating. He was already there. In the beginning, God did.",
    "camera_start": false,
    "transition": "slide",
    "serious": true,
-   "interaction": false,
+   "interaction": true,
    "events": [
     {
      "at": 0,
      "do": "place",
      "who": "guide",
-     "x": 540
+     "x": 560
     },
     {
      "at": 0,
      "do": "size",
      "who": "guide",
-     "value": 1.0,
+     "value": 0.85,
      "dur": 0.01
     },
     {
@@ -978,7 +1091,8 @@
      "x": 540,
      "y": 410,
      "size": 110,
-     "dur": 0.3
+     "dur": 0.3,
+     "title": true
     },
     {
      "at": "came",
@@ -999,6 +1113,14 @@
      "dur": 0.2
     },
     {
+     "at": "line",
+     "do": "look",
+     "who": "guide",
+     "dir": "up",
+     "expression": "curious",
+     "hold": 0.5
+    },
+    {
      "scripture": {
       "ref": "Genesis 1:1",
       "text": "In the beginning, God created."
@@ -1017,6 +1139,61 @@
      "hold": 0.6
     },
     {
+     "at": "Created#2-0.1",
+     "do": "fade",
+     "ids": [
+      "card4"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "Created#2+0.35",
+     "do": "draw",
+     "id": "w_created",
+     "type": "word",
+     "text": "CREATED",
+     "x": 540,
+     "y": 470,
+     "size": 200,
+     "dur": 0.3,
+     "underline": true,
+     "title": true
+    },
+    {
+     "at": "Not-0.05",
+     "do": "draw",
+     "id": "g_was",
+     "type": "word",
+     "text": "was created",
+     "x": 540,
+     "y": 740,
+     "size": 110,
+     "dur": 0.3
+    },
+    {
+     "at": "created#3",
+     "do": "draw",
+     "id": "gx_was",
+     "type": "strike",
+     "target": "g_was",
+     "dur": 0.2
+    },
+    {
+     "at": "one",
+     "do": "point",
+     "who": "guide",
+     "toward": "w_created",
+     "hold": 0.7
+    },
+    {
+     "at": "Created#2+0.35",
+     "do": "pulse",
+     "id": "w_created",
+     "y": 470,
+     "size": 200
+    },
+    {
      "at": "He-0.1",
      "do": "draw",
      "id": "c_sunrise",
@@ -1025,27 +1202,13 @@
      "y": 410,
      "w": 820,
      "h": 470,
-     "query": "sunrise",
+     "query": "sunrise over mountains",
      "sources": [
-      "pixabay",
       "pexels",
+      "pixabay",
       "nasa"
      ],
-     "clip_dur": 2.6
-    },
-    {
-     "at": "already-0.1",
-     "do": "draw",
-     "id": "e_god",
-     "type": "word",
-     "text": "GOD",
-     "x": 260,
-     "y": 1020,
-     "size": 150,
-     "color": "accent",
-     "dur": 0.25,
-     "hit": true,
-     "why": "He was already there"
+     "clip_dur": 2.4
     },
     {
      "at": "already",
@@ -1061,39 +1224,91 @@
      "who": "guide"
     },
     {
-     "at": "there+0.1",
-     "do": "express",
-     "who": "guide",
-     "expression": "happy"
-    },
-    {
-     "at": "there",
-     "do": "draw",
-     "id": "e_web",
-     "type": "word",
-     "text": "Bible text: WEB",
-     "x": 280,
-     "y": 1150,
-     "size": 32,
-     "color": "inkSoft",
+     "at": "He-0.25",
+     "do": "fade",
+     "ids": [
+      "w_created",
+      "g_was",
+      "gx_was"
+     ],
+     "opacity": 0,
      "dur": 0.2
     },
     {
-     "at": "line",
-     "do": "look",
-     "who": "guide",
-     "dir": "up",
-     "expression": "curious",
-     "hold": 0.5
+     "at": "God#3-0.05",
+     "do": "draw",
+     "id": "e_god",
+     "type": "word",
+     "text": "GOD",
+     "x": 540,
+     "y": 720,
+     "size": 200,
+     "color": "accent",
+     "dur": 0.25,
+     "title": true
     },
     {
-     "at": "just",
+     "at": "did#2-0.05",
+     "do": "draw",
+     "id": "e_did",
+     "type": "word",
+     "text": "DID",
+     "x": 540,
+     "y": 890,
+     "size": 190,
+     "dur": 0.2,
+     "title": true,
+     "hit": true,
+     "why": "God did"
+    },
+    {
+     "at": "did#2",
      "do": "express",
      "who": "guide",
      "expression": "happy"
     },
     {
-     "at": "says",
+     "at": "did#2+0.15",
+     "id": "c_goddid",
+     "x": 540,
+     "y": 400,
+     "w": 820,
+     "h": 440,
+     "meme_clip": {
+      "query": "god did",
+      "folders": [
+       "reactions"
+      ],
+      "max_s": 2.0,
+      "audio": true
+     },
+     "fallback": [
+      {
+       "at": "did#2+0.1",
+       "do": "cheer",
+       "who": "guide"
+      },
+      {
+       "at": "did#2+0.1",
+       "do": "draw",
+       "id": "e_spark",
+       "type": "sparkle",
+       "x": 540,
+       "y": 560,
+       "r": 220,
+       "n": 8,
+       "dur": 0.3,
+       "pop": false
+      }
+     ]
+    },
+    {
+     "at": "did#2+1.0",
+     "do": "cheer",
+     "who": "guide"
+    },
+    {
+     "at": "created",
      "do": "point",
      "who": "guide",
      "toward": "card4",
@@ -1101,5 +1316,10 @@
     }
    ]
   }
- ]
+ ],
+ "post": {
+  "title": "Where Did God Come From?",
+  "caption": "If God made everything, who made God? The Bible's answer is one word. #bible #god #faith #christian #jesus #question",
+  "description": "If God made everything, who made God? The Bible's answer: nobody."
+ }
 }

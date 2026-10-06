@@ -1,4 +1,0 @@
-{
-  "_comment": "Drop your own approved reaction images (PNG/JPG, square, face centred) in this folder and list them here. emotion = shocked | mind_blown | side_eye | crying_laughing | thinking | wait_what (or your own word). Only approved: true entries are used, and only by a scene event with \"use_inbox\": true. Same limits as the built-in faces: max 2 a video, 15 s apart, never on God or a serious/holy beat, under 1.5 s.",
-  "reactions": []
-}

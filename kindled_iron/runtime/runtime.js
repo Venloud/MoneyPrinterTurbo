@@ -404,12 +404,38 @@
       exprs += '<g class="react" data-react="' + r.key + '" opacity="0"><clipPath id="rc-' + id + '-' + r.key + '"><circle cx="0" cy="-38" r="36"/></clipPath>' +
         '<image href="' + r.href + '" x="-38" y="-76" width="76" height="76" preserveAspectRatio="xMidYMid slice" clip-path="url(#rc-' + id + '-' + r.key + ')"/></g>';
     });
-    var hairBack = '', hairFront = '';
-    if (spec.hair === 'long-straight') {
+    var hairBack = '', hairFront = '', headShape = circlePath(0, -38, 33), facial = '';
+    if (spec.head === 'hand') {          // slightly hand-drawn, not perfectly round
+      headShape = 'M1,-72 C21,-73 35,-57 34,-36 C33,-16 21,-4 0,-4 C-20,-4 -34,-16 -33,-38 C-32,-58 -20,-71 1,-72 Z';
+    }
+    if (spec.hair === 'locs') {          // twisted locs to the shoulders, middle part
+      var loc = function (x0, y0, x1, y1, w) {   // one loc: a soft rope with a few twist marks
+        var dx = x1 - x0, dy = y1 - y0, L = Math.sqrt(dx * dx + dy * dy), a = Math.atan2(dy, dx) * 180 / Math.PI - 90;
+        var twists = '';
+        for (var k = 12; k < L - 6; k += 11) twists += 'M' + (-w / 2 + 1.5) + ',' + (k - 3) + ' Q0,' + (k + 2) + ' ' + (w / 2 - 1.5) + ',' + (k + 1) + ' ';
+        return '<g transform="translate(' + x0 + ',' + y0 + ') rotate(' + a.toFixed(1) + ')">' +
+          solid('M' + (-w / 2) + ',0 C' + (-w / 2 - 1) + ',' + (L * 0.5) + ' ' + (-w / 2 + 1) + ',' + (L - 3) + ' 0,' + L +
+                ' C' + (w / 2 + 1) + ',' + (L - 3) + ' ' + (w / 2 - 1) + ',' + (L * 0.5) + ' ' + (w / 2) + ',0 Z', col.hair, 3.2) +
+          p(twists, { w: 1.6, c: '#6A5040' }) + '</g>';
+      };
+      // a small mass behind the crown, then separate locs falling to the shoulders (gaps between them)
+      hairBack = solid('M-34,-44 C-40,-80 40,-80 34,-44 Q0,-52 -34,-44 Z', col.hair, 3.5) +
+        loc(-22, -62, -30, 4, 11) + loc(-30, -54, -42, 6, 11) + loc(-35, -42, -49, -2, 10) +
+        loc(22, -62, 30, 4, 11) + loc(30, -54, 42, 6, 11) + loc(35, -42, 49, -2, 10);
+      // crown with a middle part, one loc on each side framing the face
+      hairFront = solid('M0,-74 C-20,-76 -37,-63 -36,-45 C-31,-53 -23,-58 -13,-60 C-7,-61 -3,-62 0,-66 Z', col.hair, 3.5) +
+        solid('M0,-74 C20,-76 37,-63 36,-45 C31,-53 23,-58 13,-60 C7,-61 3,-62 0,-66 Z', col.hair, 3.5) +
+        p('M0,-74 L0,-65', { w: 2.4, c: 'inkSoft' }) +
+        loc(-32, -52, -35, -10, 9) + loc(32, -52, 35, -10, 9);
+    } else if (spec.hair === 'long-straight') {
       hairBack = solid('M-37,-34 C-42,-84 42,-84 37,-34 L38,10 Q30,15 23,8 L22,-28 L-22,-28 L-23,8 Q-30,15 -38,10 Z', col.hair);
       hairFront = solid('M-31,-50 C-22,-76 22,-76 31,-50 C14,-60 -14,-60 -31,-50 Z', col.hair);
     } else if (spec.hair) {
       hairFront = solid('M-32,-46 C-30,-78 30,-78 32,-46 C16,-58 -16,-58 -32,-46 Z', col.hair);
+    }
+    if (spec.beard === 'goatee') {       // small mustache + chin goatee (under every expression)
+      facial = solid('M-9,-31 C-6,-34 -2,-33 0,-31.5 C2,-33 6,-34 9,-31 C6,-29.5 2,-30 0,-30.5 C-2,-30 -6,-29.5 -9,-31 Z', col.hair, 1.8) +
+        solid('M-6,-12 C-3,-10 3,-10 6,-12 C6,-7 3,-1 0,0 C-3,-1 -6,-7 -6,-12 Z', col.hair, 2);
     }
     var torso = solid('M-20,4 C-25,-30 -27,-68 -19,-90 Q0,-100 19,-90 C27,-68 25,-30 20,4 Q0,12 -20,4 Z', col.shirt);
     var dress = spec.dress ? solid('M-21,-46 L-36,16 Q0,26 36,16 L21,-46 Q0,-40 -21,-46 Z', col.dress) : '';
@@ -434,7 +460,7 @@
       '<g class="mover"><g class="flip"><g class="body" transform="translate(0,' + HIP_Y + ')">' + chute +
       leg('legL', -10) + leg('legR', 10) +
       '<g class="torso">' + arm('armL', -SH_W, true) + torso + dress + scarf +
-      '<g transform="translate(0,-' + (TORSO - 2) + ')"><g class="head">' + hairBack + solid(circlePath(0, -38, 33), col.skin) + hairFront + exprs + snorkel + '</g></g>' +
+      '<g transform="translate(0,-' + (TORSO - 2) + ')"><g class="head"><g class="headbox">' + hairBack + solid(headShape, col.skin) + facial + hairFront + '</g>' + exprs + snorkel + '</g></g>' +
       arm('armR', SH_W, false) + '</g>' +
       '</g></g></g></g></g>';
   }
@@ -916,12 +942,13 @@
         tl.to(cam, { z: e.zoom || 1.35, duration: e.dur || 0.3, ease: 'power2.in' }, e.t); break;
       case 'camera':
         tl.to(cam, { x: e.x, y: e.y, z: e.zoom, r: e.rotate || 0, duration: e.dur || 0.8, ease: e.ease || 'power2.inOut' }, e.t); break;
-      case 'freeze': {         // record-scratch freeze-frame: the picture goes grey, the camera snaps onto the guide
+      case 'freeze': {         // record-scratch freeze-frame (in colour): the camera snaps onto the guide (or e.focus)
         var fg = chars[e.who || 'guide'], fd = e.dur || 1.0;
         if (fg) {
           var fsc = fg.scale * (fg.s.k || 1), gx = charX(e.who || 'guide', e.t), gy = GROUND - 230 * fsc;
           var px = Math.floor(gx / 1080) * 1080 + 540;
-          tl.to(cam, { x: gx, y: gy + 120, z: e.zoom || 1.4, duration: 0.12, ease: 'power3.out' }, e.t);
+          var fx = e.focus ? Math.floor(gx / 1080) * 1080 + e.focus.x : gx, fy = e.focus ? e.focus.y : gy + 120;
+          tl.to(cam, { x: fx, y: fy, z: e.zoom || 1.4, duration: 0.12, ease: 'power3.out' }, e.t);
           tl.to(cam, { x: px, y: D.camera.y, z: 1, duration: 0.35, ease: 'power2.inOut' }, e.t + fd);
           tl.set(fg.s, { expr: 'surprised' }, e.t);
         }
@@ -1103,6 +1130,7 @@
       capEl.style.whiteSpace = 'nowrap'; capEl.style.fontSize = size + 'px';
       while (size > min && capEl.scrollWidth > capEl.clientWidth) { size -= 4; capEl.style.fontSize = size + 'px'; }
       if (capEl.scrollWidth > capEl.clientWidth) capEl.style.whiteSpace = 'normal';
+      capEl.dataset.fit = size;
     }
     if (idx < 0) return;
     var ch = D.captions[idx], spans = capEl.children;
@@ -1111,8 +1139,83 @@
       spans[k].className = active ? 'on' : (t >= w.start ? 'said' : '');
     }
     var age = t - ch.start, pop = age < 0.12 ? 0.86 + 0.14 * (age / 0.12) : 1;
+    capEl.style.transform = 'translateX(-50%)';
+    placeCaptions();
     capEl.style.transform = 'translateX(-50%) scale(' + pop.toFixed(3) + ')';
   }
+  // Captions never overlap a title / big word / card, and never sit on the guide's head: they move, then shrink.
+  var CAP_TOP = null;
+  function isTitle(d) { return d.title || d.type === 'popup' || d.type === 'scripture' || (d.type === 'word' && (d.size || 120) >= 80); }
+  function headBoxes() {
+    var out = [];
+    Object.keys(chars).forEach(function (id) {
+      var c = chars[id]; if (c.s.draw < 0.05 || !shown(c.el)) return;
+      var hb = c.el.querySelector('.headbox'); if (!hb) return;
+      var r = hb.getBoundingClientRect(); if (r.width) out.push(r);
+    });
+    return out;
+  }
+  function titleBoxes() {
+    var out = [];
+    Object.keys(objs).forEach(function (id) {
+      var ob = objs[id]; if (!isTitle(ob.def) || !shown(ob.el)) return;
+      var r = glyphBox(ob); if (!offScreen(r)) out.push([ob.def.text || ob.def.ref || id, r]);
+    });
+    return out;
+  }
+  function capRect() {
+    var cr = null;
+    Array.prototype.forEach.call(capEl.children, function (sp) {
+      var b = sp.getBoundingClientRect();
+      cr = cr ? { left: Math.min(cr.left, b.left), top: Math.min(cr.top, b.top), right: Math.max(cr.right, b.right), bottom: Math.max(cr.bottom, b.bottom) } : { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+    });
+    return cr;
+  }
+  function placeCaptions() {
+    if (CAP_TOP === null) CAP_TOP = parseFloat(getComputedStyle(capEl).top);
+    var fit = parseFloat(capEl.dataset.fit || D.captionSize);
+    capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; capEl.style.visibility = 'visible';
+    if (!capEl.children.length) return;
+    // the same words already written big on screen: no caption on top of it (never "NOBODY. NOBODY.")
+    var norm = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); };
+    var said = norm(capEl.textContent), tbs = titleBoxes();
+    if (said && tbs.some(function (x) { var tt = norm(x[0]); return tt && (tt === said || (' ' + tt + ' ').indexOf(' ' + said + ' ') >= 0); })) {
+      capEl.style.visibility = 'hidden'; return;
+    }
+    var hard = tbs.map(function (x) { return x[1]; }).concat(headBoxes());
+    if (!hard.length) return;
+    // soft: real clips (better not to cover them, but allowed)
+    var soft = [];
+    Object.keys(objs).forEach(function (id) { var ob = objs[id]; if (ob.def.type === 'inset' && shown(ob.el)) soft.push(ob.el.getBoundingClientRect()); });
+    var cl = SAFE.column, pad = 8, best = null;
+    function score(r) {
+      if (r.top < SAFE.y0 || r.bottom > SAFE.y1 || r.left < SAFE.x0 - pad || r.right > SAFE.x1 + pad ||
+          inter(r, { left: cl.x0, top: cl.y0, right: cl.x1, bottom: cl.y1 }) > 0) return null;
+      var h = hard.reduce(function (a, b) { return a + inter(r, b); }, 0);
+      return h * 100 + soft.reduce(function (a, b) { return a + inter(r, b); }, 0) * 0.2;
+    }
+    for (var si = 0; si < 3; si++) {
+      var sz = Math.round(fit * [1, 0.8, 0.64][si]);
+      capEl.style.fontSize = sz + 'px'; capEl.style.top = CAP_TOP + 'px';
+      var r0 = capRect(); if (!r0) return;
+      var off = r0.top - CAP_TOP, hgt = r0.bottom - r0.top;      // glyph box vs the element's top
+      // candidate tops: where it is, then right below / above every blocker
+      var tops = [CAP_TOP];
+      hard.concat(soft).forEach(function (b) { tops.push(b.bottom + 10 - off, b.top - hgt - 10 - off); });
+      tops.sort(function (a, b) { return Math.abs(a - CAP_TOP) - Math.abs(b - CAP_TOP); });
+      for (var ti = 0; ti < tops.length; ti++) {
+        var tp = tops[ti], r = { left: r0.left, right: r0.right, top: tp + off, bottom: tp + off + hgt };
+        var sc = score(r);
+        if (sc === null) continue;
+        if (!best || sc < best[0] - 1) best = [sc, tp, sz];
+        if (sc === 0) break;
+      }
+      if (best && best[0] === 0) break;
+    }
+    if (best) { capEl.style.top = best[1].toFixed(0) + 'px'; capEl.style.fontSize = best[2] + 'px'; }
+    else { capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; }
+  }
+
 
 
   // ambient motion: every drawing keeps living a little once it is on screen (time-pure)
@@ -1202,7 +1305,7 @@
     renderObjects(t);
     renderLight(t);
     var fz = freezeState.v > 0.5;
-    board.style.filter = fz ? 'grayscale(0.85) contrast(1.12)' : '';
+    board.style.filter = fz ? 'saturate(1.25) contrast(1.08)' : '';
     freezeEl.setAttribute('visibility', fz ? 'visible' : 'hidden');
     renderHud();
   }
@@ -1210,7 +1313,8 @@
   var SAFE = D.safe;
   // backdrops / marks meant to sit on or under other drawings
   var NO_OVERLAP_CHECK = { strike: 1, cross: 1, rays: 1, darkness: 1, frame: 1, line: 1, inset: 1, sparkle: 1, splash: 1, circle: 1, light: 1 };
-  var transitions = D.events.filter(function (e) { return (e.do === 'walk' && e.camera) || e.transition || e.do === 'wipe'; })
+  // camera moves (and the record-scratch punch-in, a deliberate crop) are not checked for the safe box
+  var transitions = D.events.filter(function (e) { return (e.do === 'walk' && e.camera) || e.transition || e.do === 'wipe' || e.do === 'freeze'; })
     .map(function (e) { return [e.t - 0.1, e.t + (e.dur || 0.6) + (e.turn || 0) + 0.4]; });
   function inter(a, b) { return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); }
   function shown(el) { return el.getAttribute('visibility') !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0.3; }
@@ -1252,7 +1356,8 @@
       if (!r) return;
       r.width = r.right - r.left; r.height = r.bottom - r.top;
       if (offScreen(r)) return;
-      if (!moving) safeIssues(id, r, out);
+      // feet may go a little below the safe box (owner's call): only the body above y1 counts
+      if (!moving) safeIssues(id, { left: r.left, top: r.top, right: r.right, bottom: Math.min(r.bottom, SAFE.y1 + (r.bottom < SAFE.y1 + 140 ? 0 : 999)), width: r.width, height: r.height }, out);
       boxes[id] = r;
       covers.push(r);
       people.push([id, r, c.s.walk > 0.01]);
@@ -1292,13 +1397,26 @@
         if (r.top > wl) out.push('CONTACT: ' + id + ' is fully under water');
       }
     });
-    if (capEl.textContent.trim()) {
+    if (capEl.textContent.trim() && capEl.style.visibility !== 'hidden') {
       var cr = null, pad = 8;      // real text extent (+ the outline stroke)
       Array.prototype.forEach.call(capEl.children, function (sp) {
         var b = sp.getBoundingClientRect();
         cr = cr ? { left: Math.min(cr.left, b.left), top: Math.min(cr.top, b.top), right: Math.max(cr.right, b.right), bottom: Math.max(cr.bottom, b.bottom) } : { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
       });
-      if (cr) safeIssues('captions', { left: cr.left - pad, top: cr.top, right: cr.right + pad, bottom: cr.bottom }, out);
+      if (cr) {
+        safeIssues('captions', { left: cr.left - pad, top: cr.top, right: cr.right + pad, bottom: cr.bottom }, out);
+        titleBoxes().forEach(function (tb) { if (inter(cr, tb[1]) > 0) out.push('CAPTION OVERLAP: captions overlap "' + tb[0] + '"'); });
+        headBoxes().forEach(function (hb) { if (inter(cr, hb) > 0.05 * hb.width * hb.height) out.push('captions over the guide\'s head'); });
+      }
+    }
+    if (!moving) {
+      var heads = headBoxes();
+      Object.keys(objs).forEach(function (id) {
+        var ob = objs[id], d = ob.def;
+        if (NO_OVERLAP_CHECK[d.type] || d.type === 'inset' || !shown(ob.el)) return;
+        var r = glyphBox(ob); if (offScreen(r)) return;
+        heads.forEach(function (hb) { if (inter(r, hb) > 0.1 * hb.width * hb.height) out.push('object ' + id + ' over the guide\'s head'); });
+      });
     }
     Object.keys(chars).forEach(function (id) {
       var c = chars[id], vx = charX(id, t + 0.05) - charX(id, t - 0.05);

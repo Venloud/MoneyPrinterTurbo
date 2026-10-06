@@ -2,7 +2,9 @@
 
 Sources, all free with no attribution required: NASA Image and Video Library (public domain,
 https://www.nasa.gov/nasa-brand-center/images-and-media/), Pexels (Pexels License,
-PEXELS_API_KEY), Pixabay (Pixabay Content License, PIXABAY_API_KEY). Never CC BY.
+PEXELS_API_KEY), Pixabay (Pixabay Content License, PIXABAY_API_KEY), Wikimedia Commons (no key;
+ONLY files whose API metadata says public domain or CC0). Never CC BY / CC BY-SA.
+Default search order: Pexels -> Pixabay -> Commons; space / Earth shots list NASA first.
 A clip that can't be found or downloaded is skipped silently (the inset is dropped).
 Each clip becomes a short JPEG sequence the page swaps frame by frame. sources.json records
 source page, file URL and licence for every clip used.
@@ -18,11 +20,13 @@ import urllib.request
 from pathlib import Path
 
 MAX_INSETS = 8
-UA = {"User-Agent": "KindledIronBot/1.0 (test renders)"}
+UA = {"User-Agent": "KindledIronBot/1.0 (https://github.com/Venloud/MoneyPrinterTurbo; test renders)"}
+DEFAULT_ORDER = ["pexels", "pixabay", "commons"]
 LICENSES = {
     "nasa": "NASA media: public domain, not copyrighted (NASA images and media guidelines)",
     "pexels": "Pexels License: free to use, no attribution required",
     "pixabay": "Pixabay Content License: free to use, no attribution required",
+    "commons": "Wikimedia Commons: {lic} (no attribution required)",
 }
 
 
@@ -86,7 +90,42 @@ def _pixabay(query: str, pin: str | None) -> list[dict]:
     return out
 
 
-SEARCH = {"nasa": _nasa, "pexels": _pexels, "pixabay": _pixabay}
+def _commons_license(meta: dict) -> str | None:
+    """Public domain / CC0 only, read from the file's own extmetadata; anything else (CC BY, CC BY-SA,
+    GFDL, unknown) is refused."""
+    short = (meta.get("LicenseShortName", {}).get("value") or "").strip()
+    lic = (meta.get("License", {}).get("value") or "").strip().lower()
+    s = short.lower()
+    if "by" in lic.split("-") or "cc-by" in lic or "cc by" in s or "gfdl" in s or "sa" in lic.split("-"):
+        return None
+    if lic in ("pd", "cc0") or lic.startswith("pd-") or s.startswith("public domain") or s == "cc0" or s.startswith("cc0") \
+            or s.startswith("pd"):
+        return short or lic
+    return None
+
+
+def _commons(query: str, pin: str | None) -> list[dict]:
+    params = {"action": "query", "format": "json", "prop": "imageinfo", "iiprop": "url|size|mime|extmetadata",
+              "iiurlwidth": 1280}
+    if pin:
+        params["titles"] = pin if pin.startswith("File:") else f"File:{pin}"
+    else:
+        params.update({"generator": "search", "gsrnamespace": 6, "gsrlimit": 12, "gsrsearch": f"filetype:video {query}"})
+    pages = _json("https://commons.wikimedia.org/w/api.php?" + urllib.parse.urlencode(params)).get("query", {}).get("pages", {})
+    out = []
+    for pg in sorted(pages.values(), key=lambda x: x.get("index", 0)):
+        ii = (pg.get("imageinfo") or [{}])[0]
+        if not ii.get("mime", "").startswith("video/"):
+            continue
+        lic = _commons_license(ii.get("extmetadata", {}))
+        if not lic:
+            continue
+        out.append({"source": "commons", "file_url": ii["url"], "title": pg["title"], "page": ii.get("descriptionurl", ""),
+                    "id": pg["title"], "license_name": lic})
+    return out
+
+
+SEARCH = {"nasa": _nasa, "pexels": _pexels, "pixabay": _pixabay, "commons": _commons}
 
 
 def _download(url: str) -> Path:
@@ -114,7 +153,8 @@ def _frames(clip: Path, start: float, dur: float, w: int, h: int, fps: int, out_
 def fetch(scene: dict, work: Path, log) -> dict:
     """Returns {inset_id: {"frames": [...], "fps": 30, "clip_dur": s} } and writes sources.json."""
     found, sources = {}, []
-    wanted = [ev for b in scene["beats"] for ev in b.get("events", []) if ev.get("do") == "draw" and ev.get("type") == "inset"]
+    wanted = [ev for b in scene["beats"] for ev in b.get("events", []) if ev.get("do") == "draw" and ev.get("type") == "inset"
+              and "frames" not in ev]
     if len(wanted) > MAX_INSETS:
         log(f"WARNING: {len(wanted)} insets requested, keeping the first {MAX_INSETS}")
         wanted = wanted[:MAX_INSETS]
@@ -122,7 +162,7 @@ def fetch(scene: dict, work: Path, log) -> dict:
         dur = max(1.5, min(3.0, float(ev.get("clip_dur", 2.2))))
         fps = 30
         w, h = int(ev.get("w", 380)), int(ev.get("h", 260))
-        order = ev.get("sources", ["nasa", "pexels", "pixabay"])
+        order = ev.get("sources", DEFAULT_ORDER)
         pins = ev.get("pin", {})
         hit = None
         for src in order:
@@ -152,7 +192,8 @@ def fetch(scene: dict, work: Path, log) -> dict:
         c, start, frames = hit
         found[ev["id"]] = {"frames": frames, "fps": fps, "clip_dur": round(len(frames) / fps, 3)}
         sources.append({"inset": ev["id"], "query": ev.get("query"), "source": c["source"], "id": c["id"], "title": c["title"],
-                        "page": c["page"], "file_url": c["file_url"], "license": LICENSES[c["source"]],
+                        "page": c["page"], "file_url": c["file_url"],
+                        "license": LICENSES[c["source"]].format(lic=c.get("license_name", "")),
                         "start": start, "duration": round(len(frames) / fps, 2)})
         log(f"inset {ev['id']}: {c['source']} {c['id']} ({c['title'][:50]})")
     (work / "sources.json").write_text(json.dumps(sources, indent=1))

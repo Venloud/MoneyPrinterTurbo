@@ -2,8 +2,9 @@ name: Kindled Iron Test Render
 
 # Test only: renders one scene JSON. Never publishes to TikTok/YouTube or anywhere public.
 # Default voice is Kokoro. Tick my_voice for the owner's ElevenLabs voice (fallback: Chatterbox -> Kokoro).
-# With my_voice, the videos go to the owner's PRIVATE voice repo (release "test-renders"), not to the
-# public artifacts of this fork.
+# With my_voice, or when third-party clips / meme images were used, the videos go to the owner's PRIVATE
+# repo (release "test-renders"), never to the public artifacts of this fork. Third-party media is loaded at
+# render time from that private repo (folders reactions/ and movie_reference/).
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +16,10 @@ on:
         description: "Use my cloned voice (ElevenLabs)"
         type: boolean
         default: false
+      third_party_clips:
+        description: "Use third-party clips / meme images (off = pinned stock + guide fallbacks)"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -67,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install kokoro soundfile faster-whisper playwright
+          pip install kokoro soundfile faster-whisper playwright yt-dlp
           python -m spacy download en_core_web_sm
 
       - name: Chatterbox fallback (my_voice only; separate venv + private reference clip)
@@ -89,25 +94,57 @@ jobs:
           echo "KI_CHATTERBOX_PYTHON=$RUNNER_TEMP/cbx/bin/python" >> "$GITHUB_ENV"
           echo "KI_VOICE_REF_DIR=$RUNNER_TEMP/voice_refs" >> "$GITHUB_ENV"
 
+      - name: API keys work? (never printed)
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+          GIPHY_API_KEY: ${{ secrets.GIPHY_API_KEY }}
+        run: |
+          check() {   # name, url, [header]
+            if [ -z "$4" ]; then echo "$1: not set" | tee -a keys.txt; return; fi
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 ${3:+-H "$3"} "$2" || echo 000)
+            [ "$code" = 200 ] && echo "$1: OK" | tee -a keys.txt || echo "$1: FAILED (HTTP $code)" | tee -a keys.txt
+          }
+          check PEXELS_API_KEY "https://api.pexels.com/videos/search?query=sky&per_page=1" "Authorization: $PEXELS_API_KEY" "$PEXELS_API_KEY"
+          check PIXABAY_API_KEY "https://pixabay.com/api/videos/?key=$PIXABAY_API_KEY&q=sky&per_page=3" "" "$PIXABAY_API_KEY"
+          check FREESOUND_API_KEY "https://freesound.org/apiv2/search/text/?query=whoosh&page_size=1&token=$FREESOUND_API_KEY" "" "$FREESOUND_API_KEY"
+          check GIPHY_API_KEY "https://api.giphy.com/v1/gifs/search?api_key=$GIPHY_API_KEY&q=wow&limit=1" "" "$GIPHY_API_KEY"
+          { echo "### API keys"; sed 's/^/- /' keys.txt; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Third-party media from the private repo (reactions/, movie_reference/)
+        if: ${{ inputs.third_party_clips && env.HAS_VOICE_REPO == 'true' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::warning::$VOICE_REPO is not private: third-party media not loaded"; exit 0; }
+          d="$RUNNER_TEMP/private_media"
+          git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+          git -C "$d" sparse-checkout set reactions movie_reference
+          ls -la "$d/reactions" "$d/movie_reference" 2>/dev/null || true
+          echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
+
       - name: Render (+ safe-box debug copy and stills)
         env:
           ELEVENLABS_API_KEY: ${{ inputs.my_voice && secrets.ELEVENLABS_API_KEY || '' }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           TTS: ${{ inputs.my_voice && 'elevenlabs' || 'kokoro' }}
+          KI_THIRD_PARTY: ${{ inputs.third_party_clips && '1' || '0' }}
+          KI_YTDLP: "1"
         run: |
           set -euo pipefail
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
             --work storage/kindled_iron/work --tts "$TTS" --debug-copy
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
-            --work storage/kindled_iron/work --reuse-audio --safe-box --frames-only 0,1,3,6,10,15,20,25,30,35,40,45,50
+            --work storage/kindled_iron/work --reuse-audio --safe-box --frames-only 0,2,4.5,6,10,15,20,25,30,35,40,45,50,55,58,60
+          python -m kindled_iron.action_sheet --faces --out storage/kindled_iron/test_faces.png
 
-      - name: Music candidates under the same 10 s of voice
-        run: python -m kindled_iron.music_samples --work storage/kindled_iron/work --out storage/kindled_iron/music_samples
-
-      - name: Delete the reference clip
+      - name: Delete the reference clip and the private media
         if: always()
-        run: rm -rf "$RUNNER_TEMP/voice_refs"
+        run: rm -rf "$RUNNER_TEMP/voice_refs" "$RUNNER_TEMP/private_media"
 
       - name: Save voice audio + clips cache (even if a later step fails)
         if: always()
@@ -117,12 +154,13 @@ jobs:
           key: ki-media-${{ github.run_id }}
 
       - name: Check the MP4 with ffprobe
+        id: check
         run: |
           set -euo pipefail
           f=storage/kindled_iron/test.mp4
           ffprobe -v error -show_entries stream=codec_type,codec_name,width,height,r_frame_rate:format=duration,size -of default=noprint_wrappers=1 "$f"
           python - <<'PY'
-          import json, subprocess, sys
+          import json, os, subprocess, sys
           f = "storage/kindled_iron/test.mp4"
           info = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", f]))
           v = [s for s in info["streams"] if s["codec_type"] == "video"]
@@ -136,16 +174,22 @@ jobs:
           if not 30.0 <= dur <= 75.0:
               problems.append(f"duration {dur:.1f} s is outside 30-75 s")
           meta = json.load(open("storage/kindled_iron/test_meta.json"))
+          tp = meta.get("third_party", {})
+          used = bool(tp.get("clips") or tp.get("images"))
           print(f"duration {dur:.2f} s, words {meta['words']}, voice {meta['voice'].get('provider_used')}"
-                f"{' (FALLBACK VOICE)' if meta['voice'].get('fallback') else ''}, insets {len(meta['insets'])}")
+                f"{' (FALLBACK VOICE)' if meta['voice'].get('fallback') else ''}, insets {len(meta['insets'])}, "
+                f"third-party used: {used}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as o:
+              o.write(f"third_party={'true' if used else 'false'}\n")
           if problems:
               sys.exit("FAIL: " + "; ".join(problems))
           print("OK")
           PY
           ffmpeg -v error -i "$f" -f null - && echo "decode OK"
 
-      - name: My voice -> private repo (never a public artifact)
-        if: ${{ inputs.my_voice && env.HAS_VOICE_REPO == 'true' }}
+      - name: Private videos -> private repo (my voice and/or third-party media; never a public artifact)
+        id: private
+        if: ${{ (inputs.my_voice || steps.check.outputs.third_party == 'true') && env.HAS_VOICE_REPO == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
         run: |
@@ -162,12 +206,15 @@ jobs:
           cp storage/kindled_iron/test.mp4 "$name-$stamp.mp4"
           cp storage/kindled_iron/test_safebox.mp4 "$name-$stamp-safebox.mp4"
           cp storage/kindled_iron/test_novoice.mp4 "$name-$stamp-novoice.mp4"
-          for m in storage/kindled_iron/music_samples/music_*.mp3; do cp "$m" "$name-$stamp-$(basename "$m")"; done
+          (cd storage/kindled_iron/work && zip -q -r "$OLDPWD/$name-$stamp-stills.zip" stills)
+          cp storage/kindled_iron/test_insets.jpg "$name-$stamp-insets.jpg" 2>/dev/null || true
           gh release upload test-renders --repo "$VOICE_REPO" --clobber "$name-$stamp.mp4" "$name-$stamp-safebox.mp4" \
-            "$name-$stamp-novoice.mp4" "$name-$stamp"-music_*.mp3
+            "$name-$stamp-novoice.mp4" "$name-$stamp-stills.zip" $(ls "$name-$stamp-insets.jpg" 2>/dev/null)
+          echo "url=https://github.com/$VOICE_REPO/releases/tag/test-renders" >> "$GITHUB_OUTPUT"
+          echo "file=$name-$stamp.mp4" >> "$GITHUB_OUTPUT"
           echo "Uploaded to https://github.com/$VOICE_REPO/releases/tag/test-renders"
 
-      - name: Upload stills, metadata, sources (no voice audio)
+      - name: Upload metadata, sources, pose sheet (no voice audio, no third-party media)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -178,13 +225,21 @@ jobs:
             storage/kindled_iron/test_sources.json
             storage/kindled_iron/test_sounds.json
             storage/kindled_iron/test_insets.jpg
-            storage/kindled_iron/work/stills/**
+            storage/kindled_iron/test_faces.png
             storage/kindled_iron/work/checks.json
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Upload the videos (Kokoro voice only)
-        if: ${{ !inputs.my_voice }}
+      - name: Stills (only when no third-party media was used)
+        if: ${{ steps.check.outputs.third_party != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindled-iron-test-stills
+          path: storage/kindled_iron/work/stills/**
+          retention-days: 14
+
+      - name: Upload the videos (Kokoro voice, no third-party media only)
+        if: ${{ !inputs.my_voice && steps.check.outputs.third_party != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-test-video
@@ -192,10 +247,31 @@ jobs:
             storage/kindled_iron/test.mp4
             storage/kindled_iron/test_safebox.mp4
             storage/kindled_iron/test_novoice.mp4
-            storage/kindled_iron/music_samples/*.mp3
           retention-days: 14
 
-      - name: my_voice without a private repo
-        if: ${{ inputs.my_voice && env.HAS_VOICE_REPO != 'true' }}
+      - name: Phone alert (ntfy)
+        if: ${{ success() }}
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          LINK: ${{ steps.private.outputs.url || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+          FILE: ${{ steps.private.outputs.file }}
         run: |
-          echo "::warning::my_voice was ticked but VOICE_REPO_TOKEN is not set, so the video was NOT uploaded anywhere (it holds your cloned voice). Set up the private repo (kindled_iron/README.md) and run again; the voice audio is cached, so the rerun costs 0 credits."
+          if [ -z "$NTFY_TOPIC" ]; then echo "::notice::NTFY_TOPIC not set: no phone alert"; exit 0; fi
+          python - <<'PY'
+          import json, os, urllib.request
+          m = json.load(open("storage/kindled_iron/test_meta.json"))
+          post = m.get("post", {})
+          body = (f"{post.get('caption', '')}\n\nDescription:\n{post.get('description', '')}\n\n"
+                  f"{m['duration']:.1f} s, {m['voice'].get('wpm', '?')} wpm, voice {m['voice'].get('provider_used')}\n"
+                  f"{os.environ['LINK']} {os.environ.get('FILE', '')}".strip())
+          req = urllib.request.Request("https://ntfy.sh/" + os.environ["NTFY_TOPIC"], data=body.encode(), method="POST",
+                                       headers={"Title": ("Kindled Iron render ready: " + post.get("title", m["scene"])).encode("utf-8").decode("latin-1", "ignore"),
+                                                "Tags": "movie_camera", "Click": os.environ["LINK"]})
+          urllib.request.urlopen(req, timeout=20)
+          print("ntfy sent")
+          PY
+
+      - name: Private render without a private repo
+        if: ${{ (inputs.my_voice || steps.check.outputs.third_party == 'true') && env.HAS_VOICE_REPO != 'true' }}
+        run: |
+          echo "::warning::This render has your cloned voice and/or third-party clips, but VOICE_REPO_TOKEN is not set, so the video was NOT uploaded anywhere. Set up the private repo (kindled_iron/README.md) and run again."

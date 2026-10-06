@@ -14,6 +14,9 @@ INBOX = HERE / "reactions_inbox"
 SR = 44100
 
 BUILTIN_FACES = {"confused_math", "puzzled", "surprised", "shocked", "mind_blown", "side_eye", "crying_laughing", "thinking", "wait_what"}
+# {"reaction": "<emotion>"} -> the guide's drawn face for that emotion (the meme image, if any, pops in beside him)
+EMOTION_FACE = {"confused": "confused_math", "confused_math": "confused_math", "mind_blown": "mind_blown", "surprised": "surprised",
+                "shocked": "shocked", "smart": "thinking", "thinking": "thinking", "celebration": "crying_laughing"}
 MAX_REACTIONS, MIN_GAP = 3, 3.0
 
 
@@ -26,9 +29,16 @@ def _inbox() -> list[dict]:
     return [r for r in items if r.get("approved") and (INBOX / r.get("file", "")).exists()]
 
 
-def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, work: Path, log) -> list[dict]:
-    """Hard limits: max 2 a video, never two within 15 s, never on a serious/holy beat or on the word
-    'God', each under 1.5 s. Extras are dropped with a WARNING. Resolves inbox images."""
+def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, work: Path, log, data: dict | None = None,
+                         third_party: bool = False) -> tuple[list[dict], list[dict]]:
+    """Hard limits: max 3 a video, 3 s apart, never on a serious/holy beat, a scripture card or the
+    word 'God', each under 1.5 s. Extras are dropped with a WARNING. With third-party media on, an
+    emotion request also pops a meme image beside the guide (private reactions/ -> ReactionPics).
+    Returns (inbox faces, third-party images used)."""
+    from kindled_iron import private_media
+
+    cards = [(o["_t0"], o["_t1"]) for o in (data or {}).get("objects", []) if o.get("type") == "scripture" and "_t0" in o]
+    meme_used = []
     serious = [spans[i] for i, b in enumerate(scene["beats"]) if b.get("serious")]
     god_times = [w["start"] for bw in beat_words for w in bw if re.sub(r"[^a-z]", "", w["word"].lower()) == "god"]
     inbox, inbox_used = _inbox(), []
@@ -45,12 +55,22 @@ def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, wor
             why = "on a serious/holy beat"
         elif not e.get("allow_god") and any(abs(e["t"] - g) < 0.4 for g in god_times):
             why = "on the word 'God'"
+        elif any(a - 0.2 <= e["t"] <= b + 0.2 for a, b in cards):
+            why = "on a scripture card"
         if why:
             log(f"WARNING: reaction at {e['t']:.1f} s dropped ({why})")
             e["_drop"] = True
             continue
         e["dur"] = min(1.5, float(e.get("dur", 1.2)))
-        want = e.get("face") or e.get("emotion")
+        emotion = e.get("emotion")
+        want = e.get("face") or EMOTION_FACE.get(emotion, emotion)
+        if third_party and emotion and e.get("image", True) and data is not None:
+            got = private_media.reaction_card(emotion, e["t"], e["dur"], e.get("card") or {}, work, len(meme_used) + 1)
+            if got:
+                obj, ev, rec = got
+                data["objects"].append(obj)
+                data["events"].append(ev)
+                meme_used.append({**rec, "t": round(e["t"], 2)})
         # the owner's own approved images in reactions_inbox/ win over the drawn faces
         pick = next((r for r in inbox if r["emotion"] == want), None) if e.get("use_inbox", True) else None
         if pick:
@@ -67,8 +87,8 @@ def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, wor
         kept.append(e)
         last = e["t"]
     desc = ", ".join("%s at %.1f s" % (x["face"], x["t"]) for x in kept) or "none"
-    log(f"reactions: {len(kept)} ({desc})")
-    return inbox_used
+    log(f"reactions: {len(kept)} ({desc})" + "".join(f"; meme image {m['origin']} at {m['t']:.1f} s" for m in meme_used))
+    return inbox_used, meme_used
 
 
 # --------------------------------------------------------------- paper

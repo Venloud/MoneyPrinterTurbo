@@ -306,7 +306,6 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
         amb_used.append({"t": round(ia / SR, 2), "to": round(n / SR, 2), "role": "music", "file": "music_0.ogg"})
     bed *= duck
     fx *= duck                                    # everything ducks under speech
-    # the loudness target is set on the VOICE alone; effects ride along at their offsets (never boosted)
     # the VOICE alone is set to the target (gentle compressor, then gain + limiter at -1 dBFS); effects, ambience
     # and music follow by the same factor, so they keep their offsets and are never boosted to reach loudness
     vc = _ff(v, "acompressor=threshold=-24dB:ratio=4:attack=5:release=100:knee=6")   # tame the peaks first

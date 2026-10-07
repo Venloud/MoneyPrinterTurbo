@@ -540,6 +540,32 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         browser.close()
 
 
+def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
+    """music_source: mine (the owner's track from the private repo's music/, at music_start) | generated (an
+    ElevenLabs Music theme from KI_MUSIC_DIR) | none. Mix settings from voice_profiles.json."""
+    base = {k: chan.get(f"music_{k}") for k in ("level_db", "duck_db", "dip_db", "lift_db") if chan.get(f"music_{k}") is not None}
+    if source == "mine":
+        root = os.environ.get("KI_PRIVATE_MEDIA")
+        name = chan.get("music_file") or ""
+        f = Path(root) / "music" / name if root and name else None
+        if f and f.is_file():
+            log(f"music: mine ({name}) from {chan.get('music_start', 0)} s")
+            return ({**base, "file": str(f), "start": float(chan.get("music_start", 0)), "label": name, "lift_at": None},
+                    {"source": "mine", "file": name, "start": chan.get("music_start", 0), "use_third_party_music": True})
+        log(f"WARNING: music_source 'mine' but {name or 'no music_file'} is not in the private repo's music/: using the generated theme")
+        source = "generated"
+    if source == "generated":
+        d = os.environ.get("KI_MUSIC_DIR")
+        name = chan.get("music_generated", "theme_1")
+        f = Path(d) / f"{name}.mp3" if d else None
+        if f and f.is_file():
+            log(f"music: generated ElevenLabs theme {name}")
+            return ({**base, "file": str(f), "start": 0.0, "label": f"ElevenLabs Music {name}", "lift_at": None},
+                    {"source": "generated", "file": f"{name}.mp3", "use_third_party_music": False})
+        log(f"WARNING: generated theme {name} not available (KI_MUSIC_DIR): no music")
+    return None, {"source": "none", "use_third_party_music": False}
+
+
 def post_text(scene: dict) -> dict:
     """Title / caption / description for the TikTok draft (the description carries the Bible credit)."""
     p = dict(scene.get("post") or {})
@@ -565,9 +591,7 @@ def main() -> None:
                     help="voice provider (default: the voice profile's tts_provider)")
     ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
     ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
-    ap.add_argument("--recording", default=None, help="the owner's own reading (private file): his delivery in his cloned "
-                    "voice via ElevenLabs speech-to-speech, fallback text-to-speech matched to it; no pause edits")
-    ap.add_argument("--music", default=None, help="music track name (vendor/sfx/lib/music_<name>.ogg); default: channel music_track")
+    ap.add_argument("--music", default=None, help="music source: mine | generated | none (default: voice_profiles.json music_source)")
     a = ap.parse_args()
 
     scene_path = Path(a.scene)
@@ -604,11 +628,13 @@ def main() -> None:
         provider = a.tts or profile.get("tts_provider", "kokoro")
         segs = pacing.plan(texts, profile)
         raw = work / "narration_raw.wav"
-        if a.recording:
-            from kindled_iron import recording_voice
-
-            voice_meta = recording_voice.voice(Path(a.recording), [w for txt in texts for w in words_of(txt)], raw,
-                                               profile, work, log)
+        tts_text = scene.get("tts_text")
+        if tts_text:     # voice-only punctuation (one request); must be the script's words exactly
+            norm = lambda ws: [re.sub(r"[^a-z0-9']", "", w.lower().replace("’", "'")) for w in ws]
+            if norm(tts_text.split()) != norm([w for txt in texts for w in words_of(txt)]):
+                raise SystemExit("FAIL: tts_text is not the script's words (only punctuation may differ)")
+            voice_meta = tts.voice([(tts_text, 0.0)], raw, profile, provider, log)
+            voice_meta["tts_text"] = tts_text
         else:
             voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -620,10 +646,10 @@ def main() -> None:
         aligned = wt.align(flat, heard, (0.0, audio_len))
         # Pauses: every sentence gap is set to its target on the final audio; timings shift with it.
         audio, sr = sf.read(raw, dtype="float32")
-        if a.recording:      # his delivery stays exactly as read: no trimming, no pause insertion
-            pace_stats = {"mode": "recording", "longest_silence": round(max(
+        if tts_text:         # the returned read stays exactly as it is: no trimming, no pause insertion
+            pace_stats = {"mode": "as read", "longest_silence": round(max(
                 [aligned[i + 1]["start"] - aligned[i]["end"] for i in range(len(aligned) - 1)] or [0]), 2)}
-            log(f"pacing: the recording's own pauses (longest {pace_stats['longest_silence']:.2f} s), no edits")
+            log(f"pacing: the voice as returned (longest pause {pace_stats['longest_silence']:.2f} s), no edits")
         else:
             audio, aligned, pace_stats = pacing.enforce(audio, sr, aligned, segs, profile, log)
         sf.write(wav, audio, sr)
@@ -694,14 +720,14 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     from kindled_iron import sound
 
-    cues = sound.plan(data["events"], data["objects"], scene, spans)
-    music = {"track": a.music or scene.get("music_track") or chan.get("music_track"), "lift_at": None}
+    cues = sound.plan(data["events"], data["objects"], scene, spans, words=[w for bw in beat_words for w in bw])
+    music, music_meta = music_choice(a.music or os.environ.get("KI_MUSIC_SOURCE") or chan.get("music_source", "none"), chan, log)
     for b, beat in enumerate(scene["beats"]):
-        if beat.get("music_lift") is not None:      # a small lift at the ending, from this word on
+        if music and beat.get("music_lift") is not None:      # a small lift at the ending, from this word on
             music["lift_at"] = resolve_at(beat["music_lift"], beat_words[b], spans[b][0], spans[b][1], {})
     flat_words = [w for bw in beat_words for w in bw]
     mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music, log,
-                      overlays=[(t0, Path(f)) for t0, f, _ in overlays])
+                      overlays=[(t0, Path(f)) for t0, f, _ in overlays], out_nomusic=work / "mix_nomusic.wav")
     snd = sound.report(cues, mixed["beds"], duration)
     snd["lufs"] = mixed["lufs"]
     (work / "sounds.json").write_text(json.dumps(snd, indent=1))
@@ -712,6 +738,10 @@ def main() -> None:
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out), "-i", str(work / "mix_novoice.wav"), "-map", "0:v", "-map", "1:a",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", str(novoice)], check=True)
     log(f"voice-muted copy: {novoice}")
+    nomusic = out.with_name(out.stem + "_nomusic.mp4")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out), "-i", str(work / "mix_nomusic.wav"), "-map", "0:v", "-map", "1:a",
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", str(nomusic)], check=True)
+    log(f"no-music copy: {nomusic}")
     shutil.copy(work / "sounds.json", out.with_name(out.stem + "_sounds.json"))
     if (work / "insets_contact_sheet.jpg").exists():
         shutil.copy(work / "insets_contact_sheet.jpg", out.with_name(out.stem + "_insets.jpg"))
@@ -723,7 +753,7 @@ def main() -> None:
             "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues),
             "longest_sound_gap": snd["longest_gap"], "lufs": mixed["lufs"], "empty_stretches": empty,
             "verse_check": verse_results, "third_party": {"enabled": third_party, "clips": memes, "images": meme_images},
-            "post": post_text(scene),
+            "post": post_text(scene), "music": music_meta, "use_third_party_music": music_meta.get("use_third_party_music", False),
             "audio": {k: mixed.get(k) for k in ("lufs", "voice_lufs", "true_peak", "lf_burst")}}
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
     p = meta["post"]             # caption file the publisher reads

@@ -21,8 +21,8 @@ on:
         description: "Use third-party clips / meme images (off = pinned stock + guide fallbacks)"
         type: boolean
         default: true
-      recording:
-        description: "Your own reading in the private repo (e.g. recordings/where-did-god-come-from_take3.m4a); empty = text-to-speech"
+      music_source:
+        description: "Music: mine (private music/), generated (ElevenLabs theme), none; empty = voice_profiles.json"
         required: false
         default: ""
 
@@ -117,8 +117,8 @@ jobs:
           check GIPHY_API_KEY "https://api.giphy.com/v1/gifs/search?api_key=$GIPHY_API_KEY&q=wow&limit=1" "" "$GIPHY_API_KEY"
           { echo "### API keys"; sed 's/^/- /' keys.txt; } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Private media from the private repo (reactions/, movie_reference/, recordings/)
-        if: ${{ (inputs.third_party_clips || inputs.recording != '') && env.HAS_VOICE_REPO == 'true' }}
+      - name: Private media from the private repo (reactions/, movie_reference/, music/)
+        if: ${{ env.HAS_VOICE_REPO == 'true' }}
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
@@ -127,9 +127,26 @@ jobs:
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::warning::$VOICE_REPO is not private: third-party media not loaded"; exit 0; }
           d="$RUNNER_TEMP/private_media"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
-          git -C "$d" sparse-checkout set reactions movie_reference recordings
+          git -C "$d" sparse-checkout set reactions movie_reference music
+          echo "music/ in the private repo:"; ls -la "$d/music" 2>/dev/null || echo "  (no music/ folder)"
           ls -la "$d/reactions" "$d/movie_reference" 2>/dev/null || true
           echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
+
+      - name: Music themes (ElevenLabs Music, kept in the private release "music-themes")
+        if: ${{ inputs.my_voice && env.HAS_VOICE_REPO == 'true' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/music_themes"; mkdir -p "$d"
+          gh release view music-themes --repo "$VOICE_REPO" >/dev/null 2>&1 || \
+            gh release create music-themes --repo "$VOICE_REPO" --title "Kindled Iron music themes" --notes "Original ElevenLabs Music candidates. Private."
+          gh release download music-themes --repo "$VOICE_REPO" --dir "$d" --clobber 2>/dev/null || true
+          python -m kindled_iron.music_gen --out "$d"
+          gh release upload music-themes --repo "$VOICE_REPO" --clobber "$d"/*.mp3 "$d"/themes.json 2>/dev/null || true
+          echo "KI_MUSIC_DIR=$d" >> "$GITHUB_ENV"
 
       - name: Render (+ safe-box debug copy and stills)
         env:
@@ -138,23 +155,19 @@ jobs:
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           TTS: ${{ inputs.my_voice && 'elevenlabs' || 'kokoro' }}
           KI_THIRD_PARTY: ${{ inputs.third_party_clips && '1' || '0' }}
+          KI_MUSIC_SOURCE: ${{ inputs.music_source }}
           KI_YTDLP: "1"
         run: |
           set -euo pipefail
-          rec=()
-          if [ -n "${{ inputs.recording }}" ]; then
-            [ -f "${KI_PRIVATE_MEDIA:-/nonexistent}/${{ inputs.recording }}" ] || { echo "FAIL: recording ${{ inputs.recording }} not found in the private repo"; exit 1; }
-            rec=(--recording "$KI_PRIVATE_MEDIA/${{ inputs.recording }}" --whisper-model small.en)
-          fi
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
-            --work storage/kindled_iron/work --tts "$TTS" --debug-copy "${rec[@]}"
+            --work storage/kindled_iron/work --tts "$TTS" --debug-copy --whisper-model small.en
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
             --work storage/kindled_iron/work --reuse-audio --safe-box --frames-only 0,2,4.5,6,10,15,20,25,30,35,40,45,50,55,60,65,70,74,76,77
           python -m kindled_iron.action_sheet --faces --out storage/kindled_iron/test_faces.png
 
       - name: Delete the reference clip and the private media
         if: always()
-        run: rm -rf "$RUNNER_TEMP/voice_refs" "$RUNNER_TEMP/private_media"
+        run: rm -rf "$RUNNER_TEMP/voice_refs" "$RUNNER_TEMP/private_media" "$RUNNER_TEMP/music_themes"
 
       - name: Save voice audio + clips cache (even if a later step fails)
         if: always()
@@ -185,7 +198,7 @@ jobs:
               problems.append(f"duration {dur:.1f} s is outside 30-120 s")
           meta = json.load(open("storage/kindled_iron/test_meta.json"))
           tp = meta.get("third_party", {})
-          used = bool(tp.get("clips") or tp.get("images"))
+          used = bool(tp.get("clips") or tp.get("images") or meta.get("music", {}).get("source") in ("mine", "generated"))
           print(f"duration {dur:.2f} s, words {meta['words']}, voice {meta['voice'].get('provider_used')}"
                 f"{' (FALLBACK VOICE)' if meta['voice'].get('fallback') else ''}, insets {len(meta['insets'])}, "
                 f"third-party used: {used}")
@@ -216,12 +229,13 @@ jobs:
           cp storage/kindled_iron/test.mp4 "$name-$stamp.mp4"
           cp storage/kindled_iron/test_safebox.mp4 "$name-$stamp-safebox.mp4"
           cp storage/kindled_iron/test_novoice.mp4 "$name-$stamp-novoice.mp4"
+          cp storage/kindled_iron/test_nomusic.mp4 "$name-$stamp-nomusic.mp4"
           (cd storage/kindled_iron/work && zip -q -r "$OLDPWD/$name-$stamp-stills.zip" stills)
           cp storage/kindled_iron/test_insets.jpg "$name-$stamp-insets.jpg" 2>/dev/null || true
           cp storage/kindled_iron/test_meta.json "$name-$stamp.meta.json"
           cp storage/kindled_iron/test.post.txt "$name-$stamp.post.txt"
           gh release upload test-renders --repo "$VOICE_REPO" --clobber "$name-$stamp.mp4" "$name-$stamp-safebox.mp4" \
-            "$name-$stamp-novoice.mp4" "$name-$stamp-stills.zip" "$name-$stamp.meta.json" "$name-$stamp.post.txt" \
+            "$name-$stamp-novoice.mp4" "$name-$stamp-nomusic.mp4" "$name-$stamp-stills.zip" "$name-$stamp.meta.json" "$name-$stamp.post.txt" \
             $(ls "$name-$stamp-insets.jpg" 2>/dev/null)
           echo "url=https://github.com/$VOICE_REPO/releases/tag/test-renders" >> "$GITHUB_OUTPUT"
           echo "file=$name-$stamp.mp4" >> "$GITHUB_OUTPUT"

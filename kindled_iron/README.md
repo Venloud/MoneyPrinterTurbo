@@ -64,20 +64,33 @@ Other channels can still use the older sentence pauses (`pause_sentence`, `pause
   `"at": "pause"` / `"pause#2"` puts any event in the 1st / 2nd pause of its beat (the DAY counter ticks
   in the pause before each "Day N" line).
 
-## Voice paced by the owner's own reading (recording_voice.py)
-`render.py --recording <file>` (workflow input `recording`, a path inside the private repo, e.g.
-`recordings/where-did-god-come-from_take3.m4a`). The recording is a SILENT timing guide, never heard: it is measured
-(words per minute, every pause, the words he leans on) and the cloned voice reads the script with normal
-ElevenLabs text-to-speech, ONE request, tts_text punctuated the way he spoke (a sentence he ran on ends with a comma,
-a real pause gets a full stop, a long one an ellipsis), speed chosen for his pace within 0.90-1.05. Never cut,
-re-spaced or stretched; if the clone's pauses at his 4 biggest beats are far off, that punctuation is strengthened
-and it is regenerated ONCE. Recordings live ONLY in the private repo.
+## Voice text (scene "tts_text")
+The voice reads the scene's `tts_text` in ONE ElevenLabs request: the script's exact words (checked; only
+punctuation may differ), with short fragments joined by commas so it does not sound chopped and real stops only
+where a stop is wanted. Captions and on-screen text keep the script's own punctuation. The returned read is never
+cut, re-spaced or stretched. Delivery: calm, soft, conversational (speed 0.97, stability 0.5, similarity 0.8,
+style 0.18; if it sounds pushed or bright, lower style first). No recording is used anywhere.
 
 ## Clean voice (sound.py, every provider)
 High-pass 85 Hz, de-plosive (the band under 160 Hz is compressed hard only above its own loud level), light
-de-esser, gentle compression; voice at -16 LUFS, true peak -1.5 dBTP; effects follow the voice (sound_levels.json
-offsets). A clip's own audio is matched to 1 dB under the voice. The render FAILS if true peak > -1.0 dBTP or a
-low-frequency burst (< 120 Hz) is more than 10 dB above the voice's average level.
+de-esser, a 1.5 dB dip at 3 kHz, gentle compression; voice at -17 LUFS, true peak target -2.5 dBTP. A clip's own
+audio ("God did") is matched to 1 dB under the voice. The render FAILS if true peak > -2.0 dBTP or a low-frequency
+burst (< 120 Hz) is more than 10 dB above the voice's average level.
+
+## Music (voice_profiles.json: music_source = mine | generated | none)
+- mine: the owner's track from the PRIVATE repo's `music/` (`music_file` = exact name, `music_start` = seconds),
+  checked out at render time, never copied here; metadata `use_third_party_music: true`.
+- generated: an original ElevenLabs Music theme (`music_gen.py`, 3 candidates `theme_1..3`, ~90 s, loopable,
+  kept in the private release `music-themes`, made once); `music_generated` picks one.
+- none.
+Mix: about 22 dB under the voice (loudness), a further 3.5 dB under speech plus a 3.5 dB dip at 1-4 kHz while a
+word is spoken, rising in the gaps and +2 dB on the last line (`music_lift`), 1 s fade in, 2 s fade out, looped
+with a 2 s crossfade if the video outlasts it. Every render also writes `<name>_nomusic.mp4`.
+Workflow input `music_source` switches it for one run. A render with any music goes only to the private release.
+
+## Sound effects
+Max 8, each about 20 dB under the voice, never starting on top of a word (moved into the nearest pause):
+scripture chimes, a soft whoosh on the big scene changes, soft hits on the key lines. No pencil sounds.
 
 ## Publishing (publish.py, kindled_iron_publish.yml: the ONLY thing that posts)
 1. Approve: the render's file name goes into the private repo's `approved/index.json`.
@@ -187,8 +200,8 @@ calm by default. `express` / `look` expressions: `neutral`, `happy`, `surprised`
 orange scarf; people are told apart by hair, clothes and height.
 
 ## Sound (sound.py, library built once by sfx_library.py)
-Few effects, each one meaning something. Hard cap 10 a video (`max_effects`), never two within 1 s
-(`min_spacing_s`), all 4 dB lower (`sfx_gain_db` -4), nothing sharp, in this priority:
+Few effects, each one meaning something. Hard cap 8 a video (`max_effects`), never two within 1 s
+(`min_spacing_s`), about 20 dB under the voice, never on top of a word, in this priority:
 1. a big hit on the key moments only: events marked `"hit": true` (max 3), e.g. "nobody", "I AM", the last line
 2. a soft chime when each scripture reference appears (dropped when a hit lands within 1 s)
 3. a soft whoosh on big scene changes (beat `"whoosh": true`)

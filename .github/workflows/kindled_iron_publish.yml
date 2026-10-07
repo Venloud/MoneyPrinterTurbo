@@ -20,7 +20,7 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: "17 9 * * 1"      # Mondays: refresh tokens, alert before any expires
+    - cron: "17 13 * * *"     # daily: refresh tokens, check every platform, ntfy only if something needs you
 
 permissions:
   contents: write              # only for the short-lived public copy of the video (deleted at the end)
@@ -44,6 +44,9 @@ env:
   FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
   FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
   GH_SECRETS_WRITE_TOKEN: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
+  TOKEN_MIRROR_REPOS: ${{ vars.TOKEN_MIRROR_REPOS }}
+  META_APP_ID: ${{ secrets.META_APP_ID }}
+  META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
   NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
 
 jobs:
@@ -56,9 +59,9 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Refresh tokens and expiry alerts (weekly run)
+      - name: "Daily: refresh tokens, check every platform, alert only when something needs you"
         if: ${{ github.event_name == 'schedule' }}
-        run: python -m kindled_iron.publish --refresh-only
+        run: python -m kindled_iron.publish --daily
 
       - name: Connection check only
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_only }}

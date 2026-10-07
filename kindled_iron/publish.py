@@ -72,20 +72,33 @@ def env(*names: str) -> list[str]:
     return [os.environ[n] for n in names]
 
 
-def save_secret(name: str, value: str) -> bool:
-    """Refreshed tokens go straight back into the repo's Actions secrets (GH_SECRETS_WRITE_TOKEN)."""
+def mask(value: str) -> None:
+    """GitHub Actions hides this value in every later log line (the value itself is never printed otherwise)."""
+    if value and os.environ.get("GITHUB_ACTIONS"):
+        print(f"::add-mask::{value}", flush=True)
+
+
+def save_secret(name: str, value: str, mirror: bool = False) -> bool:
+    """Refreshed tokens go straight back into this repo's Actions secrets (GH_SECRETS_WRITE_TOKEN). With
+    mirror=True they are ALSO written to every repo in TOKEN_MIRROR_REPOS (repo variable, comma list): this repo
+    owns the token and refreshes it, the other repos only read their copy and never refresh it themselves."""
+    mask(value)
     os.environ[name] = value
     tok, repo = os.environ.get("GH_SECRETS_WRITE_TOKEN"), os.environ.get("GITHUB_REPOSITORY")
     if not tok or not repo:
         log(f"WARNING: {name} refreshed but not saved (no GH_SECRETS_WRITE_TOKEN): this run only")
         return False
-    r = subprocess.run(["gh", "secret", "set", name, "--repo", repo, "--body", value],
-                       env={**os.environ, "GH_TOKEN": tok}, capture_output=True, text=True)
-    if r.returncode:
-        log(f"WARNING: could not save {name}: {r.stderr.strip()[:160]}")
-        return False
-    log(f"{name} refreshed and saved")
-    return True
+    targets = [repo] + ([r.strip() for r in os.environ.get("TOKEN_MIRROR_REPOS", "").split(",") if r.strip()] if mirror else [])
+    ok = True
+    for target in targets:
+        r = subprocess.run(["gh", "secret", "set", name, "--repo", target, "--body", value],
+                           env={**os.environ, "GH_TOKEN": tok}, capture_output=True, text=True)
+        if r.returncode:
+            ok = False
+            log(f"WARNING: could not save {name} to {target}: {r.stderr.strip()[:160]}")
+        else:
+            log(f"{name} refreshed and saved to {target}")
+    return ok
 
 
 # ------------------------------------------------------------------ post text
@@ -130,14 +143,22 @@ TT = "https://open.tiktokapis.com/v2"
 
 
 def tiktok_refresh() -> dict:
+    """EVERY TikTok call starts here: access tokens live 24 h. New access AND refresh token (TikTok may rotate
+    it) are saved back before the API is used."""
     key, secret, refresh = env("TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN")
-    d = http(f"{TT}/oauth/token/", "POST", form={"client_key": key, "client_secret": secret,
-                                                 "grant_type": "refresh_token", "refresh_token": refresh})
+    try:
+        d = http(f"{TT}/oauth/token/", "POST", form={"client_key": key, "client_secret": secret,
+                                                     "grant_type": "refresh_token", "refresh_token": refresh})
+    except Fail as e:
+        raise Fail(f"TikTok REFRESH TOKEN rejected ({e}): re-run the 'TikTok OAuth Connect' workflow") from None
     if not d.get("access_token"):
-        raise Fail(f"TikTok token refresh failed: {d.get('error_description') or d.get('error') or d}")
-    save_secret("TIKTOK_ACCESS_TOKEN", d["access_token"])
-    if d.get("refresh_token") and d["refresh_token"] != refresh:
-        save_secret("TIKTOK_REFRESH_TOKEN", d["refresh_token"])
+        why = d.get("error_description") or d.get("error") or "no access_token in the answer"
+        raise Fail(f"TikTok REFRESH TOKEN rejected ({why}): re-run the 'TikTok OAuth Connect' workflow")
+    save_secret("TIKTOK_ACCESS_TOKEN", d["access_token"], mirror=True)
+    if d.get("refresh_token"):
+        save_secret("TIKTOK_REFRESH_TOKEN", d["refresh_token"], mirror=True)
+    log(f"TikTok token refreshed (access valid {int(d.get('expires_in', 0)) // 3600} h, refresh token valid "
+        f"{int(d.get('refresh_expires_in', 0)) // 86400} days)")
     return {"refresh_expires_days": round(int(d.get("refresh_expires_in", 0)) / 86400, 1), "scope": d.get("scope", "")}
 
 
@@ -363,16 +384,20 @@ def refresh_tokens() -> list[str]:
                 days = int(d.get("expires_in", 0)) / 86400
                 if days and days < warn:
                     alerts.append(f"{name} expires in {days:.0f} days")
-        except Fail as e:
-            alerts.append(f"{name} could not be refreshed: {e}")
+        except Fail as e:      # e.g. a token under 24 h old can't be refreshed yet; the connection check decides
+            log(f"{name}: not refreshed this time ({str(e)[:120]})")
     tok, pid = os.environ.get("FACEBOOK_PAGE_ACCESS_TOKEN"), os.environ.get("FACEBOOK_PAGE_ID")
     if tok:
         try:
-            d = http(f"{FB}/debug_token?input_token={urllib.parse.quote(tok)}", headers={"Authorization": f"Bearer {tok}"})
+            app = (f"{os.environ['META_APP_ID']}|{os.environ['META_APP_SECRET']}"
+                   if os.environ.get("META_APP_ID") and os.environ.get("META_APP_SECRET") else tok)
+            d = http(f"{FB}/debug_token?input_token={urllib.parse.quote(tok)}&access_token={urllib.parse.quote(app)}")
+            if not d.get("data", {}).get("is_valid", True):
+                alerts.append("FACEBOOK_PAGE_ACCESS_TOKEN is no longer valid: run 'Meta Token Refresh'")
             exp = int(d.get("data", {}).get("expires_at") or 0)
             if exp and exp - time.time() < warn * 86400:
                 alerts.append(f"FACEBOOK_PAGE_ACCESS_TOKEN expires {time.strftime('%Y-%m-%d', time.gmtime(exp))}: "
-                              "make a never-expiring Page token from a long-lived user token")
+                              "run 'Meta Token Refresh' with a fresh user token")
         except Fail as e:
             alerts.append(f"FACEBOOK_PAGE_ACCESS_TOKEN: {e}")
     return alerts
@@ -401,8 +426,34 @@ def main() -> None:
     ap.add_argument("--only", default="", help="comma list of platforms (default: all with publish_mode live|draft)")
     ap.add_argument("--check-only", action="store_true", help="check every platform, post nothing")
     ap.add_argument("--refresh-only", action="store_true")
+    ap.add_argument("--daily", action="store_true", help="refresh tokens, check every platform, ntfy ONLY if something needs the owner")
     ap.add_argument("--out", default="publish_results.json")
     a = ap.parse_args()
+
+    if a.daily:
+        alerts = refresh_tokens()
+        for name, (check, _) in PLATFORMS.items():
+            if CONFIG["publish_mode"].get(name, "off") == "off" or name == "tiktok":   # TikTok was refreshed + checked above
+                continue
+            try:
+                check()
+                log(f"{name}: OK")
+            except Fail as e:
+                alerts.append(f"{name}: {e}")
+                log(f"{name}: FAILED {e}")
+        try:
+            tok, = env("TIKTOK_ACCESS_TOKEN")
+            d = http(f"{TT}/post/publish/creator_info/query/", "POST", data={}, headers={"Authorization": f"Bearer {tok}"})
+            log(f"tiktok: OK (@{d.get('data', {}).get('creator_username', '?')})")
+        except Fail as e:
+            if not any(x.startswith("TikTok") for x in alerts):
+                alerts.append(f"tiktok: {e}")
+        Path(a.out).write_text(json.dumps({"alerts": alerts}, indent=1))
+        if alerts:
+            ntfy("Kindled Iron: a platform needs you", "\n".join(alerts))
+            raise SystemExit("needs attention: " + "; ".join(alerts))
+        log("all platforms OK, nothing needs you (no alert sent)")
+        return
 
     if a.refresh_only:
         alerts = refresh_tokens()

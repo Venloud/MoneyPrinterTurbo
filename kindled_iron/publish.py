@@ -225,16 +225,17 @@ def youtube_token() -> str:
     cid, sec, ref = env("YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN")
     d = http("https://oauth2.googleapis.com/token", "POST",
              form={"client_id": cid, "client_secret": sec, "refresh_token": ref, "grant_type": "refresh_token"})
-    if "youtube.upload" not in d.get("scope", "") and "youtube" not in d.get("scope", ""):
+    if "youtube.upload" not in d.get("scope", "") and "auth/youtube " not in d.get("scope", "") + " ":
         raise Fail("refresh token does not grant youtube.upload")
+    mask(d["access_token"])
     return d["access_token"]
 
 
 def youtube_check() -> dict:
-    tok = youtube_token()
-    d = http("https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true", headers={"Authorization": f"Bearer {tok}"})
-    items = d.get("items") or []
-    return {"channel": items[0]["snippet"]["title"] if items else "?"}
+    """The token only carries youtube.upload (reading the channel needs another scope): a working refresh with
+    that scope is the check."""
+    youtube_token()
+    return {"channel": "upload scope OK"}
 
 
 def youtube_post(video: Path, post: dict, mode: str, chk: dict) -> dict:

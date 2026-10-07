@@ -136,6 +136,7 @@ VIDEO_SOURCE_GROUPS = {
         "muapi",
     ),
     "ai_image": ("openai_image",),
+    "anime_image": ("nekosapi",),
     "local": ("local",),
 }
 # Upload-Post 的 API Key 与发布用户分别在两个页面管理，并且发布用户名称
@@ -3655,6 +3656,11 @@ def _render_settings_dialog():
                 _save_material_api_keys("coverr_api_keys", coverr_api_key)
 
             with st.container(border=True):
+                st.markdown(f"#### {tr('Anime Image APIs')}")
+                st.caption(tr("Nekos API Help"))
+                st.markdown("[Nekos API documentation](https://nekosapi.com/docs)")
+
+            with st.container(border=True):
                 st.markdown(f"#### {tr('AI Video Generation APIs')}")
                 st.caption(tr("AI Video Generation APIs Help"))
 
@@ -5184,6 +5190,7 @@ def _render_video_settings(panel, params):
                 "muapi": tr("MuAPI AI Video"),
                 "loomloom": tr("Shengsuan Cloud AI Video"),
                 "openai_image": tr("OpenAI Compatible Text-to-Image"),
+                "nekosapi": tr("Nekos API"),
                 "local": tr("Local file"),
             }
             saved_video_source_name = str(
@@ -5195,6 +5202,7 @@ def _render_video_settings(panel, params):
                     (tr("Stock Video"), VIDEO_SOURCE_GROUPS["stock_video"]),
                     (tr("AI Video"), VIDEO_SOURCE_GROUPS["ai_video"]),
                     (tr("AI Image"), VIDEO_SOURCE_GROUPS["ai_image"]),
+                    (tr("Anime Image"), VIDEO_SOURCE_GROUPS["anime_image"]),
                     (tr("Local Material"), VIDEO_SOURCE_GROUPS["local"]),
                 ),
                 default_value=saved_video_source_name,
@@ -5223,6 +5231,8 @@ def _render_video_settings(panel, params):
                 st.caption(tr("Metaso MiniMax H3 Help"))
             if params.video_source == "muapi":
                 st.caption(tr("MuAPI AI Video Help"))
+            if params.video_source == "nekosapi":
+                st.caption(tr("Nekos API Help"))
             if params.video_source == "local":
                 # Streamlit 的文件类型校验对扩展名大小写敏感，这里同时放行大小写两种形式。
                 local_file_types = sorted(
@@ -8021,6 +8031,7 @@ def _render_generation_controls(
             "muapi",
             "loomloom",
             "openai_image",
+            "nekosapi",
             "local",
         ]:
             _remove_active_generation_task(task_id)

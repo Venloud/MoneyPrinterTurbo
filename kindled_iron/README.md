@@ -33,7 +33,8 @@ stays at least 1 s after the quote (a scene change waits for it).
 Translation: World English Bible (public domain, eBible.org). Every card's text must be the WEB verse or a
 contiguous part of it, word for word (case/punctuation ignored); any mismatch, a book outside the 66, or a
 [Ref] without a card FAILS the render. Check one by hand: `python -m kindled_iron.scripture "John 1:3"`.
-Show a small "Bible text: WEB" on the end card.
+The video shows no translation label; the post description carries "Scripture: World English Bible"
+(added automatically to `<name>_meta.json` -> `post`, and to the phone alert).
 
 ## Hook + retention rules
 - First 2 seconds: the question/hook is fully on screen at frame 0 (`"instant": true` draws), with
@@ -47,20 +48,69 @@ Show a small "Bible text: WEB" on the end card.
 Kindled Iron uses `"pacing": "tight"` (voice_profiles.json):
 - No pause padding. ElevenLabs reads the whole script in ONE request (speed 1.0-1.05, no break tags) and
   its natural read is kept.
-- On the final audio every silence longer than `trim_over` (0.30 s) is cut to `keep_gap` (0.25 s); the
-  lead-in is cut to 0.05 s.
-- Deliberate beats only where the script says `[beat]`: max 3 a video (`max_beats`), each 0.4 s
-  (`max_beat`); more than 3 fails the render. Example: `The Bible's answer: [beat] nobody.`
-- Target **165-185 words a minute** (`wpm_target`); 61-68 s, shorter is fine, never pad.
+- On the final audio every silence longer than `trim_over` (0.45 s) is cut to `keep_gap` (0.40 s); natural
+  shorter pauses stay; the lead-in is cut to 0.05 s.
+- No added pauses: `max_beats` is 0 (a `[beat]` tag fails the render).
+- Target **about 175 words a minute** (`wpm_target` 165-185, a WARNING above 185), ElevenLabs speed 0.90, never
+  below 0.87 (`min_speed`); 61-64 s (`length_target`), shorter is fine, never pad.
   Log: `pacing: tight - N silences trimmed ..., longest silence X s` and `Length: X s ...; pace N words/min`.
 - A visual change at least every 1.5 s (scene `"max_visual_gap": 1.5`, `PACING WARNING` otherwise);
-  captions 2-3 words at a time.
+  captions 2-3 words at a time, bold, big (scene `captions_box` {x, y, w, size}, `captions_chunk`
+  {max_words, max_chars}), inside the safe box and clear of the button column.
 Other channels can still use the older sentence pauses (`pause_sentence`, `pause_beat`, `max_pause`,
 `[pause 0.8]` tags).
 - Captions and every animation follow the final audio. A beat starts inside the pause before it, so
   its walk / first drawing lands in the silence; footage insets snap into the nearest pause; and
   `"at": "pause"` / `"pause#2"` puts any event in the 1st / 2nd pause of its beat (the DAY counter ticks
   in the pause before each "Day N" line).
+
+## Voice text (scene "tts_text")
+The voice reads the scene's `tts_text` in ONE ElevenLabs request: the script's exact words (checked; only
+punctuation may differ), with short fragments joined by commas so it does not sound chopped and real stops only
+where a stop is wanted. Captions and on-screen text keep the script's own punctuation. The returned read is never
+cut, re-spaced or stretched. Delivery: calm, soft, conversational (speed 0.97, stability 0.5, similarity 0.8,
+style 0.18; if it sounds pushed or bright, lower style first). No recording is used anywhere.
+
+## Clean voice (sound.py, every provider)
+High-pass 85 Hz, de-plosive (the band under 160 Hz is compressed hard only above its own loud level), light
+de-esser, a 1.5 dB dip at 3 kHz, gentle compression; voice at -17 LUFS, true peak target -2.5 dBTP. A clip's own
+audio ("God did") is matched to 1 dB under the voice. The render FAILS if true peak > -2.0 dBTP or a low-frequency
+burst (< 120 Hz) is more than 10 dB above the voice's average level.
+
+## Music (voice_profiles.json: music_source = mine | generated | none)
+- mine: the owner's track from the PRIVATE repo's `music/` (`music_file` = exact name, `music_start` = seconds),
+  checked out at render time, never copied here; metadata `use_third_party_music: true`.
+- generated: an original ElevenLabs Music theme (`music_gen.py`, 3 candidates `theme_1..3`, ~90 s, loopable,
+  kept in the private release `music-themes`, made once); `music_generated` picks one.
+- none.
+Mix: about 22 dB under the voice (loudness), a further 3.5 dB under speech plus a 3.5 dB dip at 1-4 kHz while a
+word is spoken, rising in the gaps and +2 dB on the last line (`music_lift`), 1 s fade in, 2 s fade out, looped
+with a 2 s crossfade if the video outlasts it. Every render also writes `<name>_nomusic.mp4`.
+Workflow input `music_source` switches it for one run. A render with any music goes only to the private release.
+
+## Sound effects
+Max 8, each about 20 dB under the voice, never starting on top of a word (moved into the nearest pause):
+scripture chimes, a soft whoosh on the big scene changes, soft hits on the key lines. No pencil sounds.
+
+## Publishing (publish.py, kindled_iron_publish.yml: the ONLY thing that posts)
+1. Approve: the render's file name goes into the private repo's `approved/index.json`.
+2. Run **Kindled Iron Publish** (input `render`, empty = latest approved; `check_only` = connections only).
+   It refuses fallback-voice renders and renders that failed a check, checks every platform first, skips a
+   platform whose check fails, and one failing platform never stops the others. One ntfy with the links.
+- TikTok: refreshes the token first (saved back to secrets); direct post when the app has `video.publish` and
+  TikTok accepts it, otherwise the TikTok inbox (draft). YouTube: resumable upload, public Short, not made for kids,
+  AI-voice disclosure on. Instagram: Reel by resumable upload (no public URL); Threads: video fetched from a
+  temporary public release of this repo, deleted at the end of the run. Facebook: Page Reel.
+- `publish_config.json` -> `publish_mode` per platform: live | draft | off.
+- Daily (13:17 UTC) the publish workflow refreshes the TikTok / Instagram / Threads tokens, checks all five
+  platforms and sends ONE ntfy only if something needs the owner. **Platform Connection Check** does the same on demand.
+- TikTok: every TikTok call refreshes first (access tokens live 24 h) and saves the new access AND refresh token.
+  This repo OWNS the TikTok authorization: another repo using the same TikTok login must not refresh it; list it
+  in the repo variable `TOKEN_MIRROR_REPOS` (e.g. `Venloud/backfill-social`) and it gets a copy of both tokens
+  after every refresh (GH_SECRETS_WRITE_TOKEN needs Secrets: read and write on that repo too).
+- Facebook: **Meta Token Refresh** turns a fresh short-lived user token (secret `META_SHORT_USER_TOKEN`, deleted
+  after use) into a never-expiring Page token (`FACEBOOK_PAGE_ACCESS_TOKEN`), using `META_APP_ID` /
+  `META_APP_SECRET`, and verifies it with debug_token.
 
 ## Voice (tts.py)
 Providers with one interface: `elevenlabs_tts.py` (owner's cloned voice), `chatterbox_tts.py`
@@ -93,14 +143,63 @@ Word timings always come from whisper on the audio actually used.
 "pin": {"nasa": "<nasa_id>"}, "start": 12.0, "clip_dur": 2.2, "crop": [x, y, w, h], "w": 340, "h": 230,
 "rotate": -4}`: a 1.5-3 s real clip in a tilted hand-drawn frame that pops in and out on top of the
 drawing. NASA (public domain), Pexels and Pixabay (no attribution needed; keys `PEXELS_API_KEY`,
-`PIXABAY_API_KEY`). Never CC BY. Max 6 a video; no clip found = the inset is silently left out.
+`PIXABAY_API_KEY`), Wikimedia Commons (no key; only files whose API metadata says public domain or CC0, so no
+credit lines). Never CC BY / CC BY-SA. Default order Pexels -> Pixabay -> Commons; space / Earth shots put NASA
+first. Max 8 a video; no clip found = the inset is silently left out.
+Big clips: `w` 820 / `h` 470 at (540, 410) fills the upper half of the safe box; drawings go beside or on
+top. `"inset_snap": false` on the scene keeps clips on their words (no snapping to pauses). Every render
+logs each clip's source + licence and writes `insets_contact_sheet.jpg` (CI artifact `insets.jpg`).
 NASA search results are mixed (press conferences...), so pin NASA clips after checking frames.
 
+## Third-party clips and meme images (private_media.py)
+Never stored in this public repo (git ignores `reactions/`, `movie_reference/`, `reactions_inbox/`). They live in
+the PRIVATE repo `Venloud/kindled-iron-voice`: `reactions/` (meme images and reaction clips, named by emotion or
+words: `confused.jpg`, `god_did.mp4`) and `movie_reference/` (film/TV clips named by scene: `burning_bush.mp4`),
+each with an optional `index.json` (tags, words said, start/end seconds, play its audio). The test workflow
+checks them out at render time with `VOICE_REPO_TOKEN`; any render that used them goes ONLY to the private
+`test-renders` release (with its stills), never to a public artifact.
+- Clip request: `{"at": "Moses-0.2", "id": "c_bush", "x": 540, "y": 410, "w": 820, "h": 470,
+  "meme_clip": {"query": "burning bush", "folders": ["movie_reference"], "max_s": 2, "audio": false},
+  "fallback": {<a normal stock inset or guide action>}}`. Order: private folders -> yt-dlp (only with
+  `"yt": "<url or exact search>", "start": s`; YouTube often blocks runners) -> the pinned fallback. A missing
+  clip never fails the render. A clip with `"audio": true` plays its own sound at voice level; the video runs on
+  until it ends.
+- Emotion request: `{"at": "who", "reaction": "confused", "card": {"x", "y", "w", "h", "rotate"}}`: the guide acts
+  the face AND a meme image pops in beside him: private `reactions/` first, then
+  github.com/cheesits456/ReactionPics (hand-picked file names per emotion, downloaded at render time, never copied
+  here). GIPHY is not used in videos: its API terms require a visible "Powered By GIPHY" mark plus creator credit.
+- One switch: `voice_profiles.json` -> `use_third_party_clips` (workflow input `third_party_clips` wins): off =
+  every request uses its fallback / the drawn face only.
+- Add a clip from your PC: `python kindled_iron/tools/fetch_clip.py "<url or search>" --start 12.5 --dur 2
+  --name burning_bush --folder movie_reference` (needs yt-dlp, ffmpeg and a token for the private repo).
+
 ## Reactions (use sparingly)
-`{"do": "reaction", "who": "guide", "face": "shocked", "dur": 1.2}`: faces `shocked`, `mind_blown`,
-`side_eye`, `crying_laughing`, `thinking`, `wait_what`. Eyebrows exist ONLY inside a reaction (never
-angled down = never angry). Hard limits (extra ones are dropped with a WARNING): max 2 a video, 15 s
-apart, under 1.5 s, never on the word "God" or on a beat marked `"serious": true`.
+`{"do": "reaction", "who": "guide", "face": "shocked", "dur": 1.2}`: faces `confused_math` (floating math
+symbols), `puzzled`, `surprised`, `shocked`, `mind_blown`, `side_eye`, `crying_laughing`, `thinking`, `wait_what`.
+Images in `reactions_inbox/` are preferred when present. Eyebrows exist ONLY inside a reaction (never angled
+down = never angry). Hard limits (extra ones are dropped with a WARNING): max 3 a video, 3 s apart, under
+1.5 s, never on a scripture card or on GOD (`"allow_god": true` only lifts the word-timing rule for a question
+like "who made God?", where GOD is not drawn). Record-scratch meme: `{"do": "freeze", "zoom": 1.45}` (gray
+freeze-frame + "*record scratch*" + zoom).
+Guide moves: walk in, `lean_on` a card, `size`, `drift`, point, react; change side, size and pose every scene.
+Pop-culture drawings are our own generic shapes: `voxel` world, `blockfolk` villager, `cursor`, `clock`,
+`controller`, `popup` ("CHEAT ON"); no game textures, logos, characters or UI.
+
+## The host
+The guide is drawn after the channel owner (`render.HOST_LOOK`): brown skin, shoulder-length twisted locs with a
+middle part, small mustache + chin goatee, a slightly hand-drawn head; bare arms and hands in the same skin tone.
+Outfit: black short-sleeve button-up (light-blue collar, buttons, chest pocket, sleeve trim, light shading),
+black pants with a beige belt and side stripe, dark shoes with beige soles, no scarf. A scene can
+switch it off with `"look": false` on the guide. Pose sheet of the faces:
+`python -m kindled_iron.action_sheet --faces --out faces.png`. He stands low: his feet may sit a little below
+the safe box (scene `ground` 1490); the space above is padding for text.
+
+## Captions vs titles
+Captions never overlap a title (popup, scripture card, a big word of 80 px or more, or `"title": true`) and
+never sit on the guide's head: they move to the nearest free spot, then shrink (to 64 %). When the same words
+are already written big on screen, the caption hides. The layout check logs `CAPTION OVERLAP` and
+`... over the guide's head` otherwise. The record-scratch freeze stays in colour; `"focus": {"x", "y"}` sets
+what the punch-in frames.
 
 ## Faces
 Everyone (guide, man, woman) has the same simple face: two dot eyes and a small mouth, friendly and
@@ -109,14 +208,15 @@ calm by default. `express` / `look` expressions: `neutral`, `happy`, `surprised`
 orange scarf; people are told apart by hair, clothes and height.
 
 ## Sound (sound.py, library built once by sfx_library.py)
-Few effects, each one meaning something. Hard cap 15 a video, never two within 0.8 s, in this priority:
+Few effects, each one meaning something. Hard cap 8 a video (`max_effects`), never two within 1 s
+(`min_spacing_s`), about 20 dB under the voice, never on top of a word, in this priority:
 1. a big hit on the key moments only: events marked `"hit": true` (max 3), e.g. "nobody", "I AM", the last line
-2. a soft chime when each scripture reference appears (dropped when a hit lands within 0.8 s)
-3. a soft whoosh on every other scene change
-4. one short pencil sound per scene, only on the drawing marked `"main": true`
+2. a soft chime when each scripture reference appears (dropped when a hit lands within 1 s)
+3. a soft whoosh on big scene changes (beat `"whoosh": true`)
+4. pencil sounds are off (`"pencil": false`)
 No per-stroke sounds (no marker, scribble, eraser, scratch) and no ambience beds. `"sound": "<role>"` /
 `"sound": false` on an event overrides.
-Music: one track per channel (`voice_profiles.json` -> `music_track`, file `vendor/sfx/lib/music_<name>.ogg`;
+Music: none for Kindled Iron (`music_track` "none"). Otherwise one track per channel (`music_track`, file `vendor/sfx/lib/music_<name>.ogg`;
 `--music <name>` on render.py overrides), from frame 0, ducked under the voice, a +3 dB lift from the beat's
 `"music_lift": "<word>"`. `python -m kindled_iron.music_samples` mixes every track under the same 10 s of voice.
 Levels live in `sound_levels.json` (`sfx_levels` in dB relative to the voice, plus a master `sfx_gain_db`):

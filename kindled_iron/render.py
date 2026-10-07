@@ -39,7 +39,14 @@ PALETTE = {
     "trunk": "#9A6A43", "wool": "#F3EBD7", "woolGray": "#9C9C98", "fishBody": "#EBCF7E", "fishBelly": "#BDBDBA",
     "cloud": "#FFFFFF", "cloudShade": "#D7E7F3", "page": "#FBF6E8", "moon": "#F3E4A2", "starFill": "#F6D66A",
     "shadow": "#DCD5C8", "leafDark": "#5C9A4C", "marker": "#F7D3AE",
+    "skin": "#E9C9A0", "robe": "#8A6A4F", "robeDark": "#6C503A", "controller": "#C9CED6",
 }
+# The host (guide) is drawn after the channel owner: brown skin, shoulder-length twisted locs with a
+# middle part, small mustache + chin goatee, slightly hand-drawn head. A scene can turn it off ("look": false).
+# Outfit: black short-sleeve button-up (light-blue collar, buttons, pocket, sleeve trim), black pants with a
+# beige accent, dark shoes with beige soles, no scarf, bare arms.
+HOST_LOOK = {"head": "hand", "hair": "locs", "beard": "goatee", "outfit": "buttonup",
+             "colors": {"skin": "#8D5B3E", "hair": "#231915", "shirt": "#2A2C33", "pants": "#25262C", "shoe": "#2E2925"}}
 HUD = {"x": 300, "y": 248, "scale": 1.25}   # DAY counter badge (top-left of the safe box: x 148-452, y 188-313)
 NO_POP = {"darkness", "line", "frame", "waves", "hill", "rays", "strike", "cross", "inset", "sparkle"}
 # TikTok safe area (owner's template). Important art + captions stay inside the box and out of the
@@ -95,8 +102,9 @@ def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, u
     if isinstance(at, (int, float)):
         return beat_start + float(at)
     s = str(at).strip()
-    if s == "end":
-        return beat_end
+    em = re.fullmatch(r"end([+-][\d.]+)?", s)
+    if em:                                   # "end" / "end+0.2": after the beat's last word
+        return beat_end + float(em.group(1) or 0)
     pm = re.fullmatch(r"pause(?:#(\d+))?([+-][\d.]+)?", s)
     if pm:
         n = int(pm.group(1) or 1)
@@ -112,16 +120,20 @@ def resolve_at(at, beat_words: list[dict], beat_start: float, beat_end: float, u
     return hits[nth - 1]["start"] + off
 
 
-def caption_chunks(words: list[dict], max_words: int = 3, max_chars: int = 13) -> list[dict]:
+def caption_chunks(words: list[dict], max_words: int = 3, max_chars: int = 13, min_words: int = 1) -> list[dict]:
+    """Chunks of min_words..max_words words; a chunk ends at punctuation or a pause only once it has
+    min_words (a pause over 0.8 s always ends it)."""
     chunks, cur = [], []
     for i, w in enumerate(words):
         cur.append(w)
         text = " ".join(x["word"] for x in cur)
         nxt = words[i + 1] if i + 1 < len(words) else None
         punct = re.search(r"[.,;:!?]$", w["word"])
-        gap = nxt is not None and nxt["start"] - w["end"] > 0.35
+        pause = nxt["start"] - w["end"] if nxt is not None else 0.0
+        gap = nxt is not None and pause > 0.35
         too_long = nxt is not None and len(text) + 1 + len(nxt["word"]) > max_chars
-        if len(cur) >= max_words or punct or gap or too_long or nxt is None:
+        enough = len(cur) >= min_words or pause > 0.8
+        if len(cur) >= max_words or ((punct or gap) and enough) or too_long or nxt is None:
             chunks.append(cur)
             cur = []
     out = []
@@ -149,6 +161,9 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
     pauses = pauses or []                     # [(start, end, beat)] silences between sentences
     ground = scene.get("ground", 1170)
     cast = {cid: {**c, "x": c["x"] + PANEL_W * c.get("panel", 0)} for cid, c in scene["cast"].items()}
+    if "guide" in cast and cast["guide"].get("look", True) is not False:
+        g = cast["guide"]
+        cast["guide"] = {**HOST_LOOK, **g, "colors": {**HOST_LOOK["colors"], **(g.get("colors") or {})}}
     objects, events, captions = [], [], []
     ids = set()
     cam_y = scene.get("camera_y", 960)
@@ -158,7 +173,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         words = beat_words[b]
         used: dict = {}
         if beat.get("captions", True):
-            captions += caption_chunks(words)
+            captions += caption_chunks(words, **(scene.get("captions_chunk") or {}))
         cam = beat.get("camera_start")
         prev_panel = scene["beats"][b - 1].get("panel", 0) if b else None
         trans = beat.get("transition")
@@ -169,7 +184,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         t_change = max([start] + [o["quote_end"] + 1.0 + 0.3 for o in objects if o["type"] == "scripture"
                                   and o["quote_end"] + 1.0 + 0.3 > start])
         if b and trans:
-            events += transition_events(trans, t_change, off, cam if isinstance(cam, dict) else {}, cam_y)
+            events += transition_events(trans, t_change, off, cam if isinstance(cam, dict) else {}, cam_y, beat.get("whoosh"))
         elif cam is not False:
             cam = cam or {}
             events.append({"t": max(0.0, start - 0.25) if b else 0.0, "do": "camera",
@@ -184,6 +199,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 events.append(ev_draw)
                 ids.add(o["id"])
                 continue
+            if "do" not in e and isinstance(e.get("reaction"), str):     # {"reaction": "<emotion>"}
+                e["do"], e["who"], e["emotion"] = "reaction", e.get("who", "guide"), e.pop("reaction")
             if "do" not in e:                     # shorthand {"guide": "parachute", ...}
                 who = next((k for k in scene["cast"] if isinstance(e.get(k), str)), None)
                 if who:
@@ -200,11 +217,12 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 if e["id"] in ids:
                     raise SystemExit(f"duplicate object id {e['id']!r}")
                 if e.get("type") == "inset":
-                    if e["id"] not in insets:
+                    if "frames" not in e and e["id"] not in insets:
                         continue                      # no clip found: the inset is simply left out
-                    e.update(insets[e["id"]])
+                    e.update(insets.get(e["id"], {}))
                     # a real clip lands in the nearest pause (within 1.5 s before / 0.5 s after)
-                    near = [p for p in pauses if p[1] - p[0] >= 0.3 and e["t"] - 1.5 <= p[0] <= e["t"] + 0.5]
+                    near = [p for p in pauses if p[1] - p[0] >= 0.3 and e["t"] - 1.5 <= p[0] <= e["t"] + 0.5] \
+                        if scene.get("inset_snap", True) else []
                     if near:
                         p0 = min(near, key=lambda p: abs(p[0] - e["t"]))
                         e["t"] = round(p0[0] + 0.05, 3)
@@ -297,7 +315,7 @@ def scripture_card(e: dict, words: list[dict], off: int, n: int, beat_id) -> tup
         lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
     o = {"id": e.get("id", f"card{n + 1}"), "type": "scripture", "x": off + e.get("x", 540), "y": e.get("y", 430),
          "w": w, "size": size, "lines": lines, "ref": canonical(card["ref"]), "text": card["text"],
-         "quote_end": round(t1, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
+         "quote_end": round(t1, 3), "_t0": round(t0, 3), "_t1": round(t1 + 1.0, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
     return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "pop": False}
 
 
@@ -314,11 +332,11 @@ def hold_cards(events: list[dict], objects: list[dict]) -> None:
     events.sort(key=lambda e: e["t"])
 
 
-def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float) -> list[dict]:
+def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float, whoosh=None) -> list[dict]:
     """Scene change: cut, slide, zoom or wipe to the next panel (the guide re-enters with an action)."""
     kind = trans if isinstance(trans, str) else trans.get("type", "slide")
     x, y, z = off + cam.get("x", 540), cam.get("y", cam_y), cam.get("zoom", 1.0)
-    base = {"do": "camera", "x": x, "y": y, "transition": kind}
+    base = {"do": "camera", "x": x, "y": y, "transition": kind, "whoosh": whoosh}
     if kind == "cut":
         return [{**base, "t": max(0.0, t0 - 0.05), "zoom": z, "dur": 0.01}]
     if kind == "zoom":                      # punch into the old scene, cut, pull back out of the new one
@@ -427,7 +445,7 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
     return out
 
 
-VISUAL_EVENTS = {"place", "sit", "lie_down", "swim", "float", "parachute", "pop_up", "climb", "jump", "fall", "ride",
+VISUAL_EVENTS = {"freeze", "lean_on", "place", "sit", "lie_down", "swim", "float", "parachute", "pop_up", "climb", "jump", "fall", "ride",
                  "peek", "pet", "shield_eyes", "stand", "look_viewer", "ghost", "wipe", "touch", "size", "drift",
                  "rise", "drop", "light_burst", "paper", "express", "fade",
                  "move", "wiggle", "draw", "walk", "point", "reach", "wave", "cheer", "react", "shrug", "present", "look", "shake",
@@ -522,6 +540,43 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         browser.close()
 
 
+def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
+    """music_source: mine (the owner's track from the private repo's music/, at music_start) | generated (an
+    ElevenLabs Music theme from KI_MUSIC_DIR) | none. Mix settings from voice_profiles.json."""
+    base = {k: chan.get(f"music_{k}") for k in ("level_db", "duck_db", "dip_db", "lift_db") if chan.get(f"music_{k}") is not None}
+    if source == "mine":
+        root = os.environ.get("KI_PRIVATE_MEDIA")
+        name = chan.get("music_file") or ""
+        f = Path(root) / "music" / name if root and name else None
+        if f and f.is_file():
+            log(f"music: mine ({name}) from {chan.get('music_start', 0)} s")
+            return ({**base, "file": str(f), "start": float(chan.get("music_start", 0)), "label": name, "lift_at": None},
+                    {"source": "mine", "file": name, "start": chan.get("music_start", 0), "use_third_party_music": True})
+        log(f"WARNING: music_source 'mine' but {name or 'no music_file'} is not in the private repo's music/: using the generated theme")
+        source = "generated"
+    if source == "generated":
+        d = os.environ.get("KI_MUSIC_DIR")
+        name = chan.get("music_generated", "theme_1")
+        f = Path(d) / f"{name}.mp3" if d else None
+        if f and f.is_file():
+            log(f"music: generated ElevenLabs theme {name}")
+            return ({**base, "file": str(f), "start": 0.0, "label": f"ElevenLabs Music {name}", "lift_at": None},
+                    {"source": "generated", "file": f"{name}.mp3", "use_third_party_music": False})
+        log(f"WARNING: generated theme {name} not available (KI_MUSIC_DIR): no music")
+    return None, {"source": "none", "use_third_party_music": False}
+
+
+def post_text(scene: dict) -> dict:
+    """Title / caption / description for the TikTok draft (the description carries the Bible credit)."""
+    p = dict(scene.get("post") or {})
+    p.setdefault("title", scene.get("title", scene.get("id", "")))
+    if any(isinstance(ev.get("scripture"), dict) for b in scene["beats"] for ev in b.get("events", [])):
+        credit = "Scripture: World English Bible"
+        if credit not in p.get("description", ""):
+            p["description"] = (p.get("description", "") + "\n" + credit).strip()
+    return p
+
+
 # --------------------------------------------------------------- main
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -536,7 +591,7 @@ def main() -> None:
                     help="voice provider (default: the voice profile's tts_provider)")
     ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
     ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
-    ap.add_argument("--music", default=None, help="music track name (vendor/sfx/lib/music_<name>.ogg); default: channel music_track")
+    ap.add_argument("--music", default=None, help="music source: mine | generated | none (default: voice_profiles.json music_source)")
     a = ap.parse_args()
 
     scene_path = Path(a.scene)
@@ -573,7 +628,15 @@ def main() -> None:
         provider = a.tts or profile.get("tts_provider", "kokoro")
         segs = pacing.plan(texts, profile)
         raw = work / "narration_raw.wav"
-        voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
+        tts_text = scene.get("tts_text")
+        if tts_text:     # voice-only punctuation (one request); must be the script's words exactly
+            norm = lambda ws: [re.sub(r"[^a-z0-9']", "", w.lower().replace("’", "'")) for w in ws]
+            if norm(tts_text.split()) != norm([w for txt in texts for w in words_of(txt)]):
+                raise SystemExit("FAIL: tts_text is not the script's words (only punctuation may differ)")
+            voice_meta = tts.voice([(tts_text, 0.0)], raw, profile, provider, log)
+            voice_meta["tts_text"] = tts_text
+        else:
+            voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                                    "-of", "csv=p=0", str(raw)]).decode().strip())
         # Word timings always come from the audio that was actually used.
@@ -583,7 +646,12 @@ def main() -> None:
         aligned = wt.align(flat, heard, (0.0, audio_len))
         # Pauses: every sentence gap is set to its target on the final audio; timings shift with it.
         audio, sr = sf.read(raw, dtype="float32")
-        audio, aligned, pace_stats = pacing.enforce(audio, sr, aligned, segs, profile, log)
+        if tts_text:         # the returned read stays exactly as it is: no trimming, no pause insertion
+            pace_stats = {"mode": "as read", "longest_silence": round(max(
+                [aligned[i + 1]["start"] - aligned[i]["end"] for i in range(len(aligned) - 1)] or [0]), 2)}
+            log(f"pacing: the voice as returned (longest pause {pace_stats['longest_silence']:.2f} s), no edits")
+        else:
+            audio, aligned, pace_stats = pacing.enforce(audio, sr, aligned, segs, profile, log)
         sf.write(wav, audio, sr)
         beat_words, k = [], 0
         for txt in texts:
@@ -600,14 +668,17 @@ def main() -> None:
         timing_file.write_text(json.dumps({"texts": texts, "spans": spans, "words": beat_words, "heard": heard,
                                            "pauses": pauses, "voice": voice_meta}, indent=1))
 
-    from kindled_iron import effects, insets as insets_mod
-
-    clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
-    duration = round(spans[-1][1] + end_hold, 3)
-    lo, hi = TARGET_LEN
+    from kindled_iron import effects, insets as insets_mod, private_media
     from kindled_iron import tts as tts_mod
 
     chan = tts_mod.load_profile(scene.get("voice_profile", "kindled_iron"))
+    third_party = private_media.enabled(chan)
+    log(f"third-party clips/images: {'on' if third_party else 'off'}"
+        f"{'' if not third_party else ' (private folders ' + ('found' if private_media.root() else 'NOT available') + ')'}")
+    memes = private_media.resolve_scene(scene, chan, work, log)       # meme clips or their pinned fallbacks
+    clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
+    duration = round(spans[-1][1] + end_hold, 3)
+    lo, hi = chan.get("length_target", TARGET_LEN)
     w_lo, w_hi = chan.get("wpm_target", [165, 185])
     n_words = sum(len(words_of(x)) for x in texts)
     wpm = n_words / duration * 60
@@ -621,7 +692,18 @@ def main() -> None:
     elif duration > hi:
         log(f"WARNING: over {hi:.0f} s")
     data = build_data(scene, spans, beat_words, duration, clips, pauses)
-    data["inboxReactions"] = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log)
+    data["inboxReactions"], meme_images = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log,
+                                                                       data, third_party)
+    data["events"].sort(key=lambda e: e["t"])
+    # a meme clip with its own audio may play after the last word: the video runs until it ends
+    by_id = {o["id"]: o for o in data["objects"]}
+    overlays = [(e["t"], by_id[e["id"]]["audio_file"], by_id[e["id"]]["clip_dur"]) for e in data["events"]
+                if e["do"] == "draw" and by_id.get(e["id"], {}).get("audio_file")]
+    for t0, _, d in overlays:
+        if t0 + d + 0.8 > duration:
+            duration = round(t0 + d + 0.8, 3)
+            data["duration"] = duration
+            log(f"meme clip audio runs to {t0 + d:.1f} s: video length {duration:.1f} s")
     data["events"] = [e for e in data["events"] if not e.get("_drop")]
     data["paper"] = effects.paper_texture(work, PALETTE["board"])
     data["debugSafe"] = a.safe_box
@@ -638,13 +720,14 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     from kindled_iron import sound
 
-    cues = sound.plan(data["events"], data["objects"], scene, spans)
-    music = {"track": a.music or scene.get("music_track") or chan.get("music_track"), "lift_at": None}
+    cues = sound.plan(data["events"], data["objects"], scene, spans, words=[w for bw in beat_words for w in bw])
+    music, music_meta = music_choice(a.music or os.environ.get("KI_MUSIC_SOURCE") or chan.get("music_source", "none"), chan, log)
     for b, beat in enumerate(scene["beats"]):
-        if beat.get("music_lift") is not None:      # a small lift at the ending, from this word on
+        if music and beat.get("music_lift") is not None:      # a small lift at the ending, from this word on
             music["lift_at"] = resolve_at(beat["music_lift"], beat_words[b], spans[b][0], spans[b][1], {})
     flat_words = [w for bw in beat_words for w in bw]
-    mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music, log)
+    mixed = sound.mix(wav, cues, scene, spans, flat_words, duration, work / "mix.wav", work / "mix_novoice.wav", music, log,
+                      overlays=[(t0, Path(f)) for t0, f, _ in overlays], out_nomusic=work / "mix_nomusic.wav")
     snd = sound.report(cues, mixed["beds"], duration)
     snd["lufs"] = mixed["lufs"]
     (work / "sounds.json").write_text(json.dumps(snd, indent=1))
@@ -655,6 +738,10 @@ def main() -> None:
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out), "-i", str(work / "mix_novoice.wav"), "-map", "0:v", "-map", "1:a",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", str(novoice)], check=True)
     log(f"voice-muted copy: {novoice}")
+    nomusic = out.with_name(out.stem + "_nomusic.mp4")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out), "-i", str(work / "mix_nomusic.wav"), "-map", "0:v", "-map", "1:a",
+                    "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", str(nomusic)], check=True)
+    log(f"no-music copy: {nomusic}")
     shutil.copy(work / "sounds.json", out.with_name(out.stem + "_sounds.json"))
     if (work / "insets_contact_sheet.jpg").exists():
         shutil.copy(work / "insets_contact_sheet.jpg", out.with_name(out.stem + "_insets.jpg"))
@@ -665,8 +752,14 @@ def main() -> None:
     meta = {"scene": sid, "duration": duration, "words": words, "voice": voice_meta,
             "insets": json.loads((work / "sources.json").read_text()), "sfx_cues": len(cues),
             "longest_sound_gap": snd["longest_gap"], "lufs": mixed["lufs"], "empty_stretches": empty,
-            "verse_check": verse_results}
+            "verse_check": verse_results, "third_party": {"enabled": third_party, "clips": memes, "images": meme_images},
+            "post": post_text(scene), "music": music_meta, "use_third_party_music": music_meta.get("use_third_party_music", False),
+            "audio": {k: mixed.get(k) for k in ("lufs", "voice_lufs", "true_peak", "lf_burst")}}
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
+    p = meta["post"]             # caption file the publisher reads
+    out.with_name(out.stem + ".post.txt").write_text(
+        f"title: {p.get('title', '')}\ncaption: {p.get('caption', '')}\nthreads: {p.get('threads', '')}\n"
+        f"description: {p.get('description', '')}\n", encoding="utf-8")
     if a.debug_copy:
         dbg = out.with_name(out.stem + "_safebox.mp4")
         safe_overlay(out, dbg)

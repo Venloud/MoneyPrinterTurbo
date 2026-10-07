@@ -283,6 +283,51 @@
       return p('M-40,-110 L-40,60 M-40,0 L45,0 L45,60 M-40,0 L-40,-110 Q-38,-118 -30,-118', { w: 9, c: 'trunk' }) +
         p('M-46,-6 L52,-6 L52,8 L-46,8 Z', { w: 6, fill: 'trunk', fo: 0.9 }) + p('M-40,-100 L-40,-20', { w: 22, c: 'trunk', op: 0.5 });
     },
+    voxel: function (o) {      // a generic blocky world (our own drawing: no game textures, logo or UI)
+      var cols = o.cols || 9, b = o.block || 80, w = cols * b, s = '', y0 = 0, x0 = -w / 2;
+      var heights = o.heights || [1, 1, 2, 2, 1, 1, 3, 2, 1];
+      for (var c = 0; c < cols; c++) {
+        var hh = heights[c % heights.length];
+        for (var r = 0; r < hh; r++) {
+          var x = x0 + c * b, y = y0 - (r + 1) * b, top = r === hh - 1;
+          s += p('M' + x + ',' + y + ' l' + b + ',0 l0,' + b + ' l' + (-b) + ',0 Z', { w: 5, fill: top ? 'green' : 'trunk', fo: 0.95 });
+          if (top) s += p('M' + x + ',' + (y + b * 0.28) + ' l' + b + ',0', { w: 4, c: 'greenLine' });
+          else s += p('M' + (x + b * 0.25) + ',' + (y + b * 0.3) + ' l' + (b * 0.15) + ',0 M' + (x + b * 0.6) + ',' + (y + b * 0.65) + ' l' + (b * 0.15) + ',0', { w: 4, c: 'inkSoft' });
+        }
+      }
+      // a blocky tree on the 7th column
+      var tx = x0 + 6 * b + b / 2, ty = y0 - heights[6 % heights.length] * b;
+      s += p('M' + (tx - b * 0.18) + ',' + ty + ' l0,' + (-b * 1.6) + ' l' + (b * 0.36) + ',0 l0,' + (b * 1.6), { w: 5, fill: 'trunk', fo: 1 }) +
+        p('M' + (tx - b * 0.9) + ',' + (ty - b * 1.5) + ' l' + (b * 1.8) + ',0 l0,' + (-b * 1.3) + ' l' + (-b * 1.8) + ',0 Z', { w: 5, fill: 'leaf', fo: 1 });
+      return s;
+    },
+    blockfolk: function (o) {   // a generic blocky villager: box head, robe, folded arms
+      var k = o.k || 1;
+      return p('M' + (-30 * k) + ',' + (-150 * k) + ' l' + (60 * k) + ',0 l0,' + (60 * k) + ' l' + (-60 * k) + ',0 Z', { w: 5, fill: 'skin', fo: 1 }) +
+        p(circlePath(-12 * k, -124 * k, 4 * k) + ' ' + circlePath(12 * k, -124 * k, 4 * k), { w: 3, fill: 'ink', fo: 1 }) +
+        p('M' + (-34 * k) + ',' + (-90 * k) + ' l' + (68 * k) + ',0 l' + (6 * k) + ',' + (90 * k) + ' l' + (-80 * k) + ',0 Z', { w: 5, fill: 'robe', fo: 1 }) +
+        p('M' + (-40 * k) + ',' + (-62 * k) + ' l' + (80 * k) + ',0 l0,' + (20 * k) + ' l' + (-80 * k) + ',0 Z', { w: 5, fill: 'robeDark', fo: 1 });
+    },
+    cursor: function (o) {      // a mouse pointer ("the player")
+      var k = o.k || 1;
+      return p('M0,0 L0,' + (90 * k) + ' L' + (24 * k) + ',' + (68 * k) + ' L' + (40 * k) + ',' + (104 * k) + ' L' + (56 * k) + ',' + (96 * k) +
+        ' L' + (40 * k) + ',' + (62 * k) + ' L' + (72 * k) + ',' + (60 * k) + ' Z', { w: 6, fill: 'page', fo: 1 });
+    },
+    controller: function (o) {  // a generic game controller
+      var k = o.k || 1, P = function (d) { return d.replace(/-?[\d.]+/g, function (n) { return (parseFloat(n) * k).toFixed(1); }); };
+      return p(P('M-150,-40 C-150,-80 150,-80 150,-40 C175,30 165,95 120,95 C90,95 75,55 50,45 L-50,45 C-75,55 -90,95 -120,95 C-165,95 -175,30 -150,-40 Z'), { w: 7, fill: 'controller', fo: 1 }) +
+        p(P('M-95,-30 l0,50 M-120,-5 l50,0'), { w: 12 }) +
+        p(circlePath(85 * k, -25 * k, 13 * k) + ' ' + circlePath(115 * k, 0, 13 * k) + ' ' + circlePath(55 * k, 0, 13 * k) + ' ' + circlePath(85 * k, 25 * k, 13 * k), { w: 4, fill: 'accent', fo: 0.9 });
+    },
+    popup: function (o) {       // a game-style notification: rounded box with a short label
+      var w = o.w || 420, h = o.h || 120, r = 24, t = esc(o.text || 'CHEAT ON');
+      var d = 'M' + (-w / 2 + r) + ',' + (-h / 2) + ' L' + (w / 2 - r) + ',' + (-h / 2) + ' Q' + (w / 2) + ',' + (-h / 2) + ' ' + (w / 2) + ',' + (-h / 2 + r) +
+        ' L' + (w / 2) + ',' + (h / 2 - r) + ' Q' + (w / 2) + ',' + (h / 2) + ' ' + (w / 2 - r) + ',' + (h / 2) + ' L' + (-w / 2 + r) + ',' + (h / 2) +
+        ' Q' + (-w / 2) + ',' + (h / 2) + ' ' + (-w / 2) + ',' + (h / 2 - r) + ' L' + (-w / 2) + ',' + (-h / 2 + r) + ' Q' + (-w / 2) + ',' + (-h / 2) + ' ' + (-w / 2 + r) + ',' + (-h / 2) + ' Z';
+      return p(d, { w: 7, c: 'accent', fill: 'ink', fo: 0.92 }) +
+        '<text x="0" y="4" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + (o.size || 80) +
+        '" fill="' + C.page + '">' + t + '</text>';
+    },
     check: function (o) { var k = o.k || 1; return p('M' + (-110 * k) + ',' + (-5 * k) + ' L' + (-35 * k) + ',' + (75 * k) + ' L' + (130 * k) + ',' + (-110 * k), { c: 'accent', w: 22 }); },
     arrow: function (o) {
       var x = o.dx == null ? 200 : o.dx, y = o.dy || 0, bend = o.bend == null ? 40 : o.bend, mx = x / 2 - y * bend / 200, my = y / 2 + x * bend / 200;
@@ -308,8 +353,8 @@
     var a = w0 / 2, b = w1 / 2;
     return 'M' + (-a) + ',0 A' + a + ',' + a + ' 0 0 1 ' + a + ',0 L' + b + ',' + L + ' A' + b + ',' + b + ' 0 0 1 ' + (-b) + ',' + L + ' Z';
   }
-  function limb(cls, len1, len2, w, color, end) {
-    return '<g class="' + cls + '1">' + solid(capsule(w[0], w[1], len1), color) +
+  function limb(cls, len1, len2, w, color, end, upper) {
+    return '<g class="' + cls + '1">' + solid(capsule(w[0], w[1], len1), color) + (upper || '') +
       '<g transform="translate(0,' + len1 + ')"><g class="' + cls + '2">' + solid(capsule(w[1], w[2], len2), color) + end +
       '</g></g></g>';
   }
@@ -329,6 +374,12 @@
   var FACE_ALIAS = { speaking: 'neutral', thinking: 'curious', focused: 'curious', sad: 'neutral', look_up: 'awe' };
   var RAISED = 'M-19,-55 q7,-6 14,-2 M5,-57 q7,-4 14,2';      // raised brows (surprise / wonder), never angry
   var REACT = {
+    confused_math: eyes(3, -3) + p('M-6,-24 q6,-4 12,0', { w: 3 }) + p('M-19,-52 L-5,-50 M5,-58 q7,-6 14,1', { w: 4 }) +
+      ['+', '\u00F7', '\u221A', '\u03C0', '=', 'x\u00B2', '?'].map(function (ch, i) {
+        var a = -2.6 + i * 0.75, R = 78 + (i % 2) * 22;
+        return '<text x="' + (Math.cos(a) * R).toFixed(0) + '" y="' + (-40 + Math.sin(a) * R * 0.8).toFixed(0) + '" text-anchor="middle" dominant-baseline="central" ' +
+          'font-family="Caveat" font-weight="700" font-size="' + (i % 3 ? 30 : 38) + '" fill="' + (i % 2 ? C.accent : C.ink) + '">' + ch + '</text>';
+      }).join(''),
     puzzled: eyes(3, -3) + p('M-6,-24 L7,-26', { w: 3 }) + p('M-19,-51 L-5,-50 M5,-58 q7,-6 14,1', { w: 4 }) +
       p('M38,-100 q0,-14 12,-14 q12,0 12,12 q0,8 -10,12 l0,8 M50,-66 l0,2', { w: 5, c: 'accent' }),
     surprised: eyes(0, -1, 4.4) + mouthO(0, 4.6) + p(RAISED, { w: 4 }),
@@ -353,23 +404,62 @@
       exprs += '<g class="react" data-react="' + r.key + '" opacity="0"><clipPath id="rc-' + id + '-' + r.key + '"><circle cx="0" cy="-38" r="36"/></clipPath>' +
         '<image href="' + r.href + '" x="-38" y="-76" width="76" height="76" preserveAspectRatio="xMidYMid slice" clip-path="url(#rc-' + id + '-' + r.key + ')"/></g>';
     });
-    var hairBack = '', hairFront = '';
-    if (spec.hair === 'long-straight') {
+    var hairBack = '', hairFront = '', headShape = circlePath(0, -38, 33), facial = '';
+    if (spec.head === 'hand') {          // slightly hand-drawn, not perfectly round
+      headShape = 'M1,-72 C21,-73 35,-57 34,-36 C33,-16 21,-4 0,-4 C-20,-4 -34,-16 -33,-38 C-32,-58 -20,-71 1,-72 Z';
+    }
+    if (spec.hair === 'locs') {          // twisted locs to the shoulders, middle part
+      var loc = function (x0, y0, x1, y1, w) {   // one loc: a soft rope with a few twist marks
+        var dx = x1 - x0, dy = y1 - y0, L = Math.sqrt(dx * dx + dy * dy), a = Math.atan2(dy, dx) * 180 / Math.PI - 90;
+        var twists = '';
+        for (var k = 12; k < L - 6; k += 11) twists += 'M' + (-w / 2 + 1.5) + ',' + (k - 3) + ' Q0,' + (k + 2) + ' ' + (w / 2 - 1.5) + ',' + (k + 1) + ' ';
+        return '<g transform="translate(' + x0 + ',' + y0 + ') rotate(' + a.toFixed(1) + ')">' +
+          solid('M' + (-w / 2) + ',0 C' + (-w / 2 - 1) + ',' + (L * 0.5) + ' ' + (-w / 2 + 1) + ',' + (L - 3) + ' 0,' + L +
+                ' C' + (w / 2 + 1) + ',' + (L - 3) + ' ' + (w / 2 - 1) + ',' + (L * 0.5) + ' ' + (w / 2) + ',0 Z', col.hair, 3.2) +
+          p(twists, { w: 1.6, c: '#6A5040' }) + '</g>';
+      };
+      // a small mass behind the crown, then separate locs falling to the shoulders (gaps between them)
+      hairBack = solid('M-34,-44 C-40,-80 40,-80 34,-44 Q0,-52 -34,-44 Z', col.hair, 3.5) +
+        loc(-22, -62, -30, 4, 11) + loc(-30, -54, -42, 6, 11) + loc(-35, -42, -49, -2, 10) +
+        loc(22, -62, 30, 4, 11) + loc(30, -54, 42, 6, 11) + loc(35, -42, 49, -2, 10);
+      // crown with a middle part, one loc on each side framing the face
+      hairFront = solid('M0,-74 C-20,-76 -37,-63 -36,-45 C-31,-53 -23,-58 -13,-60 C-7,-61 -3,-62 0,-66 Z', col.hair, 3.5) +
+        solid('M0,-74 C20,-76 37,-63 36,-45 C31,-53 23,-58 13,-60 C7,-61 3,-62 0,-66 Z', col.hair, 3.5) +
+        p('M0,-74 L0,-65', { w: 2.4, c: 'inkSoft' }) +
+        loc(-32, -52, -35, -10, 9) + loc(32, -52, 35, -10, 9);
+    } else if (spec.hair === 'long-straight') {
       hairBack = solid('M-37,-34 C-42,-84 42,-84 37,-34 L38,10 Q30,15 23,8 L22,-28 L-22,-28 L-23,8 Q-30,15 -38,10 Z', col.hair);
       hairFront = solid('M-31,-50 C-22,-76 22,-76 31,-50 C14,-60 -14,-60 -31,-50 Z', col.hair);
     } else if (spec.hair) {
       hairFront = solid('M-32,-46 C-30,-78 30,-78 32,-46 C16,-58 -16,-58 -32,-46 Z', col.hair);
     }
+    if (spec.beard === 'goatee') {       // small mustache + chin goatee (under every expression)
+      facial = solid('M-9,-31 C-6,-34 -2,-33 0,-31.5 C2,-33 6,-34 9,-31 C6,-29.5 2,-30 0,-30.5 C-2,-30 -6,-29.5 -9,-31 Z', col.hair, 1.8) +
+        solid('M-6,-12 C-3,-10 3,-10 6,-12 C6,-7 3,-1 0,0 C-3,-1 -6,-7 -6,-12 Z', col.hair, 2);
+    }
     var torso = solid('M-20,4 C-25,-30 -27,-68 -19,-90 Q0,-100 19,-90 C27,-68 25,-30 20,4 Q0,12 -20,4 Z', col.shirt);
+    var fit = spec.outfit === 'buttonup', BLUE = '#8CCBEB', BEIGE = '#D9C4A0', SHADE = '#4A4D58';
+    if (fit) {   // black short-sleeve button-up: light shading, light-blue collar / placket / buttons / pocket, beige belt
+      torso += f('M-15,-84 C-20,-60 -20,-28 -15,2 L-9,3 C-13,-28 -13,-60 -9,-87 Z', SHADE, 0.85, false) +
+        solid('M-1,-95 L-15,-92 L-8,-79 Z', BLUE, 2.4) + solid('M1,-95 L15,-92 L8,-79 Z', BLUE, 2.4) +
+        p('M0,-86 L0,1', { w: 2.2, c: BLUE }) +
+        [-72, -54, -36, -18].map(function (y) { return solid(circlePath(0, y, 2.6), BLUE, 1.2); }).join('') +
+        p('M5,-70 L16,-70 L16,-58 Q10.5,-55 5,-58 Z', { w: 2.2, c: BLUE }) +
+        p('M-20,1 Q0,9 20,1', { w: 4, c: BEIGE });
+    }
     var dress = spec.dress ? solid('M-21,-46 L-36,16 Q0,26 36,16 L21,-46 Q0,-40 -21,-46 Z', col.dress) : '';
-    var scarf = spec.accent ? '<g class="scarf">' + solid('M-18,-92 Q0,-83 18,-92 L19,-80 Q0,-71 -19,-80 Z', C.accent) +
+    var scarf = spec.accent && !fit ? '<g class="scarf">' + solid('M-18,-92 Q0,-83 18,-92 L19,-80 Q0,-71 -19,-80 Z', C.accent) +
       '<g transform="translate(-7,-79)"><g class="scarfTail">' + solid('M-5,0 C-8,12 -5,24 -9,36 L1,38 C3,26 2,12 5,1 Z', C.accent) + '</g></g></g>' : '';
     var hand = solid(circlePath(0, 4, 8.5), col.skin, 4);
-    var shoe = solid('M-9,-4 C-10,6 20,10 25,3 C25,-4 8,-8 -9,-4 Z', col.shoe, 4);
-    var leg = function (cls, x) { return '<g transform="translate(' + x + ',0)"><g class="' + cls + '">' + limb(cls, LEG, LEG, [21, 16, 13], col.pants, '<g transform="translate(0,' + (LEG - 2) + ')">' + shoe + '</g>') + '</g></g>'; };
+    var shoe = solid('M-9,-4 C-10,6 20,10 25,3 C25,-4 8,-8 -9,-4 Z', col.shoe, 4) +
+      (fit ? p('M-8,3 C2,8 16,8 24,3', { w: 3.4, c: BEIGE }) : '');
+    var stripe = function (side) { return fit ? p('M' + (side * 7) + ',8 L' + (side * 5.5) + ',' + (LEG - 6), { w: 2.2, c: BEIGE }) : ''; };
+    var leg = function (cls, x) { return '<g transform="translate(' + x + ',0)"><g class="' + cls + '">' + limb(cls, LEG, LEG, [21, 16, 13], col.pants, '<g transform="translate(0,' + (LEG - 2) + ')">' + shoe + '</g>', stripe(x < 0 ? -1 : 1)) + '</g></g>'; };
+    // short sleeves: bare arm in skin tone, the sleeve (black, light-blue trim) over the top of the upper arm
+    var sleeve = fit ? solid(capsule(20, 18, 27), col.shirt, 4) + p('M-9,25 L9,25', { w: 3.2, c: BLUE }) : '';
     var arm = function (cls, x, mirror) {
       return '<g transform="translate(' + x + ',-' + SHOULDER + ')"><g class="' + cls + '"' + (mirror ? ' transform="scale(-1,1)"' : '') + '>' +
-        limb(cls, UARM, FARM, [16, 13, 11], col.shirt, '<g transform="translate(0,' + FARM + ')">' + hand + '</g>') + '</g></g>';
+        limb(cls, UARM, FARM, [16, 13, 11], fit ? col.skin : col.shirt, '<g transform="translate(0,' + FARM + ')">' + hand + '</g>', sleeve) + '</g></g>';
     };
     // props: parachute above the head, a small snorkel on the face
     var chute = '<g class="chute" opacity="0">' + p('M-36,-180 L-112,-312 M36,-180 L112,-312 M0,-196 L0,-318', { w: 3, c: 'inkSoft' }) +
@@ -383,7 +473,7 @@
       '<g class="mover"><g class="flip"><g class="body" transform="translate(0,' + HIP_Y + ')">' + chute +
       leg('legL', -10) + leg('legR', 10) +
       '<g class="torso">' + arm('armL', -SH_W, true) + torso + dress + scarf +
-      '<g transform="translate(0,-' + (TORSO - 2) + ')"><g class="head">' + hairBack + solid(circlePath(0, -38, 33), col.skin) + hairFront + exprs + snorkel + '</g></g>' +
+      '<g transform="translate(0,-' + (TORSO - 2) + ')"><g class="head"><g class="headbox">' + hairBack + solid(headShape, col.skin) + facial + hairFront + '</g>' + exprs + snorkel + '</g></g>' +
       arm('armR', SH_W, false) + '</g>' +
       '</g></g></g></g></g>';
   }
@@ -413,6 +503,9 @@
       '<g id="lightsrc"><g id="lightrays"></g><circle id="lightglow" r="900" fill="url(#glowg)" opacity="0"/></g></g>' +
         '<g filter="url(#rough)"><g id="world">' + objMarkup + charMarkup + '<g id="charEnd"/>' +
       '<rect id="darkpaper" x="-6000" y="-6000" width="40000" height="14000" fill="#16141B" opacity="0"/>' + topMarkup + '</g></g>' +
+'<g id="freeze" visibility="hidden"><rect width="' + W + '" height="' + H + '" fill="none" stroke="' + C.ink + '" stroke-width="18"/>' +
+      '<text x="' + (W / 2) + '" y="330" text-anchor="middle" font-family="Caveat" font-weight="700" font-size="76" fill="' + C.ink + '" ' +
+      'stroke="' + C.board + '" stroke-width="10" paint-order="stroke">*record scratch*</text></g>' +
 '<g id="wipe" transform="translate(' + (-W - 200) + ',0)"><path d="M0,0 L' + (W + 60) + ',0 C' + (W + 140) + ',' + (H * 0.3) + ' ' + (W + 20) + ',' + (H * 0.6) + ' ' + (W + 120) + ',' + H + ' L0,' + H + ' Z" fill="' + C.board + '" stroke="none"/></g>' +
     '<g id="hud" visibility="hidden" transform="translate(' + D.hud.x + ',' + D.hud.y + ') scale(' + (D.hud.scale || 1) + ')"><g id="hud-in">' +
       '<path d="M-110,-48 L110,-46 Q122,-46 122,-34 L120,40 Q120,52 108,52 L-108,50 Q-120,50 -120,38 L-122,-36 Q-122,-48 -110,-48 Z" fill="' + C.page + '" stroke="' + C.accent + '" stroke-width="6"/>' +
@@ -421,6 +514,7 @@
     '</g></g>' +
     '<rect width="' + W + '" height="' + H + '" fill="url(#vig)" pointer-events="none"/>';
   var world = document.getElementById('world'), charEnd = document.getElementById('charEnd');
+  var freezeEl = document.getElementById('freeze');
   var darkEl = document.getElementById('darkpaper'), lightEl = document.getElementById('light');
   var lightWash = document.getElementById('lightwash'), lightGlow = document.getElementById('lightglow');
   var lightRays = document.getElementById('lightrays'), lightSrc = document.getElementById('lightsrc');
@@ -544,6 +638,7 @@
   // ---------------------------------------------------------------- timeline
   var tl = gsap.timeline({ paused: true });
   var hudState = { day: 0, pop: 0 };
+  var freezeState = { v: 0 };
   var lightState = { dark: 0, wash: 0, glow: 0, rays: 0, spread: 0.2, x: W / 2, y: H * 0.3 };
   var REST = { armR: 8, armRf: 12, armL: 8, armLf: 12, busyR: 0, busyL: 0, lean: 0, headTilt: 0, legSpread: 0, y: 0,
                lR: 0, lRs: 0, lL: 0, lLs: 0, rotB: 0, floatAmt: 0, swim: 0 };
@@ -860,6 +955,29 @@
         tl.to(cam, { z: e.zoom || 1.35, duration: e.dur || 0.3, ease: 'power2.in' }, e.t); break;
       case 'camera':
         tl.to(cam, { x: e.x, y: e.y, z: e.zoom, r: e.rotate || 0, duration: e.dur || 0.8, ease: e.ease || 'power2.inOut' }, e.t); break;
+      case 'freeze': {         // record-scratch freeze-frame (in colour): the camera snaps onto the guide (or e.focus)
+        var fg = chars[e.who || 'guide'], fd = e.dur || 1.0;
+        if (fg) {
+          var fsc = fg.scale * (fg.s.k || 1), gx = charX(e.who || 'guide', e.t), gy = GROUND - 230 * fsc;
+          var px = Math.floor(gx / 1080) * 1080 + 540;
+          var fx = e.focus ? Math.floor(gx / 1080) * 1080 + e.focus.x : gx, fy = e.focus ? e.focus.y : gy + 120;
+          tl.to(cam, { x: fx, y: fy, z: e.zoom || 1.4, duration: 0.12, ease: 'power3.out' }, e.t);
+          tl.to(cam, { x: px, y: D.camera.y, z: 1, duration: 0.35, ease: 'power2.inOut' }, e.t + fd);
+          tl.set(fg.s, { expr: 'surprised' }, e.t);
+        }
+        tl.set(freezeState, { v: 1 }, e.t);
+        tl.set(freezeState, { v: 0 }, e.t + fd);
+        break;
+      }
+      case 'lean_on': {        // stand right next to a drawing / card and lean on it with one arm
+        var lb = worldBox(e.toward), lsc = c.scale * (c.s.k || 1), lside = e.side || -1;     // -1 = guide on its left
+        var lx = lside < 0 ? lb.x - 34 * lsc : lb.x + lb.w + 34 * lsc;
+        tl.set(s, { x: lx, flipX: -lside }, e.t); s._facing = -lside;
+        pose(s, { rotB: lside * 9, lean: 6, armR: 118, armRf: 30, busyR: 1, armL: 20, armLf: 40, busyL: 1, lR: 0, lL: -14 }, e.t, 0.35);
+        tl.set(s, { expr: 'happy' }, e.t + 0.2);
+        if (e.hold) standUp(s, e.t + e.hold, 0.35);
+        break;
+      }
       case 'shake':
         if (!c) { tl.to(cam, { r: 0.6, duration: 0.06, yoyo: true, repeat: 5, ease: 'sine.inOut' }, e.t); break; }
         tl.to(s, { headTilt: 12, duration: 0.14, yoyo: true, repeat: 5, ease: 'sine.inOut' }, e.t);
@@ -1021,10 +1139,11 @@
       lastChunk = idx;
       capEl.innerHTML = idx < 0 ? '' : D.captions[idx].words.map(function (w, k) { return '<span data-k="' + k + '">' + esc(w.text) + '</span>'; }).join(' ');
       // shrink to fit the safe box on one line; below the minimum size, wrap instead
-      var size = D.captionSize, min = Math.round(size * 0.68);
+      var size = D.captionSize, min = Math.round(size * ((D.captionBox || {}).min_scale || 0.68));   // below min: wrap to 2 lines
       capEl.style.whiteSpace = 'nowrap'; capEl.style.fontSize = size + 'px';
       while (size > min && capEl.scrollWidth > capEl.clientWidth) { size -= 4; capEl.style.fontSize = size + 'px'; }
       if (capEl.scrollWidth > capEl.clientWidth) capEl.style.whiteSpace = 'normal';
+      capEl.dataset.fit = size;
     }
     if (idx < 0) return;
     var ch = D.captions[idx], spans = capEl.children;
@@ -1033,8 +1152,83 @@
       spans[k].className = active ? 'on' : (t >= w.start ? 'said' : '');
     }
     var age = t - ch.start, pop = age < 0.12 ? 0.86 + 0.14 * (age / 0.12) : 1;
+    capEl.style.transform = 'translateX(-50%)';
+    placeCaptions();
     capEl.style.transform = 'translateX(-50%) scale(' + pop.toFixed(3) + ')';
   }
+  // Captions never overlap a title / big word / card, and never sit on the guide's head: they move, then shrink.
+  var CAP_TOP = null;
+  function isTitle(d) { return d.title || d.type === 'popup' || d.type === 'scripture' || (d.type === 'word' && (d.size || 120) >= 80); }
+  function headBoxes() {
+    var out = [];
+    Object.keys(chars).forEach(function (id) {
+      var c = chars[id]; if (c.s.draw < 0.05 || !shown(c.el)) return;
+      var hb = c.el.querySelector('.headbox'); if (!hb) return;
+      var r = hb.getBoundingClientRect(); if (r.width) out.push(r);
+    });
+    return out;
+  }
+  function titleBoxes() {
+    var out = [];
+    Object.keys(objs).forEach(function (id) {
+      var ob = objs[id]; if (!isTitle(ob.def) || !shown(ob.el)) return;
+      var r = glyphBox(ob); if (!offScreen(r)) out.push([ob.def.text || ob.def.ref || id, r]);
+    });
+    return out;
+  }
+  function capRect() {
+    var cr = null;
+    Array.prototype.forEach.call(capEl.children, function (sp) {
+      var b = sp.getBoundingClientRect();
+      cr = cr ? { left: Math.min(cr.left, b.left), top: Math.min(cr.top, b.top), right: Math.max(cr.right, b.right), bottom: Math.max(cr.bottom, b.bottom) } : { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+    });
+    return cr;
+  }
+  function placeCaptions() {
+    if (CAP_TOP === null) CAP_TOP = parseFloat(getComputedStyle(capEl).top);
+    var fit = parseFloat(capEl.dataset.fit || D.captionSize);
+    capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; capEl.style.visibility = 'visible';
+    if (!capEl.children.length) return;
+    // the same words already written big on screen: no caption on top of it (never "NOBODY. NOBODY.")
+    var norm = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); };
+    var said = norm(capEl.textContent), tbs = titleBoxes();
+    if (said && tbs.some(function (x) { var tt = norm(x[0]); return tt && (tt === said || (' ' + tt + ' ').indexOf(' ' + said + ' ') >= 0); })) {
+      capEl.style.visibility = 'hidden'; return;
+    }
+    var hard = tbs.map(function (x) { return x[1]; }).concat(headBoxes());
+    if (!hard.length) return;
+    // soft: real clips (better not to cover them, but allowed)
+    var soft = [];
+    Object.keys(objs).forEach(function (id) { var ob = objs[id]; if (ob.def.type === 'inset' && shown(ob.el)) soft.push(ob.el.getBoundingClientRect()); });
+    var cl = SAFE.column, pad = 8, best = null;
+    function score(r) {
+      if (r.top < SAFE.y0 || r.bottom > SAFE.y1 || r.left < SAFE.x0 - pad || r.right > SAFE.x1 + pad ||
+          inter(r, { left: cl.x0, top: cl.y0, right: cl.x1, bottom: cl.y1 }) > 0) return null;
+      var h = hard.reduce(function (a, b) { return a + inter(r, b); }, 0);
+      return h * 100 + soft.reduce(function (a, b) { return a + inter(r, b); }, 0) * 0.2;
+    }
+    for (var si = 0; si < 3; si++) {
+      var sz = Math.round(fit * [1, 0.8, 0.64][si]);
+      capEl.style.fontSize = sz + 'px'; capEl.style.top = CAP_TOP + 'px';
+      var r0 = capRect(); if (!r0) return;
+      var off = r0.top - CAP_TOP, hgt = r0.bottom - r0.top;      // glyph box vs the element's top
+      // candidate tops: where it is, then right below / above every blocker
+      var tops = [CAP_TOP];
+      hard.concat(soft).forEach(function (b) { tops.push(b.bottom + 10 - off, b.top - hgt - 10 - off); });
+      tops.sort(function (a, b) { return Math.abs(a - CAP_TOP) - Math.abs(b - CAP_TOP); });
+      for (var ti = 0; ti < tops.length; ti++) {
+        var tp = tops[ti], r = { left: r0.left, right: r0.right, top: tp + off, bottom: tp + off + hgt };
+        var sc = score(r);
+        if (sc === null) continue;
+        if (!best || sc < best[0] - 1) best = [sc, tp, sz];
+        if (sc === 0) break;
+      }
+      if (best && best[0] === 0) break;
+    }
+    if (best) { capEl.style.top = best[1].toFixed(0) + 'px'; capEl.style.fontSize = best[2] + 'px'; }
+    else { capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; }
+  }
+
 
 
   // ambient motion: every drawing keeps living a little once it is on screen (time-pure)
@@ -1123,13 +1317,17 @@
     renderCaptions(t);
     renderObjects(t);
     renderLight(t);
+    var fz = freezeState.v > 0.5;
+    board.style.filter = fz ? 'saturate(1.25) contrast(1.08)' : '';
+    freezeEl.setAttribute('visibility', fz ? 'visible' : 'hidden');
     renderHud();
   }
 
   var SAFE = D.safe;
   // backdrops / marks meant to sit on or under other drawings
   var NO_OVERLAP_CHECK = { strike: 1, cross: 1, rays: 1, darkness: 1, frame: 1, line: 1, inset: 1, sparkle: 1, splash: 1, circle: 1, light: 1 };
-  var transitions = D.events.filter(function (e) { return (e.do === 'walk' && e.camera) || e.transition || e.do === 'wipe'; })
+  // camera moves (and the record-scratch punch-in, a deliberate crop) are not checked for the safe box
+  var transitions = D.events.filter(function (e) { return (e.do === 'walk' && e.camera) || e.transition || e.do === 'wipe' || e.do === 'freeze'; })
     .map(function (e) { return [e.t - 0.1, e.t + (e.dur || 0.6) + (e.turn || 0) + 0.4]; });
   function inter(a, b) { return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)); }
   function shown(el) { return el.getAttribute('visibility') !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0.3; }
@@ -1171,7 +1369,8 @@
       if (!r) return;
       r.width = r.right - r.left; r.height = r.bottom - r.top;
       if (offScreen(r)) return;
-      if (!moving) safeIssues(id, r, out);
+      // feet may go a little below the safe box (owner's call): only the body above y1 counts
+      if (!moving) safeIssues(id, { left: r.left, top: r.top, right: r.right, bottom: Math.min(r.bottom, SAFE.y1 + (r.bottom < SAFE.y1 + 140 ? 0 : 999)), width: r.width, height: r.height }, out);
       boxes[id] = r;
       covers.push(r);
       people.push([id, r, c.s.walk > 0.01]);
@@ -1211,13 +1410,26 @@
         if (r.top > wl) out.push('CONTACT: ' + id + ' is fully under water');
       }
     });
-    if (capEl.textContent.trim()) {
+    if (capEl.textContent.trim() && capEl.style.visibility !== 'hidden') {
       var cr = null, pad = 8;      // real text extent (+ the outline stroke)
       Array.prototype.forEach.call(capEl.children, function (sp) {
         var b = sp.getBoundingClientRect();
         cr = cr ? { left: Math.min(cr.left, b.left), top: Math.min(cr.top, b.top), right: Math.max(cr.right, b.right), bottom: Math.max(cr.bottom, b.bottom) } : { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
       });
-      if (cr) safeIssues('captions', { left: cr.left - pad, top: cr.top, right: cr.right + pad, bottom: cr.bottom }, out);
+      if (cr) {
+        safeIssues('captions', { left: cr.left - pad, top: cr.top, right: cr.right + pad, bottom: cr.bottom }, out);
+        titleBoxes().forEach(function (tb) { if (inter(cr, tb[1]) > 0) out.push('CAPTION OVERLAP: captions overlap "' + tb[0] + '"'); });
+        headBoxes().forEach(function (hb) { if (inter(cr, hb) > 0.05 * hb.width * hb.height) out.push('captions over the guide\'s head'); });
+      }
+    }
+    if (!moving) {
+      var heads = headBoxes();
+      Object.keys(objs).forEach(function (id) {
+        var ob = objs[id], d = ob.def;
+        if (NO_OVERLAP_CHECK[d.type] || d.type === 'inset' || !shown(ob.el)) return;
+        var r = glyphBox(ob); if (offScreen(r)) return;
+        heads.forEach(function (hb) { if (inter(r, hb) > 0.1 * hb.width * hb.height) out.push('object ' + id + ' over the guide\'s head'); });
+      });
     }
     Object.keys(chars).forEach(function (id) {
       var c = chars[id], vx = charX(id, t + 0.05) - charX(id, t - 0.05);

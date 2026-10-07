@@ -1,4 +1,4 @@
-# Reaction inbox (retired)
+# Reactions (private)
 
 This repo is PUBLIC: no meme images, reaction clips or film/TV clips here (git ignores this folder).
 They live in the PRIVATE repo Venloud/kindled-iron-voice, folders `reactions/` (meme images and reaction

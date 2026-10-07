@@ -1,112 +1,125 @@
 {
-  "_comment": "Per-channel voice settings. Settings are sent per request only; the ElevenLabs voice itself is never edited. pacing 'tight' (kindled_iron): no added pauses; the natural read is kept, every silence over trim_over (0.30 s) is cut to keep_gap (0.25 s), and only the script's [beat] tags (max_beats, each max_beat s) are set on purpose. Other channels: pause_sentence / pause_beat / max_pause add pauses between sentences; [pause 0.8] sets one exactly. music_track = the channel's music bed (sound_levels.json 'music_tracks').",
-  "kindled_iron": {
-    "description": "direct, confident, for adults; natural read, tight pacing",
-    "tts_provider": "elevenlabs",
-    "elevenlabs": {
-      "voice_id": "jRFiEvaIrFDZO8HLTCKI",
-      "model_id": "eleven_multilingual_v2",
-      "output_format": "mp3_44100_128",
-      "voice_settings": {
-        "stability": 0.55,
-        "similarity_boost": 0.8,
-        "style": 0.15,
-        "use_speaker_boost": true,
-        "speed": 1.05
-      },
-      "monthly_char_budget": 40000,
-      "min_remaining_fraction": 0.1,
-      "use_break_tags": false
-    },
-    "chatterbox": {
-      "reference_clip": "kindled_iron_ref_1.wav",
-      "exaggeration": 0.45,
-      "cfg_weight": 0.5,
-      "temperature": 0.8
-    },
-    "kokoro": {
-      "voice": "am_fenrir",
-      "speed": 1.1,
-      "lang": "a"
-    },
-    "eq": "highpass=f=70,equalizer=f=3200:t=q:w=1.2:g=1.5",
-    "pacing": "tight",
-    "trim_over": 0.3,
-    "keep_gap": 0.25,
-    "max_beat": 0.4,
-    "max_beats": 3,
-    "wpm_target": [
-      165,
-      185
-    ],
-    "music_track": "trailer"
+ "_comment": "Per-channel voice settings. Settings are sent per request only; the ElevenLabs voice itself is never edited. pacing 'tight' (kindled_iron): no added pauses; the natural read is kept, every silence over trim_over (0.30 s) is cut to keep_gap (0.25 s), and only the script's [beat] tags (max_beats, each max_beat s) are set on purpose. Other channels: pause_sentence / pause_beat / max_pause add pauses between sentences; [pause 0.8] sets one exactly. music_track = the channel's music bed (sound_levels.json 'music_tracks').",
+ "kindled_iron": {
+  "description": "calm, soft, conversational (one person); one request with tts_text; never cut or re-spaced",
+  "tts_provider": "elevenlabs",
+  "elevenlabs": {
+   "voice_id": "jRFiEvaIrFDZO8HLTCKI",
+   "model_id": "eleven_multilingual_v2",
+   "output_format": "mp3_44100_128",
+   "voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.8,
+    "style": 0.18,
+    "use_speaker_boost": true,
+    "speed": 0.97
+   },
+   "monthly_char_budget": 40000,
+   "min_remaining_fraction": 0.1,
+   "use_break_tags": false
   },
-  "night_files": {
-    "description": "slow, serious, tense",
-    "tts_provider": "elevenlabs",
-    "pause_sentence": 0.45,
-    "pause_beat": 0.9,
-    "max_pause": 1.4,
-    "elevenlabs": {
-      "voice_id": "jRFiEvaIrFDZO8HLTCKI",
-      "model_id": "eleven_multilingual_v2",
-      "output_format": "mp3_44100_128",
-      "voice_settings": {
-        "stability": 0.7,
-        "similarity_boost": 0.8,
-        "style": 0.1,
-        "use_speaker_boost": true,
-        "speed": 0.92
-      },
-      "monthly_char_budget": 40000,
-      "min_remaining_fraction": 0.1,
-      "use_break_tags": false
-    },
-    "chatterbox": {
-      "reference_clip": "night_files_ref.wav",
-      "exaggeration": 0.35,
-      "cfg_weight": 0.35,
-      "temperature": 0.7
-    },
-    "kokoro": {
-      "voice": "am_michael",
-      "speed": 0.95,
-      "lang": "a"
-    },
-    "eq": "highpass=f=60,equalizer=f=180:t=q:w=1:g=2"
+  "chatterbox": {
+   "reference_clip": "kindled_iron_ref_1.wav",
+   "exaggeration": 0.45,
+   "cfg_weight": 0.5,
+   "temperature": 0.8
   },
-  "bouriko": {
-    "description": "upbeat, curious, faster",
-    "tts_provider": "elevenlabs",
-    "pause_sentence": 0.28,
-    "pause_beat": 0.55,
-    "max_pause": 1.0,
-    "elevenlabs": {
-      "voice_id": "jRFiEvaIrFDZO8HLTCKI",
-      "model_id": "eleven_multilingual_v2",
-      "output_format": "mp3_44100_128",
-      "voice_settings": {
-        "stability": 0.4,
-        "similarity_boost": 0.8,
-        "style": 0.45,
-        "use_speaker_boost": true,
-        "speed": 1.08
-      },
-      "monthly_char_budget": 40000,
-      "min_remaining_fraction": 0.1,
-      "use_break_tags": false
-    },
-    "chatterbox": {
-      "reference_clip": "bouriko_ref.wav",
-      "exaggeration": 0.7,
-      "cfg_weight": 0.4,
-      "temperature": 0.85
-    },
-    "kokoro": {
-      "voice": "am_puck",
-      "speed": 1.08,
-      "lang": "a"
-    },
-    "eq": null
-  }
+  "kokoro": {
+   "voice": "am_fenrir",
+   "speed": 0.97,
+   "lang": "a"
+  },
+  "eq": null,
+  "pacing": "tight",
+  "trim_over": 0.45,
+  "keep_gap": 0.4,
+  "max_beat": 0.4,
+  "max_beats": 0,
+  "wpm_target": [
+   140,
+   180
+  ],
+  "length_target": [
+   60,
+   90
+  ],
+  "min_speed": 0.9,
+  "use_third_party_clips": true,
+  "music_source": "generated",
+  "music_file": "",
+  "music_start": 226,
+  "music_generated": "theme_1",
+  "music_level_db": -22,
+  "music_duck_db": 3.5,
+  "music_dip_db": 3.5,
+  "music_lift_db": 2.0
+ },
+ "night_files": {
+  "description": "slow, serious, tense",
+  "tts_provider": "elevenlabs",
+  "pause_sentence": 0.45,
+  "pause_beat": 0.9,
+  "max_pause": 1.4,
+  "elevenlabs": {
+   "voice_id": "jRFiEvaIrFDZO8HLTCKI",
+   "model_id": "eleven_multilingual_v2",
+   "output_format": "mp3_44100_128",
+   "voice_settings": {
+    "stability": 0.7,
+    "similarity_boost": 0.8,
+    "style": 0.1,
+    "use_speaker_boost": true,
+    "speed": 0.92
+   },
+   "monthly_char_budget": 40000,
+   "min_remaining_fraction": 0.1,
+   "use_break_tags": false
+  },
+  "chatterbox": {
+   "reference_clip": "night_files_ref.wav",
+   "exaggeration": 0.35,
+   "cfg_weight": 0.35,
+   "temperature": 0.7
+  },
+  "kokoro": {
+   "voice": "am_michael",
+   "speed": 0.95,
+   "lang": "a"
+  },
+  "eq": "highpass=f=60,equalizer=f=180:t=q:w=1:g=2"
+ },
+ "bouriko": {
+  "description": "upbeat, curious, faster",
+  "tts_provider": "elevenlabs",
+  "pause_sentence": 0.28,
+  "pause_beat": 0.55,
+  "max_pause": 1.0,
+  "elevenlabs": {
+   "voice_id": "jRFiEvaIrFDZO8HLTCKI",
+   "model_id": "eleven_multilingual_v2",
+   "output_format": "mp3_44100_128",
+   "voice_settings": {
+    "stability": 0.4,
+    "similarity_boost": 0.8,
+    "style": 0.45,
+    "use_speaker_boost": true,
+    "speed": 1.08
+   },
+   "monthly_char_budget": 40000,
+   "min_remaining_fraction": 0.1,
+   "use_break_tags": false
+  },
+  "chatterbox": {
+   "reference_clip": "bouriko_ref.wav",
+   "exaggeration": 0.7,
+   "cfg_weight": 0.4,
+   "temperature": 0.85
+  },
+  "kokoro": {
+   "voice": "am_puck",
+   "speed": 1.08,
+   "lang": "a"
+  },
+  "eq": null
+ }
 }

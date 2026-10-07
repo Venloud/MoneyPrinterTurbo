@@ -1,0 +1,131 @@
+name: Kindled Iron Publish
+
+# The ONLY workflow that posts. Manual for now. Posts one APPROVED render (listed in the private repo's
+# approved/index.json) to TikTok, YouTube Shorts, Instagram Reels, Threads and Facebook Reels.
+# Refuses fallback-voice renders and renders that failed a check; a platform whose connection check fails
+# is skipped; one platform failing never stops the others. Weekly: refresh tokens + expiry alerts.
+on:
+  workflow_dispatch:
+    inputs:
+      render:
+        description: "Approved render file (e.g. where-did-god-come-from-20261006-1500.mp4); empty = latest approved"
+        required: false
+        default: ""
+      only:
+        description: "Only these platforms (comma list); empty = every platform not 'off' in publish_config.json"
+        required: false
+        default: ""
+      check_only:
+        description: "Check every platform's connection, post nothing"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 13 * * *"     # daily: refresh tokens, check every platform, ntfy only if something needs you
+
+permissions:
+  contents: write              # only for the short-lived public copy of the video (deleted at the end)
+
+concurrency:
+  group: kindled-iron-publish
+  cancel-in-progress: false
+
+env:
+  VOICE_REPO: ${{ vars.KI_VOICE_REPO || 'Venloud/kindled-iron-voice' }}
+  TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+  TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+  TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+  TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+  TIKTOK_OPEN_ID: ${{ secrets.TIKTOK_OPEN_ID }}
+  YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+  YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+  YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+  INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+  THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+  FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+  FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+  GH_SECRETS_WRITE_TOKEN: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
+  TOKEN_MIRROR_REPOS: ${{ vars.TOKEN_MIRROR_REPOS }}
+  META_APP_ID: ${{ secrets.META_APP_ID }}
+  META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+  NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "Daily: refresh tokens, check every platform, alert only when something needs you"
+        if: ${{ github.event_name == 'schedule' }}
+        run: python -m kindled_iron.publish --daily
+
+      - name: Connection check only
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_only }}
+        run: python -m kindled_iron.publish --check-only --only "${{ inputs.only }}"
+
+      - name: Fetch the approved render from the private repo
+        id: fetch
+        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.check_only }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+          WANT: ${{ inputs.render }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
+          gh api "repos/$VOICE_REPO/contents/approved/index.json" -q .content | base64 -d > approved.json
+          file=$(python3 - <<'PY'
+          import json, os
+          items = json.load(open("approved.json")).get("items", [])
+          want = os.environ.get("WANT", "").strip()
+          pick = [i for i in items if i["file"] == want] if want else items[-1:]
+          if not pick:
+              raise SystemExit(f"FAIL: {want or 'no render'} is not approved")
+          print(pick[0]["file"])
+          PY
+          )
+          base="${file%.mp4}"
+          mkdir -p pub
+          gh release download test-renders --repo "$VOICE_REPO" --dir pub --clobber \
+            --pattern "$file" --pattern "$base.meta.json" --pattern "$base.post.txt"
+          ls -la pub
+          echo "video=pub/$file" >> "$GITHUB_OUTPUT"
+          echo "meta=pub/$base.meta.json" >> "$GITHUB_OUTPUT"
+          echo "post=pub/$base.post.txt" >> "$GITHUB_OUTPUT"
+          echo "tag=ki-tmp-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Short-lived public copy (Threads / Instagram fallback fetch from a URL), deleted at the end
+        id: tmp
+        if: ${{ steps.fetch.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "${{ steps.fetch.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "temporary (deleted after publishing)" --notes "Temporary copy for platform upload; removed automatically." \
+            "${{ steps.fetch.outputs.video }}#video.mp4"
+          name=$(basename "${{ steps.fetch.outputs.video }}")
+          echo "url=https://github.com/$GITHUB_REPOSITORY/releases/download/${{ steps.fetch.outputs.tag }}/$name" >> "$GITHUB_OUTPUT"
+
+      - name: Publish
+        if: ${{ steps.fetch.outcome == 'success' }}
+        run: |
+          python -m kindled_iron.publish --video "${{ steps.fetch.outputs.video }}" --meta "${{ steps.fetch.outputs.meta }}" \
+            --post "${{ steps.fetch.outputs.post }}" --public-url "${{ steps.tmp.outputs.url }}" --only "${{ inputs.only }}"
+
+      - name: Remove the public copy
+        if: ${{ always() && steps.fetch.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete "${{ steps.fetch.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: publish-results
+          path: publish_results.json
+          if-no-files-found: ignore

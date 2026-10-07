@@ -4,7 +4,7 @@
   - a soft chime when each scripture reference appears
   - a soft whoosh on every other scene change
   - one short pencil sound per scene, on its main drawing only ("main": true)
-  Hard cap 15 effects, never two within 0.8 s. No per-stroke sounds (no marker, scribble, eraser,
+  Cap and spacing from sound_levels.json (max_effects, min_spacing_s; Kindled Iron: 10, 1 s); pencil can be off. No per-stroke sounds (no marker, scribble, eraser,
   scratch), no ambience beds. "sound": "<role>" / "sound": false on an event overrides.
 
 Music: one track per channel (voice_profiles.json music_track -> vendor/sfx/lib/music_<name>.ogg),
@@ -58,11 +58,32 @@ class Picker:
         return f, 1.0 + self.rng.uniform(-0.04, 0.04)
 
 
-MAX_EFFECTS, MIN_SPACING, MAX_HITS = 15, 0.8, 3
+MAX_EFFECTS = int(CONFIG.get("max_effects", 15))
+MIN_SPACING = float(CONFIG.get("min_spacing_s", 0.8))
+MAX_HITS = 3
+PENCIL = bool(CONFIG.get("pencil", True))
 
 
-def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, picker: Picker | None = None) -> list[dict]:
-    """Few, meaningful effects (a cap of 15, never two within 0.8 s), in priority order:
+def off_words(t: float, words: list[dict], reach: float = 0.6) -> float | None:
+    """An effect never starts on top of a word: move it into the nearest pause (>= 0.12 s) within `reach`
+    seconds, preferring the pause before; None if there is none."""
+    if not words or not any(w["start"] - 0.03 <= t <= w["end"] for w in words):
+        return t
+    gaps = [(words[i]["end"] + 0.02, words[i + 1]["start"] - 0.03) for i in range(len(words) - 1)
+            if words[i + 1]["start"] - words[i]["end"] >= 0.12]
+    gaps.append((words[-1]["end"] + 0.02, words[-1]["end"] + 5))
+    best = None
+    for a, b in gaps:
+        cand = min(max(t, a), b)
+        d = abs(cand - t) + (0 if cand <= t else 0.05)
+        if abs(cand - t) <= reach and (best is None or d < best[0]):
+            best = (d, cand)
+    return round(best[1], 3) if best else None
+
+
+def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, picker: Picker | None = None,
+         words: list[dict] | None = None) -> list[dict]:
+    """Few, meaningful effects (cap and spacing from sound_levels.json), in priority order:
       1. a big hit on the key moments: events marked "hit": true (max 3)
       2. a soft chime when each scripture reference appears
       3. a soft whoosh on some scene changes (every other one)
@@ -91,13 +112,17 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
             add(2, t + float(e.get("dur") or 1.5) + 0.1, "chime", f"reference {o.get('ref')} appears")
         elif do == "camera" and e.get("transition"):
             scene_changes += 1
-            if scene_changes % 2 == 1:
+            big = e.get("whoosh")                       # the scene marks its big changes; else every other one
+            if big or (big is None and scene_changes % 2 == 1):
                 add(3, t - 0.05, "whoosh_slow", f"scene change ({e['transition']})", 0.7)
-        elif do == "draw" and o and e.get("main"):
+        elif do == "draw" and o and e.get("main") and PENCIL:
             beat = next((b for b, (a, z) in enumerate(spans) if a - 0.3 <= t <= z + 0.3), None)
             if beat not in pencil_beats:
                 pencil_beats.add(beat)
                 add(4, t, "pencil_long", f"draws {o['type']} {o['id']}", min(0.8, float(e.get("dur") or 0.8)))
+    for c in cand:              # never on top of a word
+        c["t"] = off_words(c["t"], words or [])
+    cand = [c for c in cand if c["t"] is not None]
     kept: list[dict] = []
     for c in sorted(cand, key=lambda c: (c["prio"], c["t"])):
         if len(kept) >= MAX_EFFECTS:
@@ -176,8 +201,11 @@ def _speech_mask(words: list[dict], n: int) -> np.ndarray:
 
 
 def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list[dict], duration: float,
-        out: Path, out_novoice: Path, music: dict | None, log) -> dict:
-    """music = {"track": name (vendor/sfx/lib/music_<name>.ogg), "lift_at": seconds} or None."""
+        out: Path, out_novoice: Path, music: dict | None, log, overlays: list | None = None,
+        out_nomusic: Path | None = None) -> dict:
+    """music = {"file": path, "start": s, "level_db": -22, "duck_db": 3.5, "dip_db": 3.5, "lift_at": s, "lift_db": 2,
+    "label": "..."} (or {"track": name} for vendor/sfx/lib/music_<name>.ogg), or None for no music.
+    overlays = [(t, wav)]: a meme clip's own audio, set to the voice's speech level and mixed in with it."""
     voice = _decode(narration)
     n = max(len(voice), int(duration * SR)) + SR // 2
     v = np.zeros(n, np.float32)
@@ -196,45 +224,160 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
         i = int(c["t"] * SR)
         seg = seg[: max(0, n - i)]
         fx[i:i + len(seg)] += seg
-    bed = np.zeros(n, np.float32)
-    duck = (10 ** (-DUCK_DB / 20)) ** _speech_mask(words, n)
     beds = []
-    track = (music or {}).get("track")
-    if track and (LIB / f"music_{track}.ogg").exists():
-        x = _loop(_decode(LIB / f"music_{track}.ogg"), n, xf=2.0)
-        x = x * (0.1 / (float(np.sqrt(np.mean(x[: SR * 20] ** 2))) or 0.1))     # same reference level as the effects
-        env = np.ones(n, np.float32)
-        lift = music.get("lift_at")
-        if lift is not None:                                                   # a small lift at the ending (+3 dB)
-            a = int(lift * SR)
-            ramp = min(n - a, int(0.4 * SR))
-            if ramp > 0:
-                env[a:a + ramp] = np.linspace(1, 1.41, ramp)
-                env[a + ramp:] = 1.41
-        k2 = int(1.2 * SR)
-        env[-k2:] *= np.linspace(1, 0, k2)
-        bed += x * env * (vr * 10 ** ((LEVELS["music"] + SFX_GAIN) / 20) / 0.1)
-        beds.append({"t": 0.0, "to": round(n / SR, 2), "role": "music", "file": f"music_{track}.ogg"})
-    bed *= duck
-    fx *= duck                                    # everything ducks under speech
-    # the VOICE alone is set to the target (gentle compressor, then gain + limiter at -1 dBFS); effects, ambience
-    # and music follow by the same factor, so they keep their offsets and are never boosted to reach loudness
-    vc = _ff(v, "acompressor=threshold=-24dB:ratio=4:attack=5:release=100:knee=6")   # tame the peaks first
+    smask = _speech_mask(words, n)
+    fx *= (10 ** (-DUCK_DB / 20)) ** smask        # effects duck under speech
+    # The VOICE alone is cleaned and set to the target: high-pass ~85 Hz, de-plosive (the band under 160 Hz is
+    # compressed hard only above its own loud level, so P/B bursts are tamed and the body stays), light de-esser,
+    # gentle compression, then gain + limiter to VOICE_LUFS with true peak <= TRUE_PEAK. Effects follow by the
+    # same factor (they keep their offsets from sound_levels.json). Every provider goes through this.
+    vc = clean_voice(v)
+    vn, voice_lufs = _to_target(vc)
+    k = _speech_rms(vn) / (_speech_rms(v) or 1e-6)
+    # a clip's own audio ("God did") is matched to the voice loudness, never louder (1 dB under)
+    ov = np.zeros(n, np.float32)
+    for t0, wav in overlays or []:
+        x = _decode(Path(wav))
+        if len(x) < SR // 5:
+            continue
+        lx = _measure_lufs_arr(np.pad(x, (0, max(0, SR - len(x)))))
+        x = _ff(x * 10 ** ((voice_lufs - 1.0 - lx) / 20), f"alimiter=limit={LIMIT:.3f}:attack=3:release=60:level=disabled")
+        i = int(t0 * SR)
+        x = x[: max(0, n - i)]
+        ov[i:i + len(x)] += x
+        log(f"clip audio at {t0:.1f} s: {lx:.1f} LUFS -> {voice_lufs - 1.0:.1f} LUFS (1 dB under the voice)")
+    mb = music_bed(music, n, smask, voice_lufs, duration, log)
+    if mb is not None:
+        beds.append({"t": 0.0, "to": round(duration, 2), "role": "music", "file": (music or {}).get("label", "music")})
+    _write(vn + ov + fx * k + (mb if mb is not None else 0), out, 0.0)
+    _write(ov + fx * k + (mb if mb is not None else 0), out_novoice, 0.0)
+    if out_nomusic is not None:
+        _write(vn + ov + fx * k, out_nomusic, 0.0)
+    lufs = _measure_lufs(out)
+    tp = true_peak(out)
+    burst = lf_burst(out, vn)
+    log(f"mix: {len(cues)} effects + music {(music or {}).get('label') or 'none'}, voice {voice_lufs:.1f} LUFS (target {VOICE_LUFS:.0f}), "
+        f"final mix {lufs:.1f} LUFS, true peak {tp:.1f} dBTP, worst low-frequency burst {burst:+.1f} dB vs the voice average")
+    if tp > TP_FAIL:
+        raise SystemExit(f"FAIL: audio check: true peak {tp:.1f} dBTP is above {TP_FAIL:.1f} dBTP")
+    if burst > BURST_FAIL:
+        raise SystemExit(f"FAIL: audio check: a low-frequency burst (<120 Hz) is {burst:.1f} dB above the voice average "
+                         f"(limit {BURST_FAIL:.0f} dB)")
+    return {"lufs": lufs, "voice_lufs": voice_lufs, "beds": beds, "true_peak": tp, "lf_burst": burst}
+
+
+TRUE_PEAK = float(CONFIG.get("true_peak_db", -1.5))     # target
+TP_FAIL = float(CONFIG.get("true_peak_fail_db", -1.0))  # the render fails above this
+BURST_FAIL = float(CONFIG.get("lf_burst_fail_db", 10.0))
+LIMIT = 10 ** ((TRUE_PEAK - 0.6) / 20)                  # sample-peak limiter a little under the true-peak target
+
+
+def music_bed(music: dict | None, n: int, smask: np.ndarray, voice_lufs: float, duration: float, log) -> np.ndarray | None:
+    """The music under the voice: from music["start"], looped with a crossfade if it runs out; at level_db under
+    the voice (loudness), a further duck_db while speaking, and a dip_db cut around 1-4 kHz under speech so it
+    never blurs a word (it comes back up in the gaps); lift_db from lift_at (the last line); 1 s in, 2 s out."""
+    if not music:
+        return None
+    path = music.get("file") or (LIB / f"music_{music['track']}.ogg" if music.get("track") else None)
+    if not path or not Path(path).exists():
+        log(f"music: {path or 'no file'} not found: no music")
+        return None
+    x = _decode(Path(path))
+    st = int(float(music.get("start", 0)) * SR)
+    if st >= len(x) - SR:
+        log(f"WARNING: music start {music.get('start')} s is past the end of the track ({len(x) / SR:.0f} s): starting at 0")
+        st = 0
+    seg = x[st:]
+    if len(seg) < n:          # the track runs out: start it again from the top with a 2 s crossfade
+        log(f"music: the track runs out at {len(seg) / SR:.1f} s: looped with a 2 s crossfade")
+        k = int(2 * SR)
+        while len(seg) < n:
+            if len(seg) > k and len(x) > k:
+                r = np.linspace(0, 1, k, dtype=np.float32)
+                seg = np.concatenate([seg[:-k], seg[-k:] * (1 - r) + x[:k] * r, x[k:]])
+            else:
+                seg = np.concatenate([seg, x])
+    seg = seg[:n].astype(np.float32)
+    lx = _measure_lufs_arr(seg[: min(len(seg), int(60 * SR))])
+    target = voice_lufs + float(music.get("level_db", -22))
+    seg = seg * 10 ** ((target - lx) / 20)
+    dip = _ff(seg, f"equalizer=f=2000:t=o:w=2:g={-abs(float(music.get('dip_db', 3.5))):.1f}")     # ~1-4 kHz
+    seg = seg * (1 - smask) + dip * smask
+    env = (10 ** (-abs(float(music.get("duck_db", 3.5))) / 20)) ** smask
+    lift = music.get("lift_at")
+    if lift is not None:
+        a = int(lift * SR)
+        ramp = min(max(0, n - a), int(0.6 * SR))
+        g = 10 ** (float(music.get("lift_db", 2.0)) / 20)
+        if ramp > 0:
+            env[a:a + ramp] *= np.linspace(1, g, ramp)
+            env[a + ramp:] *= g
+    end = min(n, int(duration * SR))
+    fi, fo = int(1.0 * SR), int(2.0 * SR)
+    env[:fi] *= np.linspace(0, 1, fi)
+    env[max(0, end - fo):end] *= np.linspace(1, 0, end - max(0, end - fo))
+    env[end:] = 0
+    log(f"music: {music.get('label', Path(path).name)} from {st / SR:.0f} s, {lx:.1f} LUFS -> {target:.1f} LUFS "
+        f"({music.get('level_db', -22)} dB under the voice), -{music.get('duck_db', 3.5)} dB under speech, "
+        f"-{music.get('dip_db', 3.5)} dB at 1-4 kHz under speech, +{music.get('lift_db', 2.0)} dB on the last line")
+    return seg * env
+
+
+def _ffc(x: np.ndarray, graph: str) -> np.ndarray:
+    """Like _ff, with a filter graph ([in] ... [out])."""
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
+                          "-filter_complex", graph, "-map", "[out]", "-ar", str(SR), "-f", "f32le", "-ac", "1", "-"],
+                         input=x.astype(np.float32).tobytes(), capture_output=True, check=True).stdout
+    y = np.frombuffer(raw, np.float32).copy()
+    return np.pad(y, (0, max(0, len(x) - len(y))))[: len(x)]
+
+
+def _frames_db(x: np.ndarray, win: float = 0.02) -> np.ndarray:
+    h = int(win * SR)
+    fr = x[: len(x) // h * h].reshape(-1, h)
+    return 20 * np.log10(np.sqrt(np.mean(fr ** 2, axis=1)) + 1e-9)
+
+
+def clean_voice(v: np.ndarray) -> np.ndarray:
+    hp = _ff(v, "highpass=f=85:poles=2")
+    # de-plosive threshold: a little above the low band's own loud level (its 90th percentile while speaking)
+    lo = _ff(hp, "lowpass=f=160:poles=2")
+    db = _frames_db(lo)
+    thr = float(np.percentile(db[db > db.max() - 45], 90)) + 3.0 if len(db) else -30.0
+    graph = (f"[0:a]acrossover=split=160[lo][hi];"
+             f"[lo]acompressor=threshold={10 ** (thr / 20):.6f}:ratio=10:attack=0.2:release=40:knee=1[lc];"
+             f"[lc][hi]amix=inputs=2:normalize=0,deesser=i=0.3:m=0.5:f=0.5:s=o,"
+             f"equalizer=f=3000:t=q:w=1.0:g=-1.5,"
+             f"acompressor=threshold=-24dB:ratio=2.5:attack=8:release=150:knee=6[out]")
+    return _ffc(hp, graph)
+
+
+def _to_target(vc: np.ndarray) -> tuple[np.ndarray, float]:
     g = VOICE_LUFS - _measure_lufs_arr(vc)
+    vn = vc
     for _ in range(6):
-        vn = _ff(vc, f"volume={g:.2f}dB,alimiter=limit=0.89:attack=3:release=60:level=disabled")
+        vn = _ff(vc, f"volume={g:.2f}dB,alimiter=limit={LIMIT:.3f}:attack=3:release=60:level=disabled")
         err = VOICE_LUFS - _measure_lufs_arr(vn)
         if abs(err) < 0.2:
             break
         g += err
-    k = _speech_rms(vn) / (_speech_rms(v) or 1e-6)
-    voice_lufs = _measure_lufs_arr(vn)
-    _write(vn + (fx + bed) * k, out, 0.0)
-    _write((fx + bed) * k, out_novoice, 0.0)
-    lufs = _measure_lufs(out)
-    log(f"mix: {len(cues)} effects + music {track or 'none'}, voice {voice_lufs:.1f} LUFS "
-        f"(target {VOICE_LUFS:.0f}), final mix {lufs:.1f} LUFS")
-    return {"lufs": lufs, "voice_lufs": voice_lufs, "beds": beds}
+    return vn, _measure_lufs_arr(vn)
+
+
+def true_peak(path: Path) -> float:
+    import re
+    p = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(path), "-af", "ebur128=peak=true", "-f", "null", "-"],
+                       capture_output=True, text=True)
+    m = re.findall(r"True peak:\s+Peak:\s+(-?[\d.]+|-inf) dBFS", p.stderr)
+    return float(m[-1]) if m and m[-1] != "-inf" else -99.0
+
+
+def lf_burst(path: Path, voice: np.ndarray) -> float:
+    """Worst 20 ms frame of the final mix's band under 120 Hz, in dB above the voice's average speaking level."""
+    x = _decode(path)
+    lo = _ff(x, "lowpass=f=120:poles=2,lowpass=f=120:poles=2")
+    avg = 20 * np.log10(_speech_rms(voice) + 1e-9)
+    return float(_frames_db(lo).max() - avg)
 
 
 def _ff(x: np.ndarray, af: str) -> np.ndarray:
@@ -247,7 +390,7 @@ def _ff(x: np.ndarray, af: str) -> np.ndarray:
 
 def _write(x: np.ndarray, path: Path, gain_db: float) -> None:
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
-                    "-af", f"volume={gain_db:.2f}dB,alimiter=limit=0.89:attack=3:release=60:level=disabled",
+                    "-af", f"volume={gain_db:.2f}dB,alimiter=limit={LIMIT:.3f}:attack=3:release=60:level=disabled",
                     "-ar", str(SR), str(path)], input=x.astype(np.float32).tobytes(), check=True)
 
 

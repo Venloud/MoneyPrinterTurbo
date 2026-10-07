@@ -102,7 +102,15 @@ scripture chimes, a soft whoosh on the big scene changes, soft hits on the key l
   AI-voice disclosure on. Instagram: Reel by resumable upload (no public URL); Threads: video fetched from a
   temporary public release of this repo, deleted at the end of the run. Facebook: Page Reel.
 - `publish_config.json` -> `publish_mode` per platform: live | draft | off.
-- Mondays the workflow refreshes the Instagram / Threads / TikTok tokens and alerts (ntfy) before any expires.
+- Daily (13:17 UTC) the publish workflow refreshes the TikTok / Instagram / Threads tokens, checks all five
+  platforms and sends ONE ntfy only if something needs the owner. **Platform Connection Check** does the same on demand.
+- TikTok: every TikTok call refreshes first (access tokens live 24 h) and saves the new access AND refresh token.
+  This repo OWNS the TikTok authorization: another repo using the same TikTok login must not refresh it; list it
+  in the repo variable `TOKEN_MIRROR_REPOS` (e.g. `Venloud/backfill-social`) and it gets a copy of both tokens
+  after every refresh (GH_SECRETS_WRITE_TOKEN needs Secrets: read and write on that repo too).
+- Facebook: **Meta Token Refresh** turns a fresh short-lived user token (secret `META_SHORT_USER_TOKEN`, deleted
+  after use) into a never-expiring Page token (`FACEBOOK_PAGE_ACCESS_TOKEN`), using `META_APP_ID` /
+  `META_APP_SECRET`, and verifies it with debug_token.
 
 ## Voice (tts.py)
 Providers with one interface: `elevenlabs_tts.py` (owner's cloned voice), `chatterbox_tts.py`

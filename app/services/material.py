@@ -38,6 +38,22 @@ _api_key_lock = threading.Lock()
 # A provider URL can point to an unexpectedly large object or never-ending stream.
 # Short stock and generated clips should stay well below this conservative cap.
 MAX_VIDEO_DOWNLOAD_BYTES = 512 * 1024 * 1024
+MAX_MATERIAL_IMAGE_BYTES = 25 * 1024 * 1024
+MAX_MATERIAL_IMAGE_PIXELS = 50_000_000
+NEKOSAPI_RANDOM_IMAGE_ENDPOINT = "https://api.nekosapi.com/v4/images/random"
+NEKOSAPI_IMAGE_EXCLUDED_TAGS = (
+    "exposed_girl_breasts",
+    "exposed_breasts",
+    "nipples",
+    "nude",
+    "nudity",
+    "sex",
+    "sexual",
+    "underwear",
+    "lingerie",
+    "panties",
+    "underboob",
+)
 
 # 默认保持串行，与旧版行为一致；有需要时可在配置中提高库存素材并发数。
 _DEFAULT_MATERIAL_CONCURRENCY = 1
@@ -51,8 +67,8 @@ def _get_material_concurrency() -> int:
     return max(1, min(8, concurrency))
 
 
-class _OpenAIImageDecodeError(ValueError):
-    """表示兼容接口返回的字节无法解码为图片，不包含本地文件写入故障。"""
+class _ImageDecodeError(ValueError):
+    """表示远端返回的字节无法解码为图片，不包含本地文件写入故障。"""
 
 
 class OpenAIImagePaidResultError(RuntimeError):
@@ -1270,8 +1286,8 @@ OPENAI_IMAGE_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 # key 时重试会自动换 key；只有一个 key 时快速失败，不做无意义重试。
 OPENAI_IMAGE_KEY_ERROR_STATUS_CODES = frozenset({401, 403})
 OPENAI_IMAGE_MAX_ATTEMPTS = 3
-OPENAI_IMAGE_MAX_BYTES = 25 * 1024 * 1024
-OPENAI_IMAGE_MAX_PIXELS = 50_000_000
+OPENAI_IMAGE_MAX_BYTES = MAX_MATERIAL_IMAGE_BYTES
+OPENAI_IMAGE_MAX_PIXELS = MAX_MATERIAL_IMAGE_PIXELS
 # 串行出图 + 线性退避，兼容中转服务普遍的限流恢复窗口。
 OPENAI_IMAGE_RETRY_BACKOFF_SECONDS = (5, 15, 30)
 # 同步生成接口可能需要数十秒才返回图片，读超时给足余量。
@@ -1597,37 +1613,38 @@ def _request_openai_image(endpoint: str, payload: dict) -> tuple[bytes | None, s
     return None, failure_detail
 
 
-def _save_openai_image_file(
+def _save_material_image_file(
     image_bytes: bytes,
     save_dir: str,
+    filename_prefix: str,
 ) -> tuple[str, int, int]:
     """
-    把生成结果规范成 PNG 落盘，返回 (路径, 宽, 高)。
+    把远端图片规范成 PNG 落盘，返回 (路径, 宽, 高)。
 
-    统一转成 PNG 可以规避两类问题：中转服务返回 WebP/JPEG 却没有可靠
-    扩展名，以及携带异常元数据的图片让 MoviePy 解析失败（与 local 素材
-    的净化逻辑呼应，这里在落盘阶段就完成规范化）。
+    统一转成 PNG 可以规避两类问题：远端返回 WebP/JPEG 却没有可靠扩展名，
+    以及携带异常元数据的图片让 MoviePy 解析失败（与 local 素材的净化逻辑
+    呼应，这里在落盘阶段就完成规范化）。
     """
     if not save_dir:
         save_dir = utils.storage_dir("cache_images", create=True)
     elif not os.path.isdir(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
-    image_path = os.path.join(save_dir, f"openai-image-{uuid.uuid4().hex[:12]}.png")
-    if len(image_bytes) > OPENAI_IMAGE_MAX_BYTES:
-        raise _OpenAIImageDecodeError("generated image exceeds the 25 MB limit")
+    image_path = os.path.join(save_dir, f"{filename_prefix}-{uuid.uuid4().hex[:12]}.png")
+    if len(image_bytes) > MAX_MATERIAL_IMAGE_BYTES:
+        raise _ImageDecodeError("image exceeds the 25 MB limit")
 
-    # 图片解码失败可以降级为“跳过当前关键词”，但目录权限、磁盘空间和文件
-    # 写入失败必须继续抛出，否则按需生成循环会在本地无法保存文件时继续创建
-    # 后续付费任务。Image.open 只读取内存字节，因此这里的 OSError 属于格式
-    # 识别失败；image.load 的 OSError 则对应截断或损坏的图片数据。
+    # 图片解码失败可以降级为“跳过当前关键词”，目录权限、磁盘空间和文件写入
+    # 失败则继续抛出。付费素材调用方由此避免在无法落盘时继续创建后续任务。
+    # Image.open 只读取内存字节，因此这里的 OSError 属于格式识别失败；
+    # image.load 的 OSError 则对应截断或损坏的图片数据。
     image = None
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
             image = Image.open(io.BytesIO(image_bytes))
-            if image.width * image.height > OPENAI_IMAGE_MAX_PIXELS:
-                raise ValueError("generated image exceeds the 50 million pixel limit")
+            if image.width * image.height > MAX_MATERIAL_IMAGE_PIXELS:
+                raise ValueError("image exceeds the 50 million pixel limit")
             image.load()
     except (
         Image.DecompressionBombWarning,
@@ -1639,7 +1656,7 @@ def _save_openai_image_file(
     ) as exc:
         if image is not None:
             image.close()
-        raise _OpenAIImageDecodeError(f"{type(exc).__name__}: {exc}") from exc
+        raise _ImageDecodeError(f"{type(exc).__name__}: {exc}") from exc
 
     with image:
         if image.mode not in ("RGB", "RGBA", "L", "LA", "P"):
@@ -1688,8 +1705,10 @@ def generate_images_openai(
         return []
 
     try:
-        image_path, width, height = _save_openai_image_file(image_bytes, save_dir)
-    except _OpenAIImageDecodeError as e:
+        image_path, width, height = _save_material_image_file(
+            image_bytes, save_dir, "openai-image"
+        )
+    except _ImageDecodeError as e:
         # 兼容层可能返回 200 但 body 不是图片（如伪装成 JSON 的 HTML 错误页、
         # 网关的降级提示页）。图片无法解码属于"该次生成已失败"，按素材源
         # 约定返回空列表让上层跳过该关键词继续，而不是让异常中断整个任务。
@@ -1705,6 +1724,151 @@ def generate_images_openai(
     item.source_info = {
         "provider": "openai_image",
         "search_term": search_term,
+        "rendition": {
+            "id": None,
+            "width": width,
+            "height": height,
+        },
+    }
+    return [item]
+
+
+def _is_nekosapi_url(value: Any) -> bool:
+    """Allow Nekos API's HTTPS API/CDN URLs, but reject arbitrary hosts."""
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        parsed = urlsplit(value.strip())
+    except ValueError:
+        return False
+    hostname = (parsed.hostname or "").lower()
+    return (
+        parsed.scheme == "https"
+        and parsed.username is None
+        and parsed.password is None
+        and (hostname == "nekosapi.com" or hostname.endswith(".nekosapi.com"))
+    )
+
+
+def generate_images_nekosapi(
+    search_term: str,
+    minimum_duration: int,
+    save_dir: str = "",
+) -> List[MaterialInfo]:
+    """Fetch one safe-rated Nekos API image and save a normalized local copy.
+
+    Nekos API is a random anime-art feed, so ``search_term`` is retained for
+    source history but is not sent as a tag filter. The provider response is
+    constrained to safe-rated images and common explicit tags are excluded.
+    """
+    params = {
+        "rating": "safe",
+        "limit": 1,
+        "without_tags": ",".join(NEKOSAPI_IMAGE_EXCLUDED_TAGS),
+    }
+    logger.info(f"fetching safe anime artwork from Nekos API: term={search_term!r}")
+    try:
+        response = requests.get(
+            NEKOSAPI_RANDOM_IMAGE_ENDPOINT,
+            params=params,
+            proxies=config.proxy,
+            verify=_get_tls_verify(),
+            timeout=(15, 30),
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:
+        logger.warning(
+            "Nekos API image request failed: "
+            f"error={type(exc).__name__}, detail={_redact_request_error(exc)}"
+        )
+        return []
+
+    if not isinstance(payload, list) or not payload or not isinstance(payload[0], dict):
+        logger.warning("Nekos API returned no images or an unsupported response")
+        return []
+
+    image = payload[0]
+    image_url = image.get("url")
+    image_tags = image.get("tags")
+    excluded_tags = set(NEKOSAPI_IMAGE_EXCLUDED_TAGS)
+    has_excluded_tag = isinstance(image_tags, list) and any(
+        isinstance(tag, str) and tag.strip().lower() in excluded_tags
+        for tag in image_tags
+    )
+    if (
+        image.get("rating") != "safe"
+        or has_excluded_tag
+        or not _is_nekosapi_url(image_url)
+    ):
+        logger.warning("Nekos API returned an image that failed local safety checks")
+        return []
+
+    headers = {
+        "User-Agent": "MoneyPrinterTurbo/1.0 (+https://github.com/Venloud/MoneyPrinterTurbo)"
+    }
+    image_chunks = []
+    image_size = 0
+    try:
+        with requests.get(
+            image_url,
+            headers=headers,
+            proxies=config.proxy,
+            verify=_get_tls_verify(),
+            timeout=(30, 60),
+            stream=True,
+        ) as image_response:
+            image_response.raise_for_status()
+            if not _is_nekosapi_url(getattr(image_response, "url", image_url)):
+                logger.warning("Nekos API image download redirected outside its domain")
+                return []
+            try:
+                declared_size = int(image_response.headers.get("Content-Length", ""))
+            except (TypeError, ValueError):
+                declared_size = 0
+            if declared_size > MAX_MATERIAL_IMAGE_BYTES:
+                logger.warning("Nekos API image exceeds the 25 MB download limit")
+                return []
+            for chunk in image_response.iter_content(chunk_size=1024 * 256):
+                if chunk:
+                    image_size += len(chunk)
+                    if image_size > MAX_MATERIAL_IMAGE_BYTES:
+                        logger.warning("Nekos API image exceeds the 25 MB download limit")
+                        return []
+                    image_chunks.append(chunk)
+    except Exception as exc:
+        logger.warning(
+            "Nekos API image download failed: "
+            f"error={type(exc).__name__}, detail={_redact_request_error(exc, image_url)}"
+        )
+        return []
+
+    if not image_chunks:
+        logger.warning("Nekos API returned an empty image file")
+        return []
+
+    try:
+        image_path, width, height = _save_material_image_file(
+            b"".join(image_chunks), save_dir, "nekosapi-image"
+        )
+    except _ImageDecodeError as exc:
+        logger.warning(
+            "Nekos API image could not be decoded: "
+            f"error={type(exc).__name__}, detail={exc}"
+        )
+        return []
+
+    item = MaterialInfo()
+    item.provider = "nekosapi"
+    item.url = image_path
+    item.duration = max(int(minimum_duration), 1)
+    item.source_info = {
+        "provider": "nekosapi",
+        "search_term": search_term,
+        "asset_id": str(image.get("id")) if image.get("id") is not None else None,
+        "source_page": _safe_public_url(image.get("source_url"))
+        or "https://nekosapi.com",
+        "creator": _creator_info(image.get("artist_name")),
         "rendition": {
             "id": None,
             "width": width,
@@ -1814,6 +1978,76 @@ def _download_videos_openai_image_on_demand(
             break
 
     logger.success(f"generated and rendered {len(video_paths)} image materials")
+    _persist_material_sources(task_id, material_sources)
+    return video_paths
+
+
+def _download_videos_nekosapi_on_demand(
+    *,
+    task_id: str,
+    search_terms: List[str],
+    audio_duration: float,
+    max_clip_duration: int,
+    material_directory: str,
+) -> List[str]:
+    """Fetch safe Nekos API illustrations and render them as animated clips."""
+    if not material_directory:
+        material_directory = utils.task_dir(task_id)
+
+    video_paths: List[str] = []
+    material_sources: list[dict[str, Any]] = []
+    total_duration = 0.0
+    try:
+        required_duration = float(audio_duration)
+    except (TypeError, ValueError):
+        required_duration = 0.0
+    if not math.isfinite(required_duration) or required_duration <= 0:
+        logger.warning(
+            "skip Nekos API image fetch because required audio duration is "
+            f"not positive: duration={audio_duration}"
+        )
+        _persist_material_sources(task_id, material_sources)
+        return video_paths
+
+    for search_term in search_terms:
+        items = generate_images_nekosapi(
+            search_term=search_term,
+            minimum_duration=max_clip_duration,
+            save_dir=material_directory,
+        )
+        for item in items:
+            try:
+                video_file = video.render_image_zoom_video(
+                    item.url, max(max_clip_duration, 1)
+                )
+            except Exception as exc:
+                logger.warning(
+                    "failed to render Nekos API image as a video clip: "
+                    f"error={type(exc).__name__}, detail={exc}"
+                )
+                continue
+            if not video_file:
+                continue
+            video_paths.append(video_file)
+            try:
+                material_sources.append(_material_source_record(item, video_file))
+            except Exception as source_error:
+                logger.warning(
+                    "failed to prepare Nekos API material source record: "
+                    f"error={type(source_error).__name__}, detail={source_error}"
+                )
+            total_duration += min(max(max_clip_duration, 1), item.duration)
+            if total_duration >= required_duration:
+                break
+        if total_duration >= required_duration:
+            logger.info(
+                "Nekos API image materials cover the required duration, stop "
+                f"fetching more images: generated={total_duration:.1f}s, "
+                f"required={required_duration:.1f}s"
+            )
+            break
+
+    logger.success(f"generated and rendered {len(video_paths)} Nekos API image materials")
     _persist_material_sources(task_id, material_sources)
     return video_paths
 
@@ -2219,6 +2453,16 @@ def download_videos(
             task_id=task_id,
             search_terms=search_terms,
             video_aspect=video_aspect,
+            audio_duration=audio_duration,
+            max_clip_duration=max_clip_duration,
+            material_directory=material_directory,
+        )
+    if source == "nekosapi":
+        # Nekos API is a free random image source. Fetch one safe-rated image per
+        # script segment and render each as an animated clip without search caching.
+        return _download_videos_nekosapi_on_demand(
+            task_id=task_id,
+            search_terms=search_terms,
             audio_duration=audio_duration,
             max_clip_duration=max_clip_duration,
             material_directory=material_directory,

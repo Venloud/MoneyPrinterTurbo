@@ -160,7 +160,7 @@
 
 ### 動画・画像素材
 
-- [x] 手持ちの**ローカル画像・動画**をアップロードできるほか、[Pexels（無料）](https://www.pexels.com/api/)、[Pixabay（無料）](https://pixabay.com/api/docs/)、[Coverr](https://coverr.co/developers?ctx=header_navigation) の高画質ストック素材を利用可能
+- [x] 手持ちの**ローカル画像・動画**をアップロードできるほか、[Pexels（無料）](https://www.pexels.com/api/)、[Pixabay（無料）](https://pixabay.com/api/docs/)、[Coverr](https://coverr.co/developers?ctx=header_navigation) の高画質ストック素材や、無料の [Nekos API](https://nekosapi.com/docs) のアニメ画像を利用可能
 - [x] [Metaso MiniMax H3](https://metaso.cn/minimax-h3/?s=MPT) によるテキスト動画生成に対応し、`768P`／`2K`、4～15 秒の素材を `9:16`、`16:9`、`1:1` の 3 種類のアスペクト比で生成可能
 - [x] [Shengsuan Cloud AI Video](https://www.shengsuanyun.com/?from=CH_XUQ4OTSK) で複数の AI 動画素材を生成し、プロジェクトのナレーション、字幕、編集フローで 1 本の動画に合成可能
 - [x] [Volcano Engine Ark Seedance](https://console.volcengine.com/ark/region:ark+cn-beijing/apikey) をネイティブに統合し、台本の各セグメントから一貫した動画素材を生成可能

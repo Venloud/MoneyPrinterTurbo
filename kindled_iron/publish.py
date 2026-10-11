@@ -125,6 +125,24 @@ def read_post(path: Path) -> dict:
     return post
 
 
+def scene_post(scene_id: str) -> dict | None:
+    """The scene file in the repo is the source of truth for the post text: a caption fixed after the render
+    is used without re-rendering. Same rules as render.post_text (Bible credit in the description)."""
+    f = HERE / "scenes" / f"{scene_id}.json"
+    if not scene_id or not f.is_file():
+        return None
+    scene = json.loads(f.read_text(encoding="utf-8"))
+    p = dict(scene.get("post") or {})
+    if not p:
+        return None
+    p.setdefault("title", scene.get("title", scene_id))
+    if any(isinstance(ev.get("scripture"), dict) for b in scene.get("beats", []) for ev in b.get("events", [])):
+        credit = "Scripture: World English Bible"
+        if credit not in p.get("description", ""):
+            p["description"] = (p.get("description", "") + "\n" + credit).strip()
+    return p
+
+
 def cap_hashtags(text: str) -> str:
     """Captions carry at most max_hashtags (5) hashtags: extra ones are dropped, the words stay as written."""
     n, out = int(CONFIG.get("max_hashtags", 5)), []
@@ -505,6 +523,14 @@ def main() -> None:
     video = Path(a.video) if a.video else None
     meta = json.loads(Path(a.meta).read_text()) if a.meta else {}
     post = read_post(Path(a.post)) if a.post else {}
+    sp = scene_post(meta.get("scene", "")) if not a.check_only else None
+    if sp:
+        tmp = Path(a.out).with_suffix(".post.txt")
+        tmp.write_text("".join(f"{k}: {v}\n" for k, v in sp.items()), encoding="utf-8")
+        post = read_post(tmp)
+        log(f"post text from kindled_iron/scenes/{meta['scene']}.json (the repo's current caption)")
+    if post:
+        log(f"title: {post.get('title')} | YouTube: {post.get('youtube_title')} | caption: {post.get('caption')}")
     if not a.check_only:
         gate(meta)
         log(f"render passed the gate: voice {meta['voice'].get('provider_used')}, verses OK, "

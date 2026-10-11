@@ -1,0 +1,86 @@
+{
+ "_help": "'Not X. Not Y. Z.': each wrong option is written and struck out on its word, then the right one lands big.",
+ "slots": {
+  "items": "1-3 items: {\"text\": shown text, \"word\": word of the line}",
+  "final_text": "the right answer, big (e.g. I AM.)",
+  "final_word": "word where it lands"
+ },
+ "beat": {
+  "whoosh": true
+ },
+ "events": [
+  {
+   "at": 0,
+   "do": "place",
+   "who": "guide",
+   "x": 640
+  },
+  {
+   "at": 0,
+   "do": "size",
+   "who": "guide",
+   "value": 0.9,
+   "dur": 0.01
+  },
+  {
+   "at": 0.2,
+   "do": "look",
+   "who": "guide",
+   "dir": "up",
+   "expression": "curious",
+   "hold": 0.5
+  },
+  {
+   "each": "items",
+   "events": [
+    {
+     "at": "{{item.word}}-0.2",
+     "do": "draw",
+     "id": "{{id}}_w{{n}}",
+     "type": "word",
+     "text": "{{item.text}}",
+     "x": 300,
+     "y": "{{860+140*n}}",
+     "size": 88,
+     "dur": 0.25
+    },
+    {
+     "at": "{{item.word}}+0.15",
+     "do": "draw",
+     "id": "{{id}}_x{{n}}",
+     "type": "strike",
+     "target": "{{id}}_w{{n}}",
+     "dur": 0.15
+    }
+   ]
+  },
+  {
+   "at": "{{final_word}}-0.1",
+   "do": "draw",
+   "id": "{{id}}_f",
+   "type": "word",
+   "text": "{{final_text}}",
+   "x": 540,
+   "y": 430,
+   "size": 170,
+   "color": "accent",
+   "dur": 0.25,
+   "title": true,
+   "hit": true,
+   "why": "final"
+  },
+  {
+   "at": "{{final_word}}",
+   "do": "express",
+   "who": "guide",
+   "expression": "awe"
+  },
+  {
+   "at": "{{final_word}}+0.3",
+   "do": "point",
+   "who": "guide",
+   "toward": "{{id}}_f",
+   "hold": 0.6
+  }
+ ]
+}

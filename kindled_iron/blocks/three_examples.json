@@ -1,0 +1,105 @@
+{
+ "_help": "Three everyday examples, each a real clip on its own word, then a conclusion in the accent color.",
+ "slots": {
+  "headline": "title over the clips, 2-5 words",
+  "items": "exactly 3 items: {\"word\": word of the line, \"query\": clip search words}",
+  "conclusion_text": "accent text at the bottom (e.g. GOD?)",
+  "conclusion_word": "word of the line where it appears"
+ },
+ "beat": {
+  "whoosh": true
+ },
+ "events": [
+  {
+   "at": 0,
+   "do": "place",
+   "who": "guide",
+   "x": 240,
+   "facing": 1
+  },
+  {
+   "at": 0,
+   "do": "size",
+   "who": "guide",
+   "value": 1.0,
+   "dur": 0.01
+  },
+  {
+   "at": 0.2,
+   "do": "draw",
+   "id": "{{id}}_h",
+   "type": "word",
+   "text": "{{headline}}",
+   "x": 540,
+   "y": 410,
+   "size": 84,
+   "dur": 0.5
+  },
+  {
+   "each": "items",
+   "events": [
+    {
+     "at": "{{item.word}}-0.2",
+     "do": "draw",
+     "id": "{{id}}_c{{n}}",
+     "type": "inset",
+     "x": 540,
+     "y": 410,
+     "w": 820,
+     "h": 470,
+     "query": "{{item.query}}",
+     "sources": [
+      "pexels",
+      "pixabay",
+      "commons"
+     ],
+     "clip_dur": 2.0
+    }
+   ]
+  },
+  {
+   "at": "{{items.0.word}}",
+   "do": "draw",
+   "id": "{{id}}_dot",
+   "type": "dot",
+   "x": 430,
+   "y": 1000,
+   "r": 30,
+   "dur": 0.15
+  },
+  {
+   "at": "{{items.0.word}}+0.1",
+   "do": "draw",
+   "id": "{{id}}_line",
+   "type": "arrow",
+   "x": 430,
+   "y": 1000,
+   "dx": 330,
+   "dy": 0,
+   "bend": 0,
+   "dur": 0.4,
+   "over": [
+    "{{id}}_dot"
+   ]
+  },
+  {
+   "at": "{{conclusion_word}}-0.1",
+   "do": "draw",
+   "id": "{{id}}_end",
+   "type": "word",
+   "text": "{{conclusion_text}}",
+   "x": 540,
+   "y": 1240,
+   "size": 110,
+   "color": "accent",
+   "dur": 0.25
+  },
+  {
+   "at": "{{conclusion_word}}+0.2",
+   "do": "point",
+   "who": "guide",
+   "toward": "{{id}}_end",
+   "hold": 0.5
+  }
+ ]
+}

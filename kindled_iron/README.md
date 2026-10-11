@@ -13,6 +13,8 @@ Outputs next to the MP4: `.srt`, `_meta.json` (duration, words, voice used, fall
 `_sources.json` (every footage clip: source page, file URL, licence), and with `--debug-copy`
 `_safebox.mp4`. The work dir keeps `checks.json`, `timings.json`, `stills/`.
 
+See PRODUCTION.md (script -> post flow, workflows, secrets) and BATCH.md (writing scripts for the daily queue).
+
 ## Channel format (every video)
 Every video answers ONE question people really ask:
 1. The question on screen and spoken in the first 2 seconds.

@@ -542,7 +542,7 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
 
 def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
     """music_source: mine (the owner's track from the private repo's music/, at music_start) | generated (an
-    ElevenLabs Music theme from KI_MUSIC_DIR) | none. Mix settings from voice_profiles.json."""
+    ElevenLabs Music theme from the private repo's music/ or KI_MUSIC_DIR) | none. Mix settings from voice_profiles.json."""
     base = {k: chan.get(f"music_{k}") for k in ("level_db", "duck_db", "dip_db", "lift_db") if chan.get(f"music_{k}") is not None}
     if source == "mine":
         root = os.environ.get("KI_PRIVATE_MEDIA")
@@ -555,14 +555,15 @@ def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
         log(f"WARNING: music_source 'mine' but {name or 'no music_file'} is not in the private repo's music/: using the generated theme")
         source = "generated"
     if source == "generated":
-        d = os.environ.get("KI_MUSIC_DIR")
         name = chan.get("music_generated", "theme_1")
-        f = Path(d) / f"{name}.mp3" if d else None
+        # the private repo's music/ holds the saved themes; KI_MUSIC_DIR (the music-themes release) is the old place
+        dirs = [os.environ.get("KI_MUSIC_DIR"), os.environ.get("KI_PRIVATE_MEDIA") and str(Path(os.environ["KI_PRIVATE_MEDIA"]) / "music")]
+        f = next((Path(d) / f"{name}.mp3" for d in dirs if d and (Path(d) / f"{name}.mp3").is_file()), None)
         if f and f.is_file():
             log(f"music: generated ElevenLabs theme {name}")
             return ({**base, "file": str(f), "start": 0.0, "label": f"ElevenLabs Music {name}", "lift_at": None},
                     {"source": "generated", "file": f"{name}.mp3", "use_third_party_music": False})
-        log(f"WARNING: generated theme {name} not available (KI_MUSIC_DIR): no music")
+        log(f"WARNING: generated theme {name} not available (private music/ or KI_MUSIC_DIR): no music")
     return None, {"source": "none", "use_third_party_music": False}
 
 

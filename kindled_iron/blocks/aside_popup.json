@@ -1,0 +1,63 @@
+{
+ "_help": "A light aside / joke line: the guide shrugs, a popup lands on one word, a controller doodle fills the corner.",
+ "slots": {
+  "popup_text": "popup text, 1-3 words (e.g. CHEAT ON)",
+  "popup_word": "word of the line where it pops"
+ },
+ "events": [
+  {
+   "at": 0,
+   "do": "place",
+   "who": "guide",
+   "x": 620
+  },
+  {
+   "at": 0,
+   "do": "size",
+   "who": "guide",
+   "value": 0.9,
+   "dur": 0.01
+  },
+  {
+   "at": 0.1,
+   "do": "shrug",
+   "who": "guide"
+  },
+  {
+   "at": 0.3,
+   "do": "draw",
+   "id": "{{id}}_pad",
+   "type": "controller",
+   "x": 300,
+   "y": 1150,
+   "k": 1.0,
+   "dur": 0.35
+  },
+  {
+   "at": "{{popup_word}}-0.1",
+   "do": "draw",
+   "id": "{{id}}_pop",
+   "type": "popup",
+   "x": 540,
+   "y": 410,
+   "w": 640,
+   "h": 170,
+   "text": "{{popup_text}}",
+   "size": 120,
+   "dur": 0.2
+  },
+  {
+   "at": "{{popup_word}}+0.2",
+   "do": "point",
+   "who": "guide",
+   "toward": "{{id}}_pop",
+   "hold": 0.6
+  },
+  {
+   "at": "end",
+   "do": "express",
+   "who": "guide",
+   "expression": "happy"
+  }
+ ]
+}

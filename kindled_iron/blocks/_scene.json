@@ -1,0 +1,39 @@
+{
+ "_help": "Scene settings every built script gets (build_scene.py). Copied from the approved 'Where Did God Come From?' scene.",
+ "voice_profile": "kindled_iron",
+ "format": "one question: question in 2 s, answer by 10 s, reasons with scripture cards, closing line",
+ "exact_narration": true,
+ "end_hold": 1.2,
+ "ground": 1490,
+ "camera_y": 960,
+ "fill_min": 0.45,
+ "max_visual_gap": 1.5,
+ "inset_snap": false,
+ "captions_box": {
+  "x": 540,
+  "y": 618,
+  "w": 820,
+  "size": 140,
+  "min_scale": 0.85
+ },
+ "captions_chunk": {
+  "max_words": 5,
+  "min_words": 3,
+  "max_chars": 22
+ },
+ "cast": {
+  "guide": {
+   "panel": 0,
+   "x": 690,
+   "scale": 2.1,
+   "facing": 1,
+   "accent": true
+  }
+ },
+ "transitions": [
+  "slide",
+  "cut",
+  "wipe",
+  "zoom"
+ ]
+}

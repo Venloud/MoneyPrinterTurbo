@@ -21,6 +21,10 @@ on:
         description: "Use third-party clips / meme images (off = pinned stock + guide fallbacks)"
         type: boolean
         default: true
+      tts_model:
+        description: "ElevenLabs model: empty = the voice profile's; v2 | v3 | v4 or a model id (v3/v4 use the scene's tts_text_tagged)"
+        required: false
+        default: ""
       music_source:
         description: "Music: mine (private music/), generated (ElevenLabs theme), none; empty = voice_profiles.json"
         required: false
@@ -156,6 +160,7 @@ jobs:
           TTS: ${{ inputs.my_voice && 'elevenlabs' || 'kokoro' }}
           KI_THIRD_PARTY: ${{ inputs.third_party_clips && '1' || '0' }}
           KI_MUSIC_SOURCE: ${{ inputs.music_source }}
+          KI_TTS_MODEL: ${{ inputs.tts_model }}
           KI_YTDLP: "1"
         run: |
           set -euo pipefail

@@ -566,6 +566,14 @@ def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
     return None, {"source": "none", "use_third_party_music": False}
 
 
+TAG = re.compile(r"\[[^\]]*\]")
+
+
+def strip_tags(text: str) -> str:
+    """[audio tags] are voice directions for v3 / v4 only: never captioned, shown, timed or checked."""
+    return re.sub(r"\s{2,}", " ", TAG.sub(" ", text)).strip()
+
+
 def post_text(scene: dict) -> dict:
     """Title / caption / description for the TikTok draft (the description carries the Bible credit)."""
     p = dict(scene.get("post") or {})
@@ -628,13 +636,38 @@ def main() -> None:
         provider = a.tts or profile.get("tts_provider", "kokoro")
         segs = pacing.plan(texts, profile)
         raw = work / "narration_raw.wav"
-        tts_text = scene.get("tts_text")
-        if tts_text:     # voice-only punctuation (one request); must be the script's words exactly
-            norm = lambda ws: [re.sub(r"[^a-z0-9']", "", w.lower().replace("’", "'")) for w in ws]
-            if norm(tts_text.split()) != norm([w for txt in texts for w in words_of(txt)]):
-                raise SystemExit("FAIL: tts_text is not the script's words (only punctuation may differ)")
+        from kindled_iron import elevenlabs_tts as el
+
+        # model choice: workflow / env override, else the voice profile's model_id (v2 | v3 | v4 or a real id)
+        model = el.resolve_model(os.environ.get("KI_TTS_MODEL") or profile["elevenlabs"].get("model_id", "eleven_multilingual_v2"))
+        profile["elevenlabs"]["model_id"] = model
+        if provider == "elevenlabs" and el._key():
+            listed = [m["model_id"] for m in el.list_models() if m.get("tts")]
+            log(f"ElevenLabs text-to-speech models on this key: {', '.join(listed) or '(list unreadable)'}; using {model}")
+        tagged = el.is_tagged_model(model) and scene.get("tts_text_tagged")
+        tts_text = scene.get("tts_text_tagged") if tagged else scene.get("tts_text")
+        if tts_text and not tagged:
+            tts_text = strip_tags(tts_text)          # [tags] are only for v3 / v4
+        if tts_text:     # voice-only text (one request); must be the script's words exactly
+            norm = lambda ws: [x for x in (re.sub(r"[^a-z0-9']", "", w.lower().replace("’", "'")) for w in ws) if x]
+            if norm(strip_tags(tts_text).split()) != norm([w for txt in texts for w in words_of(txt)]):
+                raise SystemExit("FAIL: tts_text is not the script's words (only punctuation and [tags] may differ)")
+            before = el.used_chars() if provider == "elevenlabs" and el._key() else None
             voice_meta = tts.voice([(tts_text, 0.0)], raw, profile, provider, log)
-            voice_meta["tts_text"] = tts_text
+            if before is not None and not voice_meta.get("cached"):
+                import time
+                after = before
+                for _ in range(8):
+                    after = el.used_chars()
+                    if after is None or after != before:
+                        break
+                    time.sleep(3)
+                voice_meta["credits"] = (after - before) if after is not None and after != before else voice_meta.get("chars_billed")
+            elif voice_meta.get("cached"):
+                voice_meta["credits"] = 0
+            voice_meta.update({"tts_text": tts_text, "model": model, "tags": TAG.findall(tts_text) if tagged else []})
+            log(f"voice: {model}, credits used {voice_meta.get('credits')}"
+                f"{', tagged text (' + str(len(voice_meta['tags'])) + ' tags)' if tagged else ''}")
         else:
             voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -644,6 +677,15 @@ def main() -> None:
         flat = [w for txt in texts for w in words_of(txt)]
         log(f"voice audio {audio_len:.2f} s, whisper heard {len(heard)} of {len(flat)} words")
         aligned = wt.align(flat, heard, (0.0, audio_len))
+        if tts_text and voice_meta.get("tags"):   # was any [tag] read out loud?
+            tag_words = {x for t in voice_meta["tags"] for x in re.findall(r"[a-z]+", t.lower())} - \
+                {re.sub(r"[^a-z]", "", w.lower()) for w in flat}
+            spoken = sorted({re.sub(r"[^a-z]", "", h["word"].lower()) for h in heard} & tag_words)
+            voice_meta["tags_heard_aloud"] = spoken
+            log(f"tags read aloud: {', '.join(spoken) if spoken else 'none (whisper heard no tag words)'}")
+        if tts_text and any(h["word"].lower().strip(".,!?\"") in ("a.m", "a.m.") for h in heard):
+            voice_meta["am_read_as_time"] = True
+            log("WARNING: 'I AM' was read as 'A.M.'")
         # Pauses: every sentence gap is set to its target on the final audio; timings shift with it.
         audio, sr = sf.read(raw, dtype="float32")
         if tts_text:         # the returned read stays exactly as it is: no trimming, no pause insertion

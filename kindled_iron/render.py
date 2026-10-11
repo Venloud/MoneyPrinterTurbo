@@ -800,7 +800,8 @@ def main() -> None:
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
     p = meta["post"]             # caption file the publisher reads
     out.with_name(out.stem + ".post.txt").write_text(
-        f"title: {p.get('title', '')}\ncaption: {p.get('caption', '')}\nthreads: {p.get('threads', '')}\n"
+        f"title: {p.get('title', '')}\n" + (f"youtube_title: {p['youtube_title']}\n" if p.get("youtube_title") else "") +
+        f"caption: {p.get('caption', '')}\nthreads: {p.get('threads', '')}\n"
         f"description: {p.get('description', '')}\n", encoding="utf-8")
     if a.debug_copy:
         dbg = out.with_name(out.stem + "_safebox.mp4")

@@ -91,8 +91,18 @@ jobs:
           mkdir -p pub
           gh release download test-renders --repo "$VOICE_REPO" --dir pub --clobber \
             --pattern "$file" --pattern "$base.meta.json" --pattern "$base.post.txt"
+          # post ledger: every platform a scene was already posted to (never posted twice)
+          if gh api "repos/$VOICE_REPO/contents/approved/posted.json" > ledger_api.json 2>ledger_err.txt; then
+            python3 -c "import json,base64;print(base64.b64decode(json.load(open('ledger_api.json'))['content']).decode(),end='')" > posted.json
+            python3 -c "import json;print(json.load(open('ledger_api.json'))['sha'])" > posted.sha
+          elif grep -q "Not Found" ledger_err.txt; then
+            echo "{}" > posted.json; : > posted.sha
+          else
+            echo "FAIL: could not read approved/posted.json (no posting without the ledger)"; cat ledger_err.txt; exit 1
+          fi
           ls -la pub
           echo "video=pub/$file" >> "$GITHUB_OUTPUT"
+          echo "name=$file" >> "$GITHUB_OUTPUT"
           echo "meta=pub/$base.meta.json" >> "$GITHUB_OUTPUT"
           echo "post=pub/$base.post.txt" >> "$GITHUB_OUTPUT"
           echo "tag=ki-tmp-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
@@ -114,7 +124,21 @@ jobs:
         if: ${{ steps.fetch.outcome == 'success' }}
         run: |
           python -m kindled_iron.publish --video "${{ steps.fetch.outputs.video }}" --meta "${{ steps.fetch.outputs.meta }}" \
-            --post "${{ steps.fetch.outputs.post }}" --public-url "${{ steps.tmp.outputs.url }}" --only "${{ inputs.only }}"
+            --post "${{ steps.fetch.outputs.post }}" --public-url "${{ steps.tmp.outputs.url }}" --only "${{ inputs.only }}" \
+            --ledger posted.json --render-name "${{ steps.fetch.outputs.name }}"
+
+      - name: Save the post ledger to the private repo (approved/posted.json)
+        if: ${{ always() && steps.fetch.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if cmp -s posted.json <(gh api "repos/$VOICE_REPO/contents/approved/posted.json" -q .content 2>/dev/null | base64 -d 2>/dev/null); then
+            echo "ledger unchanged"; exit 0
+          fi
+          args=(-X PUT "repos/$VOICE_REPO/contents/approved/posted.json" -f message="Post ledger: ${{ steps.fetch.outputs.name }}" -f content="$(base64 -w0 posted.json)")
+          [ -s posted.sha ] && args+=(-f sha="$(cat posted.sha)")
+          gh api "${args[@]}" -q .commit.sha || { echo "::error::ledger NOT saved to the private repo: copy posted.json from the run artifact into approved/posted.json"; exit 1; }
 
       - name: Remove the public copy
         if: ${{ always() && steps.fetch.outputs.tag != '' }}
@@ -127,5 +151,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: publish-results
-          path: publish_results.json
+          path: |
+            publish_results.json
+            posted.json
           if-no-files-found: ignore

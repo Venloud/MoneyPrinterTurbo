@@ -379,8 +379,6 @@ jobs:
     if: ${{ inputs.money_video_script != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    env:
-      KI_TTS_CACHE: ${{ runner.temp }}/money-tts-cache
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -399,6 +397,8 @@ jobs:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
         run: |
           set -euo pipefail
+          export KI_TTS_CACHE="$RUNNER_TEMP/money-tts-cache"
+          echo "KI_TTS_CACHE=$KI_TTS_CACHE" >> "$GITHUB_ENV"
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = true ] || { echo 'FAIL: review media must stay private'; exit 1; }
           d="$RUNNER_TEMP/private_media"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"

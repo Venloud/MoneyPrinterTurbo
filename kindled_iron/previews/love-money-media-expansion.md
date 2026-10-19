@@ -26,7 +26,7 @@ All eight Pexels files below were downloaded, ffprobe-decoded and sampled visual
 
 ## Rich reaction
 - Exact cue: **rich** in “You don’t have to be rich to let money control you.”
-- Pick: Lil Wayne fanning US dollars, [source template](https://imgflip.com/memetemplate/89416571/lil-wayne-make-it-rain), [reviewed image](https://i.imgflip.com/4/1gyi9n.jpg).
+- Pick: Lil Wayne fanning US dollars, [source template](https://imgflip.com/memesearch?q=making+it+rain), [reviewed image](https://i.imgflip.com/4/1gyi9n.jpg).
 - Why: an immediate recognizable picture of flashy wealth before the sentence brings the point back to ordinary people.
 - Short reaction (about 1 second), not the whole serious sentence; retain the maximum of three reactions and three-second spacing. Replace one existing reaction if needed, rather than adding a fourth. Private reaction assets only. Source thumbnail reviewed; obtain a suitable production-size original before final encode. No claim that it is licensed stock.
 

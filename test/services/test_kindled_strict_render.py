@@ -79,7 +79,7 @@ def test_strict_layout_checks_every_frame_and_saves_half_second_samples(tmp_path
             if expr.startswith("async"):
                 self.times.append(arg); return []
             return []
-        def screenshot(self, path): self.images.append(path)
+        def screenshot(self, path, **kwargs): self.images.append(path)
         def reload(self): pass
         def wait_for_function(self, *a, **kw): pass
     page = Page()

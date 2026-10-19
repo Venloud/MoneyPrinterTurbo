@@ -438,7 +438,7 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
                 (work / "strict_layout.json").write_text(json.dumps({"passed": False, "frame": frame, "time": t, "issues": issues}, indent=2))
                 raise SystemExit(f"FAIL: layout frame {frame} ({t:.3f}s): {'; '.join(issues)}")
             if frame % (FPS // 2) == 0:
-                page.screenshot(path=str(samples / f"frame_{frame:06d}.png"))
+                page.screenshot(path=str(samples / f"frame_{frame:06d}.jpg"), type="jpeg", quality=88)
                 audit.append({"frame": frame, "time": t})
         (work / "strict_layout.json").write_text(json.dumps({"passed": True, "frames_checked": max(1, int(math.ceil(duration * FPS))), "review_samples": audit}, indent=2))
         # Reload before the legacy forward-only walk; GSAP instant sets are not

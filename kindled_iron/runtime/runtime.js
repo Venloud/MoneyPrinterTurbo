@@ -1266,7 +1266,7 @@
         g.setAttribute('transform', 'translate(' + g.getAttribute('data-x') + ',' + g.getAttribute('data-y') + ') scale(' + sc.toFixed(3) + ') rotate(' + (8 * Math.sin(t * 2 + i)).toFixed(1) + ')');
       });
       if (a.img && a.ob.def.frames && a.ob.t0 != null) {   // real clip: pick this video frame
-        var fr = a.ob.def.frames, idx = Math.max(0, Math.min(fr.length - 1, (Math.floor((t - a.ob.t0) * (a.ob.def.fps || 30)) % fr.length)));
+        var fr = a.ob.def.frames, idx = Math.max(0, Math.min(fr.length - 1, (t < a.ob.t1 ? Math.floor((t - a.ob.t0) * (a.ob.def.fps || 30)) % fr.length : fr.length - 1)));
         if (a.img.getAttribute('href') !== fr[idx]) {
           pending.push(new Promise(function (res) {
             var done = function () { a.img.removeEventListener('load', done); a.img.removeEventListener('error', done); res(); };

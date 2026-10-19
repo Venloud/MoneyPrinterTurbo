@@ -27,12 +27,12 @@ def build(script: str):
         raise SystemExit('FAIL: approved script must end with the reference display instruction')
     lines = lines[:-1]
     scene = dict(id='love-of-money-v2', title='The Love of Money', exact_narration=True,
-                 strict_layout=True, strict_media=True, ground=1380, camera_y=960,
+                 strict_layout=True, strict_media=True, ground=1430, camera_y=960,
                  inset_snap=False, fill_min=0, voice_profile='kindled_iron', end_hold=1.2,
                  layout_zones={'captions':dict(left=140,top=1150,right=760,bottom=1430)},
                  captions_box=dict(x=450,y=1190,w=580,size=104,min_scale=.68),
                  captions_chunk=dict(max_words=3,min_words=1,max_chars=19),
-                 cast={'guide':dict(x=850,panel=0,scale=1.25,facing=-1,accent=True)}, beats=[])
+                 cast={'guide':dict(x=850,panel=0,scale=1.785,facing=-1,accent=True)}, beats=[])
     spans, words, t = [], [], 0.
     for i,line in enumerate(lines):
         ws = words_of(line)
@@ -46,7 +46,7 @@ def build(script: str):
         pin=CASH if money else (GEAR if 'transmission' in line.lower() else CAR)
         if i==18: pin=MECHANIC
         if '[Proverbs' in line: pin=BIBLE
-        ev=[dict(at=0,do='draw',id=f'clip_{i}',type='inset',x=450,y=365,w=600,h=340,
+        ev=[dict(at=0,do='draw',id=f'clip_{i}',type='inset',x=540,y=405,w=780,h=440,
                  sources=['pexels'],pin={'pexels':pin},required=True,query=f'pinned {pin}',
                  clip_dur=3,display_dur=duration,instant=True,pop=False)]
         ev.append(dict(at=0,do='express',who='guide',expression='thinking' if i%2 else 'speaking'))
@@ -72,8 +72,8 @@ def main():
     clips=insets.fetch(scene,a.out,render.log)
     data=render.build_data(scene,spans,words,duration,clips)
     data["paper"] = effects.paper_texture(a.out, render.PALETTE["board"])
-    picks=[0,1,5,8,12,19,21,22]
-    times=[round(spans[i][0]+min(1.2,(spans[i][1]-spans[i][0])/2),3) for i in picks]
+    picks=[0,2,5,8,12,18,21,22]
+    times=[round((spans[i][1]+.55) if i in (12,21,22) else spans[i][0]+min(1.2,(spans[i][1]-spans[i][0])/2),3) for i in picks]
     page=render.write_page(data,a.out)
     render.capture(page,None,None,duration,None,stills=times,still_dir=a.out/'eight_frames')
     report=dict(script_sha256=hashlib.sha256(text.encode()).hexdigest(),timing='estimated, no audio generated',

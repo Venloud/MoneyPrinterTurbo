@@ -336,3 +336,33 @@ Gestures hold for `hold` seconds, then return to rest. Cast options: `hair` (lon
 Upstream credit and what was vendored: `vendor/stickman-animation-agent/NOTICE.md`.
 
 Kokoro British voices (`bf_*`, `bm_*`) need `"lang": "b"` in the profile's `kokoro` block.
+
+## Love of Money V2: review before encoding
+
+The test workflow's nonempty `preview_script` input selects **eight stills only**;
+its normal `render` job is skipped. Supply the exact approved V2 Markdown text,
+including the final reference-display instruction. The instruction and bracketed
+references are removed from spoken/caption words, not from the source record.
+No TTS provider, publishing token, or full video encoder is used by this job.
+
+`python -m kindled_iron.money_preview approved-v2.txt --out storage/money-preview`
+builds a fixed-zone scene with pinned Pexels IDs from the Vandam shortlist.
+`PEXELS_API_KEY` and `PIXABAY_API_KEY` are supplied by repository Actions secrets;
+this particular shortlist pins Pexels IDs and does not substitute Pixabay search
+results. The US-dollar source is 5466769 and the sole car-dealership source is
+7154208. Gear/engine shots are component details, not other car exteriors.
+Required fetches fail naming the inset and provider ID. Legacy optional scenes
+retain their previous behavior.
+
+`strict_layout` keeps captions in their configured band, without hiding or
+relocating them to conceal a collision. DOM bounds including caption stroke are
+checked at every output frame, with inclusive edges for clip/card/head contact.
+`strict_layout.json` records pass/fail and sample times, and
+`review_half_second/` stores actual JPEGs every 0.5 seconds. The still-preview
+clock uses estimated word timings; it is **not** a final narration alignment.
+Run the same gate with final voice timings before any production encode.
+
+Preview stills, source metadata and the half-second review ZIP are stored in the
+private voice repository's `test-renders` release; they are never uploaded as
+public Actions artifacts. Owner review of the eight frames is required before
+running the full video. A passing test suite alone is not visual approval.

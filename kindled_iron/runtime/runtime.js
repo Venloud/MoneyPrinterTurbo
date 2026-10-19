@@ -1141,7 +1141,7 @@
     var cx=(D.captionBox || {}).x || 450, cy=(D.captionBox || {}).y || 1190;
     captionLanes.forEach(function(e){if(e.t<=t){cx=e.x;if(e.y!=null)cy=e.y;}});
     capEl.style.left=cx+'px';
-    CAP_TOP=cy;
+    if(captionLanes.length)CAP_TOP=cy;
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
     if (idx !== lastChunk) {

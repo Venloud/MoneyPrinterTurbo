@@ -103,3 +103,21 @@ def test_instant_frame_still_initializes_movie_playback():
     """
     js = setup + runtime[start:end] + "addDraw({id:'cash',t:2,instant:true}); console.log(JSON.stringify([ob.t0,ob.t1]));"
     assert json.loads(subprocess.check_output(["node","-e",js],text=True)) == [2,10]
+
+
+def test_required_clip_visible_at_frame_zero_and_through_long_line():
+    runtime = Path("kindled_iron/runtime/runtime.js").read_text()
+    start = runtime.index("  function strictInsetVisibility(ob, t)")
+    end = runtime.index("  function renderObjects(t)", start)
+    setup = """
+    const D={strictLayout:true}; const attrs={};
+    const ob={def:{type:'inset',required:true},t0:0,t1:12,
+      el:{style:{},setAttribute(k,v){attrs[k]=v;}},strokes:[],fills:[]};
+    """
+    js = setup + runtime[start:end] + """
+    let states=[];
+    for (const t of [0,3,6,11.99,12]) { strictInsetVisibility(ob,t); states.push([attrs.visibility,ob.el.style.opacity]); }
+    console.log(JSON.stringify(states));
+    """
+    states=json.loads(subprocess.check_output(["node","-e",js],text=True))
+    assert states == [["visible","1"]]*4 + [["hidden","0"]]

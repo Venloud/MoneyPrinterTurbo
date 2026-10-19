@@ -1256,8 +1256,21 @@
              tw: ob.el.querySelectorAll('.tw'), spk: ob.el.querySelectorAll('.spk-i'), img: ob.el.querySelector('.inset-img') };
   });
   var pending = [];
+  function strictInsetVisibility(ob, t) {
+    if (!D.strictLayout || ob.def.type !== 'inset' || !ob.def.required || ob.t0 == null) return;
+    // Required clips use a deterministic cut, including frame zero. GSAP's
+    // zero-duration visibility setters are not reliable when seeking at zero.
+    var active = t >= ob.t0 && t < ob.t1;
+    ob.el.setAttribute('visibility', active ? 'visible' : 'hidden');
+    ob.el.style.opacity = active ? '1' : '0';
+    if (active) {
+      ob.strokes.forEach(function (st) { st.setAttribute('stroke-dashoffset', '0'); });
+      ob.fills.forEach(function (fl) { fl.setAttribute('fill-opacity', fl.getAttribute('data-fill')); });
+    }
+  }
   function renderObjects(t) {
     ambObjs.forEach(function (a) {
+      strictInsetVisibility(a.ob, t);
       if (a.ob.el.getAttribute('visibility') === 'hidden') return;
       var mv = a.ob.mv, base = (mv.x || mv.y) ? 'translate(' + mv.x.toFixed(2) + ',' + mv.y.toFixed(2) + ') ' : '';
       if (a.fn || base) a.amb.setAttribute('transform', base + (a.fn ? a.fn(t, a.k) : ''));
@@ -1267,12 +1280,13 @@
       });
       if (a.img && a.ob.def.frames && a.ob.t0 != null) {   // real clip: pick this video frame
         var fr = a.ob.def.frames, idx = Math.max(0, Math.min(fr.length - 1, (t < a.ob.t1 ? Math.floor((t - a.ob.t0) * (a.ob.def.fps || 30)) % fr.length : fr.length - 1)));
-        if (a.img.getAttribute('href') !== fr[idx]) {
+        if (a.loadedURI !== fr[idx]) {
           pending.push(new Promise(function (res) {
-            var done = function () { a.img.removeEventListener('load', done); a.img.removeEventListener('error', done); res(); };
-            a.img.addEventListener('load', done); a.img.addEventListener('error', done); setTimeout(res, 3000);
+            var uri = fr[idx], pre = new Image();
+            pre.onload = function () { a.img.setAttribute('href', uri); a.img.removeAttribute('data-ki-media-error'); a.loadedURI = uri; res(); };
+            pre.onerror = function () { a.img.setAttribute('data-ki-media-error', '1'); res(); };
+            pre.src = uri;
           }));
-          a.img.setAttribute('href', fr[idx]);
         }
       }
     });
@@ -1486,6 +1500,8 @@
       if (ob.el.getAttribute('visibility') === 'hidden' || parseFloat(getComputedStyle(ob.el).opacity) < 0.99)
         failures.push('required clip not visible: ' + need.id);
       if (t >= ob.t1) failures.push('required clip ends before narration: ' + need.id);
+      var image = ob.el.querySelector('.inset-img');
+      if (!image || image.getAttribute('data-ki-media-error')) failures.push('required clip frame failed to decode: ' + need.id);
     });
     return failures;
   };

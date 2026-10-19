@@ -366,3 +366,32 @@ Preview stills, source metadata and the half-second review ZIP are stored in the
 private voice repository's `test-renders` release; they are never uploaded as
 public Actions artifacts. Owner review of the eight frames is required before
 running the full video. A passing test suite alone is not visual approval.
+
+### Approved full Love of Money review
+
+After owner approval, use the test workflow's `money_video_script` input with the
+exact approved V2 text. This selects the dedicated `money_video` job; both the
+stills job and the older general render job are skipped. The full job uses the
+same `money_preview.build()` scene and `resolve_media()` pipeline as the reviewed
+sheet. Do not send this scene through the general job's default God scene or its
+30–120-second check: the approved script determines this video's duration.
+
+`python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work`
+requires the original ElevenLabs voice and never falls back to another provider.
+One continuous read is transcribed with word timestamps. Every original audio
+sample is retained in order; only silent gaps are inserted between paragraphs
+for walks, verse holds and the existing reaction spacing rule. All word times
+and walking events shift with those gaps. The opening clip/caption are visible
+at time zero; word highlighting, scripture typing and memes follow the actual
+read. `--prepare-only` prepares narration and timestamps without fetching media
+or encoding. The encoding invocation reuses that private audio/timestamp cache.
+
+The workflow restores reactions from the private voice repo, keeps ReactionPics
+as the existing fallback, and reuses an existing `theme_1.mp3` music bed if
+available. It never generates a new music theme or calls a platform publisher.
+Original narration and transcription are cached only in the private release as
+`money-voice-cache.zip`. The full MP4 must pass the per-frame layout/media/reaction
+checks, H.264/1080×1920/audio checks, script-hash/original-voice checks and a full
+FFmpeg decode before upload. Private review assets are `love-money-<run-id>.mp4`
+and its JSON report; `love-of-money.mp4` is the latest private download alias.
+The exact approved source remains `claudevandam/docs/LOVE_OF_MONEY_MERGED_V2.md`.

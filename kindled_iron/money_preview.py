@@ -35,7 +35,7 @@ def build(script: str):
                                'guide_head':dict(left=770,top=650,right=960,bottom=1140)},
                  captions_box=dict(x=450,y=1190,w=580,size=104,min_scale=.68),
                  captions_chunk=dict(max_words=3,min_words=1,max_chars=19),
-                 cast={'guide':dict(x=850,panel=0,scale=1.785,facing=-1,accent=True)}, beats=[])
+                 cast={'guide':dict(x=885,panel=0,scale=1.785,facing=-1,accent=True)}, beats=[])
     spans, words, t = [], [], 0.
     for i,line in enumerate(lines):
         ws = words_of(line)
@@ -46,7 +46,7 @@ def build(script: str):
         # US dollars whenever money/payment/earning is mentioned. Car exteriors
         # always use CAR; component closeups do not introduce a different car.
         money=bool(re.search(r'money|dollars|payment|paid|paid|bills|wallet|earn|save|pay|savings|wealth|rich|ten thousand',line,re.I))
-        pin=CASH if money else (GEAR if 'transmission' in line.lower() else CAR)
+        pin=CASH if money or i == 13 else (GEAR if 'transmission' in line.lower() else CAR)
         if i==18: pin=MECHANIC
         if '[Proverbs' in line: pin=BIBLE
         ev=[dict(at=0,do='draw',id=f'clip_{i}',type='inset',x=540,y=405,w=780,h=440,
@@ -86,7 +86,7 @@ def main():
     (a.out/'preview.json').write_text(json.dumps(report,indent=2))
     from PIL import Image,ImageOps,ImageDraw
     sheet=Image.new('RGB',(4*270,2*500),'#f4f1ea')
-    for n,p in enumerate(sorted((a.out/'eight_frames').glob('*.png'))):
+    for n,p in enumerate(sorted((a.out/'eight_frames').glob('*.png'), key=lambda f: float(f.stem.split('_')[-1]))):
         im=Image.open(p).convert('RGB');im.thumbnail((270,480));x=(n%4)*270;y=(n//4)*500
         sheet.paste(im,(x,y));ImageDraw.Draw(sheet).text((x+8,y+482),f'{n+1}: {times[n]:.2f}s',fill='black')
     sheet.save(a.out/'eight-frames.jpg',quality=92)

@@ -395,3 +395,18 @@ checks, H.264/1080×1920/audio checks, script-hash/original-voice checks and a f
 FFmpeg decode before upload. Private review assets are `love-money-<run-id>.mp4`
 and its JSON report; `love-of-money.mp4` is the latest private download alias.
 The exact approved source remains `claudevandam/docs/LOVE_OF_MONEY_MERGED_V2.md`.
+
+For the owner's current approved delivery, supply `money_audio_path` as
+`review-inputs/love-money-3065df6e76bdfc45.mp3` in the private voice repo. This is
+the uploaded `ElevenLabs_2026-10-19T22_13_08_venloud_ivc_sp100_s50_sb75_v4.mp3`
+(SHA256 `3065df6e76bdfc452026eafe828f74f03ded0359e5530bf804602064b0d767fa`).
+This mode calls no TTS provider, does not change speech speed, and inserts no
+paragraph pauses. It removes only the middle of the detected long final silence,
+keeping 0.4 seconds of that pause. Other recorded pauses and all speech samples
+are preserved. Walks use 280 px/s during non-verse narration (about 2.7 seconds
+between lanes), with no movement through verse writing/holds or reaction moments.
+Card holds delay the following footage instead of stretching the voice; captions
+stay off during those holds. The existing reaction rules remain authoritative:
+reactions that do not fit the recorded cadence are omitted instead of adding
+silence. Use this supplied read for revisions of this script, not the earlier
+synthesized delivery. A changed script needs its corresponding new recording.

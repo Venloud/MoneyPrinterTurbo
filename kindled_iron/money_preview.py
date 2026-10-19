@@ -29,12 +29,12 @@ def build(script: str):
     scene = dict(id='love-of-money-v2', title='The Love of Money', exact_narration=True,
                  strict_layout=True, strict_media=True, ground=1430, camera_y=960,
                  inset_snap=False, fill_min=0, voice_profile='kindled_iron', end_hold=1.2,
-                 layout_zones={'captions':dict(left=130,top=1150,right=950,bottom=1430),
+                 layout_zones={'captions':dict(left=240,top=670,right=840,bottom=1430),
                                'clip':dict(left=128,top=160,right=960,bottom=660)},
-                 captions_box=dict(x=450,y=1190,w=580,size=104,min_scale=.68),
+                 captions_box=dict(x=450,y=1190,w=320,size=92,min_scale=.68),
                  captions_chunk=dict(max_words=3,min_words=1,max_chars=19),
-                 cast={'guide':dict(x=-150,panel=0,scale=1.1,facing=1,accent=True)}, beats=[])
-    spans, words, t, lane = [], [], 1.9, 920
+                 cast={'guide':dict(x=-150,panel=0,scale=1.785,facing=1,accent=True)}, beats=[])
+    spans, words, t, lane = [], [], 0.0, 920
     last_visual = None
     for i,line in enumerate(lines):
         ws = words_of(line)
@@ -45,7 +45,8 @@ def build(script: str):
         if i == 0:
             ev += [dict(at=-start,do='place',who='guide',x=-150,facing=1),
                    dict(at=.05-start,do='walk',who='guide',to=920,speed=700),
-                   dict(at=-.1,do='caption_lane',x=450)]
+                   dict(at=0,do='caption_lane',x=450,y=690),
+                   dict(at=1.85,do='caption_lane',x=450,y=1190)]
         elif i % 3 == 0:
             # Finish the previous caption, turn in place, walk, settle, then switch captions.
             previous_end=spans[-1][1]
@@ -63,7 +64,7 @@ def build(script: str):
             # renderer fits 64–92, using prewrapped pages only when the full
             # long quote cannot fit at 64. No second visual or inset here.
             ev.append(dict(scripture=dict(ref=ref.group(1),text=quote),id=visual,
-                           x=540,y=405,w=780,size=92,fit_height=440,min_size=64,
+                           x=540,y=405,w=780,size=64,fit_height=440,min_size=64,
                            card_at_beat_start=True,typewriter=True))
             key='money' if 'money' in quote else 'little' if 'little' in quote else 'leave'
             ev.append(dict(at=key,do='point',who='guide',toward=visual,hold=.5))
@@ -79,7 +80,7 @@ def build(script: str):
             ev.append(clip)
             if i%3==1: ev.append(dict(at=.25,do='point',who='guide',toward=visual,hold=.5))
         ev.append(dict(at=0,do='express',who='guide',expression='thinking' if i%2 else 'speaking'))
-        scene['beats'].append(dict(id=f'line_{i+1}',panel=0,narration=line,camera_start=False,events=ev))
+        scene['beats'].append(dict(id=f'line_{i+1}',panel=0,narration=line,camera_start=False,captions=not bool(ref),events=ev))
         spans.append((start,end));words.append(bw);last_visual=visual
         # Pause-only lane changes cannot collide with a spoken caption. Cards
         # finish typing and hold for >=1 second before the next line starts.
@@ -99,9 +100,9 @@ def main():
     data=render.build_data(scene,spans,words,duration,clips)
     data["paper"] = effects.paper_texture(a.out, render.PALETTE["board"])
     # Opening mid-stride; both lanes; verse mid-type; pointing; long verse page.
-    times=[.75, spans[1][0]+.8, spans[3][0]+.8,
-           spans[12][0]+2.15, spans[12][0]+3.1,
-           spans[18][0]+.8, spans[21][0]+2.6, spans[22][0]+5.0]
+    times=[.3, .75, spans[3][0]+.8,
+           spans[12][0]+2.15, spans[12][0]+2.7,
+           spans[18][0]+.8, spans[22][0]+5.0, spans[22][0]+9.0]
     times=sorted(round(t,3) for t in times)
     page=render.write_page(data,a.out)
     render.capture(page,None,None,duration,None,stills=times,still_dir=a.out/'eight_frames')

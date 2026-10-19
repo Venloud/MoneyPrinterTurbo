@@ -123,7 +123,7 @@ def test_required_clip_visible_at_frame_zero_and_through_long_line():
     assert states == [["visible","1"]]*4 + [["hidden","0"]]
 
 
-def test_typewriter_halfway_matches_spoken_words_and_never_starts_future_word():
+def test_typewriter_starts_every_spoken_word_and_finishes_by_seventy_percent():
     from kindled_iron.render import scripture_card
     from kindled_iron.pacing import words_of
     quote='For the love of money is a root of all kinds of evil.'
@@ -132,13 +132,24 @@ def test_typewriter_halfway_matches_spoken_words_and_never_starts_future_word():
     runtime=Path('kindled_iron/runtime/runtime.js').read_text()
     a=runtime.index('  window.kiTypedCount=function');b=runtime.index('  function renderTypewriter',a)
     times=o['word_times'];mid=(times[0]['start']+times[-1]['end'])/2
-    probes=[mid]+[w['start'] for w in times]+[w['end'] for w in times]
+    probes=[mid]+[w['start'] for w in times]+[w['start']+.7*(w['end']-w['start']) for w in times]
     js='const window={};'+runtime[a:b]+'console.log(JSON.stringify('+json.dumps(probes)+'.map(t=>window.kiTypedCount('+json.dumps(times)+',t))));'
     counts=json.loads(subprocess.check_output(['node','-e',js],text=True))
     assert abs(sum(w['end_char']<=counts[0] for w in times)-sum(w['end']<=mid for w in times))<=1
     for i,w in enumerate(times):
-        assert counts[1+i]<=w['start_char']
+        assert w['start_char']<counts[1+i]<=w['end_char']
         assert counts[1+len(times)+i]==w['end_char']
+    # Across the quote, every word already started must have begun typing;
+    # words remain letter-by-letter until their 70% deadline.
+    samples=[times[0]['start']+i*.013 for i in range(int((times[-1]['end']-times[0]['start'])/.013)+1)]
+    js='const window={};'+runtime[a:b]+'console.log(JSON.stringify('+json.dumps(samples)+'.map(t=>window.kiTypedCount('+json.dumps(times)+',t))));'
+    values=json.loads(subprocess.check_output(['node','-e',js],text=True))
+    for t,count in zip(samples,values):
+        for w in times:
+            if t>=w['start']:
+                assert count>w['start_char']
+            if t>=w['start']+.7*(w['end']-w['start'])+1e-8:
+                assert count>=w['end_char']
 
 
 def test_verse_pages_fit_requested_clip_zone_without_shrinking_below_64():
@@ -165,3 +176,14 @@ def test_verse_refuses_more_than_two_pages_instead_of_shrinking():
     ws=[dict(word=w,start=i*.4,end=(i+1)*.4) for i,w in enumerate(words_of(quote))]
     with pytest.raises(SystemExit,match='cannot fit in two punctuation-split pages'):
         scripture_card({'scripture':{'ref':'Hebrews 13:5','text':quote},'size':92,'min_size':64,'w':780,'fit_height':440},ws,0,0,'test')
+
+
+def test_money_preview_starts_with_media_and_caption_and_verses_use_cards_only():
+    from kindled_iron.money_preview import build
+    scene,spans,words,duration=build('Walk away with ten thousand dollars right now, or tell the truth?\n\nFirst Timothy says, “For the love of money is a root of all kinds of evil.” [1 Timothy 6:10]\n\nBracketed references appear on screen and are not spoken.')
+    assert spans[0][0]==0 and words[0][0]['start']==0
+    assert scene['cast']['guide']['scale']==1.785
+    assert scene['captions_box']['size']==92 and scene['captions_box']['w']==320
+    assert scene['beats'][0]['captions']
+    assert not scene['beats'][1]['captions']
+    assert scene['beats'][1]['events'][1]['size']==64

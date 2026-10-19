@@ -256,7 +256,7 @@
     },
     scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
       var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
-      var refSize = Math.min(64, Math.round(size * 0.62)), h = pad * 2 + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 1.5, top = -h / 2;
+      var refSize = Math.min(64, Math.round(size * 0.62)), h = Math.max(220, pad * 2 + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 1.5), top = -h / 2;
       var r = 30, x0 = -w / 2, x1 = w / 2, y0 = top, y1 = top + h;
       var card = 'M' + (x0 + r) + ',' + y0 + ' L' + (x1 - r) + ',' + y0 + ' Q' + x1 + ',' + y0 + ' ' + x1 + ',' + (y0 + r) + ' L' + x1 + ',' + (y1 - r) +
         ' Q' + x1 + ',' + y1 + ' ' + (x1 - r) + ',' + y1 + ' L' + (x0 + r) + ',' + y1 + ' Q' + x0 + ',' + y1 + ' ' + x0 + ',' + (y1 - r) + ' L' + x0 + ',' + (y0 + r) + ' Q' + x0 + ',' + y0 + ' ' + (x0 + r) + ',' + y0 + ' Z';
@@ -264,7 +264,9 @@
         p(card, { w: 7, fill: 'page', fo: 1 });
       lines.forEach(function (ln, i) {
         var t = (i === 0 ? '\u201C' : '') + ln + (i === lines.length - 1 ? '\u201D' : '');
-        s += '<text class="sc-line" x="0" y="' + (top + pad + lh * ((o.page_break && i >= o.page_break.line ? i-o.page_break.line : i) + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
+        var page=o.line_pages ? o.line_pages[i] : 0, count=o.line_pages ? o.line_pages.filter(function(p){return p===page;}).length : lines.length;
+        var line=i-(page && o.page_break ? o.page_break.line : 0), textTop=-(count*lh+refSize*1.5)/2;
+        s += '<text class="sc-line" x="0" y="' + (textTop + lh * (line + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
           'font-family="Caveat" font-weight="700" font-size="' + size + '" fill="' + C.ink + '">' + esc(t) + '</text>';
       });
       var ry = top + pad + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 0.55;
@@ -574,6 +576,8 @@
   D.objects.forEach(function (o) {
     if (o.type !== 'scripture') return;
     var ob=objs[o.id], offset=0;
+    var ref=ob.inner.querySelector('.sc-ref');
+    if(ref){var rb=ref.getBBox();ref.setAttribute('transform','translate('+(-(rb.x+rb.width/2))+',0)');}
     ob.typeLines=[];
     ob.el.querySelectorAll('.sc-line').forEach(function(el) {
       var text=el.textContent, left=-el.getComputedTextLength()/2;
@@ -1134,9 +1138,10 @@
   var lastChunk = -1;
   var captionLanes=D.events.filter(function(e){return e.do==='caption_lane';});
   function renderCaptions(t) {
-    var cx=(D.captionBox || {}).x || 450;
-    captionLanes.forEach(function(e){if(e.t<=t)cx=e.x;});
+    var cx=(D.captionBox || {}).x || 450, cy=(D.captionBox || {}).y || 1190;
+    captionLanes.forEach(function(e){if(e.t<=t){cx=e.x;if(e.y!=null)cy=e.y;}});
     capEl.style.left=cx+'px';
+    CAP_TOP=cy;
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
     if (idx !== lastChunk) {
@@ -1145,7 +1150,7 @@
       // shrink to fit the safe box on one line; below the minimum size, wrap instead
       var size = D.captionSize, min = Math.round(size * ((D.captionBox || {}).min_scale || 0.68));   // below min: wrap to 2 lines
       capEl.style.whiteSpace = 'nowrap'; capEl.style.fontSize = size + 'px';
-      while (size > min && capEl.scrollWidth > capEl.clientWidth) { size -= 4; capEl.style.fontSize = size + 'px'; }
+      while (size > min && capEl.scrollWidth > capEl.clientWidth) { size = Math.max(min,size-4); capEl.style.fontSize = size + 'px'; }
       if (capEl.scrollWidth > capEl.clientWidth) capEl.style.whiteSpace = 'normal';
       capEl.dataset.fit = size;
     }
@@ -1276,7 +1281,7 @@
     var count=0;
     (times || []).forEach(function(w) {
       if(t>=w.end) count=w.end_char;
-      else if(t>=w.start) count=Math.max(count,w.start_char+Math.floor((w.end_char-w.start_char)*Math.max(0,Math.min(1,(t-w.start)/Math.max(.001,w.end-w.start)))));
+      else if(t>=w.start) count=Math.max(count,w.start_char+Math.max(1,Math.ceil((w.end_char-w.start_char)*Math.max(0,Math.min(1,(t-w.start)/Math.max(.001,.7*(w.end-w.start)))))));
     });
     return count;
   };

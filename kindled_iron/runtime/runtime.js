@@ -257,19 +257,24 @@
     scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
       var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
       var refSize = Math.min(64, Math.round(size * 0.62)), h = Math.max(220, pad * 2 + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 1.5), top = -h / 2;
+      var layouts=o.page_layouts || [{height:h,text_top:-(lines.length*lh+refSize*1.5)/2,ref_y:top+pad+lines.length*lh+refSize*.55}];
+      var s=layouts.map(function(layout,j){
+        var top=-layout.height/2,h=layout.height;
       var r = 30, x0 = -w / 2, x1 = w / 2, y0 = top, y1 = top + h;
       var card = 'M' + (x0 + r) + ',' + y0 + ' L' + (x1 - r) + ',' + y0 + ' Q' + x1 + ',' + y0 + ' ' + x1 + ',' + (y0 + r) + ' L' + x1 + ',' + (y1 - r) +
         ' Q' + x1 + ',' + y1 + ' ' + (x1 - r) + ',' + y1 + ' L' + (x0 + r) + ',' + y1 + ' Q' + x0 + ',' + y1 + ' ' + x0 + ',' + (y1 - r) + ' L' + x0 + ',' + (y0 + r) + ' Q' + x0 + ',' + y0 + ' ' + (x0 + r) + ',' + y0 + ' Z';
-      var s = '<path d="' + card + '" transform="translate(7,8)" fill="' + C.shadow + '" stroke="none" data-fill="0.9" fill-opacity="0"/>' +
-        p(card, { w: 7, fill: 'page', fo: 1 });
+        return '<g class="sc-surface" data-page="'+j+'"'+(j?' visibility="hidden"':'')+'>'+
+          '<path d="'+card+'" transform="translate(7,8)" fill="'+C.shadow+'" stroke="none" data-fill="0.9" fill-opacity="0"/>'+
+          p(card,{w:7,fill:'page',fo:1})+'</g>';
+      }).join('');
       lines.forEach(function (ln, i) {
         var t = (i === 0 ? '\u201C' : '') + ln + (i === lines.length - 1 ? '\u201D' : '');
         var page=o.line_pages ? o.line_pages[i] : 0, count=o.line_pages ? o.line_pages.filter(function(p){return p===page;}).length : lines.length;
-        var line=i-(page && o.page_break ? o.page_break.line : 0), textTop=-(count*lh+refSize*1.5)/2;
+        var line=i-(page && o.page_break ? o.page_break.line : 0), textTop=layouts[page].text_top;
         s += '<text class="sc-line" x="0" y="' + (textTop + lh * (line + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
           'font-family="Caveat" font-weight="700" font-size="' + size + '" fill="' + C.ink + '">' + esc(t) + '</text>';
       });
-      var ry = top + pad + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 0.55;
+      var ry = layouts[layouts.length-1].ref_y;
       s += '<g class="sc-ref" opacity="0"><g transform="translate(' + (-refSize * 2.9) + ',' + ry.toFixed(1) + ') scale(' + (refSize / 260).toFixed(3) + ')">' + OBJ.book({ ribbon: false }) + '</g>' +
         '<text x="' + (-refSize * 2.0) + '" y="' + ry.toFixed(1) + '" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + refSize + '" fill="' + C.accent + '">' +
         '\u2014 ' + esc(o.ref || '') + '</text></g>';
@@ -578,6 +583,7 @@
     var ob=objs[o.id], offset=0;
     var ref=ob.inner.querySelector('.sc-ref');
     if(ref){var rb=ref.getBBox();ref.setAttribute('transform','translate('+(-(rb.x+rb.width/2))+',0)');}
+    ob.surfaces=ob.el.querySelectorAll('.sc-surface');
     ob.typeLines=[];
     ob.el.querySelectorAll('.sc-line').forEach(function(el) {
       var text=el.textContent, left=-el.getComputedTextLength()/2;
@@ -1151,7 +1157,7 @@
       var size = D.captionSize, min = Math.round(size * ((D.captionBox || {}).min_scale || 0.68));   // below min: wrap to 2 lines
       capEl.style.whiteSpace = 'nowrap'; capEl.style.fontSize = size + 'px';
       while (size > min && capEl.scrollWidth > capEl.clientWidth) { size = Math.max(min,size-4); capEl.style.fontSize = size + 'px'; }
-      if (capEl.scrollWidth > capEl.clientWidth) capEl.style.whiteSpace = 'normal';
+      if (capEl.scrollWidth > capEl.clientWidth && !(D.captionBox || {}).single_line) capEl.style.whiteSpace = 'normal';
       capEl.dataset.fit = size;
     }
     if (idx < 0) return;
@@ -1292,6 +1298,7 @@
     ob.typeLines.forEach(function(ln,i){if(count>ln.offset)active=i;});
     var br=ob.def.page_break, fading=br && t>=br.time && t<br.time+.15;
     var page=br && t>=br.time+.15 ? 1 : 0;
+    ob.surfaces.forEach(function(el,j){el.setAttribute('visibility',j===page?'visible':'hidden');});
     ob.typeLines.forEach(function(ln,i){
       var lp=ob.def.line_pages ? ob.def.line_pages[i] : 0;
       var visible=lp===page;
@@ -1564,10 +1571,47 @@
     return failures;
   };
 
+  window.kiStrictReactionCheck=function(t){
+    var failures=[], zone=D.layoutZones && D.layoutZones.reaction;
+    function touches(a,b){return a.left<=b.right && a.right>=b.left && a.top<=b.bottom && a.bottom>=b.top;}
+    Object.keys(objs).forEach(function(id){
+      var ob=objs[id];if(!ob.def.reaction_card || t<ob.t0 || t>=ob.t1)return;
+      var b=ob.el.getBoundingClientRect();
+      if(!zone || b.left<zone.left || b.right>zone.right || b.top<zone.top || b.bottom>zone.bottom)failures.push('reaction outside guide lane zone: '+id);
+      if(ob.el.getAttribute('visibility')==='hidden' || +getComputedStyle(ob.el).opacity<.99)failures.push('reaction image not visible: '+id);
+      var image=ob.el.querySelector('.inset-img');
+      if(!image || image.getAttribute('data-ki-media-error'))failures.push('reaction image failed to decode: '+id);
+      Object.keys(objs).forEach(function(other){
+        var x=objs[other];if(x===ob || x.def.reaction_card || x.el.getAttribute('visibility')==='hidden' || +getComputedStyle(x.el).opacity<.01)return;
+        if(x.def.type==='inset' || x.def.type==='scripture'){
+          if(x.def.type==='scripture')failures.push('reaction during scripture card: '+id);
+          if(touches(b,x.el.getBoundingClientRect()))failures.push('reaction touches clip/card: '+id);
+        }
+      });
+      headBoxes().forEach(function(h){if(touches(b,h))failures.push('reaction touches guide head: '+id);});
+      if(chars.guide && (charX('guide',t)<540)!==(ob.def.x<540))failures.push('reaction is outside guide lane: '+id);
+    });
+    var guide=chars.guide,band=D.layoutZones && D.layoutZones.captions;
+    if(guide && band && (D.captionBox || {}).single_line && guide.s.draw>.05){
+      guide.strokes.forEach(function(st){
+        if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
+        var b=st.getBoundingClientRect();
+        if((b.width || b.height) && b.top-6<band.bottom)failures.push('guide enters fixed caption band');
+      });
+    }
+    return failures;
+  };
+
   window.kiStrictCaptionCheck = function () {
     var failures = [], r = capRect();
     if (!r || !capEl.textContent.trim()) return failures;
     if (capEl.style.visibility === 'hidden') return ['caption unexpectedly hidden'];
+    if((D.captionBox || {}).single_line){
+      var first=capEl.children[0].getBoundingClientRect();
+      Array.prototype.forEach.call(capEl.children,function(sp){if(Math.abs(sp.getBoundingClientRect().top-first.top)>1)failures.push('caption wraps onto another line');});
+      if(parseFloat(capEl.style.fontSize)!==D.captionSize)failures.push('fixed caption font size changed');
+      if(Math.abs(parseFloat(capEl.style.left)-D.captionBox.x)>.1 || Math.abs(parseFloat(capEl.style.top)-D.captionBox.y)>.1)failures.push('fixed caption band moved');
+    }
     var c = {left:r.left-8, top:r.top-8, right:r.right+8, bottom:r.bottom+8};
     function inside(a,b) { return a.left >= b.left && a.right <= b.right && a.top >= b.top && a.bottom <= b.bottom; }
     function touches(a,b) { return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top; }

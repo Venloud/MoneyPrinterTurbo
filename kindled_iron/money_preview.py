@@ -29,13 +29,19 @@ def build(script: str):
     scene = dict(id='love-of-money-v2', title='The Love of Money', exact_narration=True,
                  strict_layout=True, strict_media=True, ground=1430, camera_y=960,
                  inset_snap=False, fill_min=0, voice_profile='kindled_iron', end_hold=1.2,
-                 layout_zones={'captions':dict(left=240,top=670,right=840,bottom=1430),
+                 layout_zones={'captions':dict(left=120,top=670,right=960,bottom=825),
+                               'reaction':dict(left=120,top=880,right=960,bottom=1430),
                                'clip':dict(left=128,top=160,right=960,bottom=660)},
-                 captions_box=dict(x=450,y=1190,w=320,size=92,min_scale=.68),
-                 captions_chunk=dict(max_words=3,min_words=1,max_chars=19),
+                 captions_box=dict(x=540,y=690,w=820,size=92,min_scale=.68,single_line=True),
+                 captions_chunk=dict(max_words=3,min_words=1,max_chars=16),
                  cast={'guide':dict(x=-150,panel=0,scale=1.785,facing=1,accent=True)}, beats=[])
     spans, words, t, lane = [], [], 0.0, 920
     last_visual = None
+    # The same dealership car stays throughout. Cash appears exactly three times.
+    pins=[CASH,CAR,GEAR,CASH,CAR,MECHANIC,CAR,MECHANIC,GEAR,CAR,CASH,BIBLE,
+          None,GEAR,CAR,MECHANIC,GEAR,CAR,MECHANIC,CAR,MECHANIC,None,None,
+          BIBLE,CAR,GEAR,BIBLE]
+    reactions={4:('great','surprised',.7),15:('checked','confused',.9),17:('does','smart',.8)}
     for i,line in enumerate(lines):
         ws = words_of(line)
         duration = max(1.5, len(ws)*60/175)
@@ -44,24 +50,21 @@ def build(script: str):
         ev=[]
         if i == 0:
             ev += [dict(at=-start,do='place',who='guide',x=-150,facing=1),
-                   dict(at=.05-start,do='walk',who='guide',to=920,speed=700),
-                   dict(at=0,do='caption_lane',x=450,y=690),
-                   dict(at=1.85,do='caption_lane',x=450,y=1190)]
+                   dict(at=.05-start,do='walk',who='guide',to=920,speed=700)]
         elif i % 3 == 0:
-            # Finish the previous caption, turn in place, walk, settle, then switch captions.
+            # Turn in place, walk forwards, then settle; captions never move.
             previous_end=spans[-1][1]
             lane=160 if lane==920 else 920
             direction=1 if lane==920 else -1
             ev += [dict(at=previous_end+.30-start,do='face',who='guide',facing=direction),
-                   dict(at=previous_end+.55-start,do='walk',who='guide',to=lane,dur=.55),
-                   dict(at=previous_end+1.26-start,do='caption_lane',x=450 if lane==920 else 630)]
+                   dict(at=previous_end+.55-start,do='walk',who='guide',to=lane,dur=.55)]
         ref=re.search(r'\[([^]]+)\]',line)
         if last_visual:
             ev.append(dict(at=0,do='fade',ids=[last_visual],opacity=0,dur=.15))
         if ref:
             quote=re.search('“(.*)”',line).group(1)
             visual=f'verse_{i}'
-            # renderer fits 64–92, using prewrapped pages only when the full
+            # Renderer uses 64 with precomputed page sizes when the full
             # long quote cannot fit at 64. No second visual or inset here.
             ev.append(dict(scripture=dict(ref=ref.group(1),text=quote),id=visual,
                            x=540,y=405,w=780,size=64,fit_height=440,min_size=64,
@@ -69,18 +72,20 @@ def build(script: str):
             key='money' if 'money' in quote else 'little' if 'little' in quote else 'leave'
             ev.append(dict(at=key,do='point',who='guide',toward=visual,hold=.5))
         else:
-            money=bool(re.search(r'money|dollars|payment|paid|bills|wallet|earn|save|pay|savings|wealth|rich|ten thousand',line,re.I))
-            pin=CASH if money or i==13 else (GEAR if 'transmission' in line.lower() else CAR)
-            if i==18: pin=MECHANIC
+            pin=pins[i] if i<len(pins) else (CAR if i%2 else GEAR)
             visual=f'clip_{i}'
             clip=dict(at=0,do='draw',id=visual,type='inset',x=540,y=405,w=780,h=440,
                       sources=['pexels'],pin={'pexels':pin},required=True,query=f'pinned {pin}',
                       clip_dur=3,display_dur=duration,cover_beat=True,instant=True,pop=False)
             if pin==MECHANIC: clip['crop']=[.55,.40,.40,.40]
             ev.append(clip)
-            if i%3==1: ev.append(dict(at=.25,do='point',who='guide',toward=visual,hold=.5))
+            if i%3==1 and i not in reactions: ev.append(dict(at=.25,do='point',who='guide',toward=visual,hold=.5))
+        if i in reactions:
+            key,emotion,hold=reactions[i]
+            ev.append(dict(at=key,reaction=emotion,dur=hold,
+                           card=dict(x=650 if lane==920 else 430,y=1120,w=200,h=160,rotate=0)))
         ev.append(dict(at=0,do='express',who='guide',expression='thinking' if i%2 else 'speaking'))
-        scene['beats'].append(dict(id=f'line_{i+1}',panel=0,narration=line,camera_start=False,captions=not bool(ref),events=ev))
+        scene['beats'].append(dict(id=f'line_{i+1}',panel=0,narration=line,camera_start=False,captions=not bool(ref),serious=i not in {0,1,2,3,4,7,8,9,13,14,15,16,17},events=ev))
         spans.append((start,end));words.append(bw);last_visual=visual
         # Pause-only lane changes cannot collide with a spoken caption. Cards
         # finish typing and hold for >=1 second before the next line starts.
@@ -98,22 +103,35 @@ def main():
     # Actions runtime. No external local clip cache is smuggled into the run.
     clips=insets.fetch(scene,a.out,render.log)
     data=render.build_data(scene,spans,words,duration,clips)
+    data['inboxReactions'], memes=effects.apply_reaction_rules(data['events'],scene,spans,words,a.out,render.log,data,True)
+    requested=[e for e in data['events'] if e['do']=='reaction']
+    if len(memes)!=3 or len(requested)!=3 or any(e.get('_drop') for e in requested):
+        missing=[e['emotion'] for e in requested if e.get('_drop') or not any(m['emotion']==e['emotion'] for m in memes)]
+        raise SystemExit('FAIL: selected reaction images missing/dropped: '+', '.join(missing))
+    for rec in memes:
+        obj=next(o for o in data['objects'] if o['id']==rec['id'])
+        event=next(e for e in data['events'] if e.get('id')==rec['id'] and e['do']=='draw')
+        obj.update(required=True,reaction_card=True,display_dur=obj['clip_dur'])
+        event.update(instant=True,pop=False)
+    data['events'].sort(key=lambda e:e['t'])
+    (a.out/'reactions.json').write_text(json.dumps(memes,indent=2))
     data["paper"] = effects.paper_texture(a.out, render.PALETTE["board"])
     # Opening mid-stride; both lanes; verse mid-type; pointing; long verse page.
-    times=[.3, .75, spans[3][0]+.8,
-           spans[12][0]+2.15, spans[12][0]+2.7,
-           spans[18][0]+.8, spans[22][0]+5.0, spans[22][0]+9.0]
+    times=[.3, .75, spans[4][0]+1.0,
+           spans[12][0]+2.15, spans[15][0]+1.35,
+           spans[17][0]+.85, spans[22][0]+5.0, spans[22][1]+.5]
     times=sorted(round(t,3) for t in times)
     page=render.write_page(data,a.out)
     render.capture(page,None,None,duration,None,stills=times,still_dir=a.out/'eight_frames')
     report=dict(script_sha256=hashlib.sha256(text.encode()).hexdigest(),timing='estimated, no audio generated',
-                frame_times=times,preview_only=True,full_render=False,pins=[CASH,CAR,GEAR,MECHANIC,BIBLE])
+                frame_times=times,preview_only=True,full_render=False,reactions=memes,pins=[CASH,CAR,GEAR,MECHANIC,BIBLE])
     (a.out/'preview.json').write_text(json.dumps(report,indent=2))
-    from PIL import Image,ImageOps,ImageDraw
-    sheet=Image.new('RGB',(4*270,2*500),'#f4f1ea')
+    from PIL import Image,ImageDraw,ImageFont
+    sheet=Image.new('RGB',(4*540,2*1000),'#f4f1ea')
+    font=ImageFont.truetype(str(render.VENDOR/'fonts'/'Caveat.ttf'),26)
     for n,p in enumerate(sorted((a.out/'eight_frames').glob('*.png'), key=lambda f: float(f.stem.split('_')[-1]))):
-        im=Image.open(p).convert('RGB');im.thumbnail((270,480));x=(n%4)*270;y=(n//4)*500
-        sheet.paste(im,(x,y));ImageDraw.Draw(sheet).text((x+8,y+482),f'{n+1}: {times[n]:.2f}s',fill='black')
+        im=Image.open(p).convert('RGB');im.thumbnail((540,960));x=(n%4)*540;y=(n//4)*1000
+        sheet.paste(im,(x,y));ImageDraw.Draw(sheet).text((x+12,y+968),f'{n+1}: {times[n]:.2f}s',font=font,fill='black')
     sheet.save(a.out/'eight-frames.jpg',quality=92)
 
 if __name__=='__main__':main()

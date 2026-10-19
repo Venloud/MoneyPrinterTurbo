@@ -167,6 +167,9 @@ def test_verse_pages_fit_requested_clip_zone_without_shrinking_below_64():
     assert ' '.join(o['lines'][boundary['line']:]).startswith('for he has said,')
     assert boundary['time']==ws[13]['end']
     assert o['line_pages']==[0]*4+[1]*4
+    assert o['page_layouts'][0]['height']==max(220,92+4*64*1.08)
+    assert o['page_layouts'][1]['height']>o['page_layouts'][0]['height']
+    assert o['page_layouts'][0]['text_top']==-4*64*1.08/2
 
 
 def test_verse_refuses_more_than_two_pages_instead_of_shrinking():
@@ -183,7 +186,36 @@ def test_money_preview_starts_with_media_and_caption_and_verses_use_cards_only()
     scene,spans,words,duration=build('Walk away with ten thousand dollars right now, or tell the truth?\n\nFirst Timothy says, “For the love of money is a root of all kinds of evil.” [1 Timothy 6:10]\n\nBracketed references appear on screen and are not spoken.')
     assert spans[0][0]==0 and words[0][0]['start']==0
     assert scene['cast']['guide']['scale']==1.785
-    assert scene['captions_box']['size']==92 and scene['captions_box']['w']==320
+    assert scene['captions_box']['size']==92 and scene['captions_box']['w']==820
     assert scene['beats'][0]['captions']
     assert not scene['beats'][1]['captions']
     assert scene['beats'][1]['events'][1]['size']==64
+
+
+def test_authored_memes_use_existing_rules_and_stock_varies(tmp_path):
+    from kindled_iron.money_preview import build, CASH
+    from kindled_iron import render,effects
+    from kindled_iron.scripture import verse_text
+    lines=['ordinary line']*27
+    lines[4]='Runs great.';lines[15]='They should’ve checked.';lines[17]='Everybody does it.'
+    for i,ref in [(12,'1 Timothy 6:10'),(21,'Proverbs 16:8'),(22,'Hebrews 13:5')]:
+        quote=verse_text(ref).split('. ')[0]+'.' if i==12 else verse_text(ref)
+        lines[i]=f'Paul says, “{quote}” [{ref}]'
+    scene,spans,words,duration=build('\n\n'.join(lines+['Bracketed references appear on screen and are not spoken.']))
+    pins=[e['pin']['pexels'] for beat in scene['beats'] for e in beat['events'] if e.get('type')=='inset']
+    assert pins.count(CASH)==3 and all(a!=b for a,b in zip(pins,pins[1:]))
+    assert not any(e.get('do')=='caption_lane' for b in scene['beats'] for e in b['events'])
+    clips={e['id']:{'frames':['file:///test.jpg'],'fps':30} for b in scene['beats'] for e in b['events'] if e.get('type')=='inset'}
+    data=render.build_data(scene,spans,words,duration,clips)
+    def fake_card(emotion,t,dur,pos,work,n):
+        return ({'id':f'react{n}','type':'inset'}, {'do':'draw','id':f'react{n}','t':t}, {'id':f'react{n}','origin':'test','emotion':emotion})
+    with patch('kindled_iron.private_media.reaction_card',side_effect=fake_card) as provider:
+        _,images=effects.apply_reaction_rules(data['events'],scene,spans,words,tmp_path,lambda _:None,data,True)
+    reactions=[e for e in data['events'] if e['do']=='reaction']
+    assert provider.call_count==len(images)==len(reactions)==3
+    assert not any(e.get('_drop') for e in reactions)
+    assert [e['emotion'] for e in reactions]==['surprised','confused','smart']
+    assert all(0<e['dur']<1.5 for e in reactions)
+    assert all(b['t']-a['t']>=3 for a,b in zip(reactions,reactions[1:]))
+    for e in reactions:
+        assert not any(e['t']<end and e['t']+e['dur']>start for (start,end),b in zip(spans,scene['beats']) if b.get('serious'))

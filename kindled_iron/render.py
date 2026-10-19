@@ -368,8 +368,15 @@ def scripture_card(e: dict, words: list[dict], off: int, n: int, beat_id) -> tup
     if page_break:
         page_break["time"]=word_times[page_break["word"]-1]["end"]
         page_break["char"]=word_times[page_break["word"]]["start_char"]
+    counts=[len(lines)] if not page_break else [page_break['line'],len(lines)-page_break['line']]
+    page_layouts=[]
+    for j,count in enumerate(counts):
+        ref_space=min(64,round(size*.62))*1.5 if j==len(counts)-1 else 0
+        page_layouts.append(dict(height=max(220,92+count*size*1.08+ref_space),
+                                 text_top=-(count*size*1.08+ref_space)/2,
+                                 ref_y=count*size*1.08/2+min(64,round(size*.62))*.15))
     o = {"id": e.get("id", f"card{n + 1}"), "type": "scripture", "x": off + e.get("x", 540), "y": e.get("y", 430),
-         "w": w, "size": size, "lines": lines, "page_lines": page_lines, "line_pages": line_pages, "page_break": page_break, "word_times": word_times, "ref": canonical(card["ref"]), "text": card["text"],
+         "w": w, "size": size, "lines": lines, "page_lines": page_lines, "line_pages": line_pages, "page_break": page_break, "page_layouts": page_layouts, "word_times": word_times, "ref": canonical(card["ref"]), "text": card["text"],
          "quote_end": round(t1, 3), "_t0": round(t0, 3), "_t1": round(t1 + 1.0, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
     return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "show_at": e.get("show_time", max(0,t0-.3)), "pop": False}
 
@@ -484,7 +491,7 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
         samples.mkdir(exist_ok=True)
         for frame in range(max(1, int(math.ceil(duration * FPS)))):
             t = frame / FPS
-            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t), window.kiWalkCheck(t)); }", t)
+            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t), window.kiWalkCheck(t), window.kiStrictReactionCheck(t)); }", t)
             if issues:
                 (work / "strict_layout.json").write_text(json.dumps({"passed": False, "frame": frame, "time": t, "issues": issues}, indent=2))
                 raise SystemExit(f"FAIL: layout frame {frame} ({t:.3f}s): {'; '.join(issues)}")

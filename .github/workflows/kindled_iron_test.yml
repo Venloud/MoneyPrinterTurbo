@@ -326,6 +326,17 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Check strict media and collision regressions
         run: python -m pytest test/services/test_kindled_strict_render.py -q
+      - name: Load private reaction images (ReactionPics remains the existing fallback)
+        if: ${{ env.HAS_VOICE_REPO == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = true ] || { echo 'FAIL: reaction source repository must be private'; exit 1; }
+          d="$RUNNER_TEMP/private_media"
+          git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+          git -C "$d" sparse-checkout set reactions
+          echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
       - name: Preview eight frames with required pinned real clips
         env:
           APPROVED_SCRIPT: ${{ inputs.preview_script }}
@@ -349,11 +360,12 @@ jobs:
           gh release view test-renders --repo "$PRIVATE_REPO" >/dev/null
           tag="love-money-preview-${GITHUB_RUN_ID}"
           mkdir -p "$RUNNER_TEMP/$tag"
-          cp storage/money-preview/eight_frames/*.png storage/money-preview/eight-frames.jpg storage/money-preview/preview.json storage/money-preview/strict_layout.json storage/money-preview/sources.json "$RUNNER_TEMP/$tag/"
+          cp storage/money-preview/eight_frames/*.png storage/money-preview/eight-frames.jpg storage/money-preview/preview.json storage/money-preview/strict_layout.json storage/money-preview/reactions.json storage/money-preview/sources.json "$RUNNER_TEMP/$tag/"
           (cd storage/money-preview && zip -q -r "$RUNNER_TEMP/$tag/half-second-review.zip" review_half_second)
           for f in "$RUNNER_TEMP/$tag/"*; do
             name="$tag-$(basename "$f")"
             cp "$f" "$RUNNER_TEMP/$name"
             gh release upload test-renders --repo "$PRIVATE_REPO" "$RUNNER_TEMP/$name"
           done
+          gh release upload test-renders --repo "$PRIVATE_REPO" storage/money-preview/eight-frames.jpg --clobber
           echo "Eight-frame review stored privately: $tag" >> "$GITHUB_STEP_SUMMARY"

@@ -110,7 +110,7 @@ def test_required_clip_visible_at_frame_zero_and_through_long_line():
     start = runtime.index("  function strictInsetVisibility(ob, t)")
     end = runtime.index("  function renderObjects(t)", start)
     setup = """
-    const D={strictLayout:true}; const attrs={};
+    const window={}; const D={strictLayout:true}; const attrs={};
     const ob={def:{type:'inset',required:true},t0:0,t1:12,
       el:{style:{},setAttribute(k,v){attrs[k]=v;}},strokes:[],fills:[]};
     """
@@ -121,3 +121,47 @@ def test_required_clip_visible_at_frame_zero_and_through_long_line():
     """
     states=json.loads(subprocess.check_output(["node","-e",js],text=True))
     assert states == [["visible","1"]]*4 + [["hidden","0"]]
+
+
+def test_typewriter_halfway_matches_spoken_words_and_never_starts_future_word():
+    from kindled_iron.render import scripture_card
+    from kindled_iron.pacing import words_of
+    quote='For the love of money is a root of all kinds of evil.'
+    ws=[dict(word=w,start=2+i*.4,end=2+(i+1)*.4) for i,w in enumerate(words_of(quote))]
+    o,_=scripture_card({'scripture':{'ref':'1 Timothy 6:10','text':quote}},ws,0,0,'test')
+    runtime=Path('kindled_iron/runtime/runtime.js').read_text()
+    a=runtime.index('  window.kiTypedCount=function');b=runtime.index('  function renderTypewriter',a)
+    times=o['word_times'];mid=(times[0]['start']+times[-1]['end'])/2
+    probes=[mid]+[w['start'] for w in times]+[w['end'] for w in times]
+    js='const window={};'+runtime[a:b]+'console.log(JSON.stringify('+json.dumps(probes)+'.map(t=>window.kiTypedCount('+json.dumps(times)+',t))));'
+    counts=json.loads(subprocess.check_output(['node','-e',js],text=True))
+    assert abs(sum(w['end_char']<=counts[0] for w in times)-sum(w['end']<=mid for w in times))<=1
+    for i,w in enumerate(times):
+        assert counts[1+i]<=w['start_char']
+        assert counts[1+len(times)+i]==w['end_char']
+
+
+def test_verse_pages_fit_requested_clip_zone_without_shrinking_below_64():
+    from kindled_iron.render import scripture_card
+    from kindled_iron.pacing import words_of
+    from kindled_iron.scripture import verse_text
+    quote=verse_text('Hebrews 13:5')
+    ws=[dict(word=w,start=i*.4,end=(i+1)*.4) for i,w in enumerate(words_of(quote))]
+    o,_=scripture_card({'scripture':{'ref':'Hebrews 13:5','text':quote},'size':92,'min_size':64,'w':780,'fit_height':440},ws,0,0,'test')
+    assert 64<=o['size']<=92
+    n=o['page_lines'] or len(o['lines'])
+    assert 92+n*o['size']*1.08+min(64,round(o['size']*.62))*1.5<=440
+    boundary=o['page_break']
+    assert ' '.join(o['lines'][:boundary['line']]) == 'Be free from the love of money, content with such things as you have,'
+    assert ' '.join(o['lines'][boundary['line']:]).startswith('for he has said,')
+    assert boundary['time']==ws[13]['end']
+    assert o['line_pages']==[0]*4+[1]*4
+
+
+def test_verse_refuses_more_than_two_pages_instead_of_shrinking():
+    from kindled_iron.render import scripture_card
+    from kindled_iron.pacing import words_of
+    quote=' '.join(['A long clause without a punctuation boundary']*20)+'.'
+    ws=[dict(word=w,start=i*.4,end=(i+1)*.4) for i,w in enumerate(words_of(quote))]
+    with pytest.raises(SystemExit,match='cannot fit in two punctuation-split pages'):
+        scripture_card({'scripture':{'ref':'Hebrews 13:5','text':quote},'size':92,'min_size':64,'w':780,'fit_height':440},ws,0,0,'test')

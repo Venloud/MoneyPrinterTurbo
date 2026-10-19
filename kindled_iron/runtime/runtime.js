@@ -256,7 +256,7 @@
     },
     scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
       var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
-      var refSize = Math.min(64, Math.round(size * 0.62)), h = pad * 2 + lines.length * lh + refSize * 1.5, top = -h / 2;
+      var refSize = Math.min(64, Math.round(size * 0.62)), h = pad * 2 + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 1.5, top = -h / 2;
       var r = 30, x0 = -w / 2, x1 = w / 2, y0 = top, y1 = top + h;
       var card = 'M' + (x0 + r) + ',' + y0 + ' L' + (x1 - r) + ',' + y0 + ' Q' + x1 + ',' + y0 + ' ' + x1 + ',' + (y0 + r) + ' L' + x1 + ',' + (y1 - r) +
         ' Q' + x1 + ',' + y1 + ' ' + (x1 - r) + ',' + y1 + ' L' + (x0 + r) + ',' + y1 + ' Q' + x0 + ',' + y1 + ' ' + x0 + ',' + (y1 - r) + ' L' + x0 + ',' + (y0 + r) + ' Q' + x0 + ',' + y0 + ' ' + (x0 + r) + ',' + y0 + ' Z';
@@ -264,10 +264,10 @@
         p(card, { w: 7, fill: 'page', fo: 1 });
       lines.forEach(function (ln, i) {
         var t = (i === 0 ? '\u201C' : '') + ln + (i === lines.length - 1 ? '\u201D' : '');
-        s += '<text class="sc-line" x="0" y="' + (top + pad + lh * (i + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
+        s += '<text class="sc-line" x="0" y="' + (top + pad + lh * ((o.page_break && i >= o.page_break.line ? i-o.page_break.line : i) + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
           'font-family="Caveat" font-weight="700" font-size="' + size + '" fill="' + C.ink + '">' + esc(t) + '</text>';
       });
-      var ry = top + pad + lines.length * lh + refSize * 0.55;
+      var ry = top + pad + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 0.55;
       s += '<g class="sc-ref" opacity="0"><g transform="translate(' + (-refSize * 2.9) + ',' + ry.toFixed(1) + ') scale(' + (refSize / 260).toFixed(3) + ')">' + OBJ.book({ ribbon: false }) + '</g>' +
         '<text x="' + (-refSize * 2.0) + '" y="' + ry.toFixed(1) + '" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + refSize + '" fill="' + C.accent + '">' +
         '\u2014 ' + esc(o.ref || '') + '</text></g>';
@@ -570,19 +570,22 @@
       if (u) u.setAttribute('d', 'M' + (b.x + 10) + ',' + (b.y + b.height * 0.92) + ' C' + (b.x + b.width * 0.4) + ',' + (b.y + b.height * 0.86) + ' ' + (b.x + b.width * 0.7) + ',' + (b.y + b.height * 0.98) + ' ' + (b.x + b.width - 5) + ',' + (b.y + b.height * 0.9));
     }
   });
-  D.objects.forEach(function (o) {      // scripture card: one wipe clip per line, written on in order
+  // Measure the complete prewrapped text once; only textContent changes later.
+  D.objects.forEach(function (o) {
     if (o.type !== 'scripture') return;
-    var ob = objs[o.id];
-    ob.lineClips = [];
-    ob.el.querySelectorAll('.sc-line').forEach(function (t, i) {
-      var b = t.getBBox(), cid = 'clip-' + o.id + '-' + i;
-      var clip = document.createElementNS(SVGNS, 'clipPath'); clip.id = cid;
-      var r = document.createElementNS(SVGNS, 'rect');
-      r.setAttribute('x', b.x - 20); r.setAttribute('y', b.y - 20); r.setAttribute('width', 0); r.setAttribute('height', b.height + 40);
-      clip.appendChild(r); board.querySelector('defs').appendChild(clip); t.setAttribute('clip-path', 'url(#' + cid + ')');
-      ob.lineClips.push({ rect: r, w: b.width + 40, n: t.textContent.length });
+    var ob=objs[o.id], offset=0;
+    ob.typeLines=[];
+    ob.el.querySelectorAll('.sc-line').forEach(function(el) {
+      var text=el.textContent, left=-el.getComputedTextLength()/2;
+      el.setAttribute('text-anchor','start');el.setAttribute('x',left);
+      ob.typeLines.push({el:el,text:text,offset:offset,left:left,y:parseFloat(el.getAttribute('y'))});
+      offset+=text.length+1;
+      el.textContent='';
     });
-    ob.refEl = ob.el.querySelector('.sc-ref');
+    ob.caret=document.createElementNS(SVGNS,'line');
+    ob.caret.setAttribute('stroke',C.accent);ob.caret.setAttribute('stroke-width','3');
+    ob.caret.setAttribute('visibility','hidden');ob.inner.appendChild(ob.caret);
+    ob.refEl=ob.el.querySelector('.sc-ref');
   });
   D.objects.forEach(function (o) {
     var ob = objs[o.id];
@@ -731,18 +734,14 @@
     var d = e.dur || ob.def.dur || 1.1;
     tl.set(ob.el, { attr: { visibility: 'visible' } }, e.t);
     if (ob.def.type === 'scripture') {     // card pops in, the quote is written on as it is spoken, then the reference
-      tl.set(ob.el, { attr: { visibility: 'visible' } }, Math.max(0, e.t - 0.3));
+      var appear=e.show_at == null ? Math.max(0,e.t-.3) : e.show_at;
+      ob.showAt=appear;
+      tl.set(ob.el, { attr: { visibility: 'visible' } }, appear);
       var refStrokes = Array.prototype.filter.call(ob.strokes, function (st) { return st.closest('.sc-ref'); });
       var cardStrokes = Array.prototype.filter.call(ob.strokes, function (st) { return !st.closest('.sc-ref'); });
-      tl.to(cardStrokes, { attr: { 'stroke-dashoffset': 0 }, duration: 0.3, ease: 'power1.out' }, e.t - 0.3);
-      ob.fills.forEach(function (fl) { if (!fl.closest('.sc-ref')) tl.to(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') }, duration: 0.25 }, e.t - 0.2); });
-      tl.fromTo(ob.inner, { scale: 0.95, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'power2.out', immediateRender: false }, e.t - 0.3);
-      var total = ob.lineClips.reduce(function (a, c) { return a + c.n; }, 0) || 1, at = e.t;
-      ob.lineClips.forEach(function (c) {
-        var ld = d * c.n / total;
-        tl.to(c.rect, { attr: { width: c.w }, duration: ld, ease: 'none' }, at);
-        at += ld;
-      });
+      tl.to(cardStrokes, { attr: { 'stroke-dashoffset': 0 }, duration: 0.3, ease: 'power1.out' }, appear);
+      ob.fills.forEach(function (fl) { if (!fl.closest('.sc-ref')) tl.to(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') }, duration: 0.25 }, appear); });
+      tl.fromTo(ob.inner, { scale: 0.95, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'power2.out', immediateRender: false }, appear);
       var rt = e.t + d + (e.ref_delay == null ? 0.1 : e.ref_delay);
       tl.set(refStrokes, { attr: { 'stroke-dashoffset': 0 } }, rt);
       ob.fills.forEach(function (fl) { if (fl.closest('.sc-ref')) tl.set(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') } }, rt); });
@@ -1133,7 +1132,11 @@
   // captions
   var capEl = document.getElementById('captions');
   var lastChunk = -1;
+  var captionLanes=D.events.filter(function(e){return e.do==='caption_lane';});
   function renderCaptions(t) {
+    var cx=(D.captionBox || {}).x || 450;
+    captionLanes.forEach(function(e){if(e.t<=t)cx=e.x;});
+    capEl.style.left=cx+'px';
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
     if (idx !== lastChunk) {
@@ -1268,9 +1271,47 @@
       ob.fills.forEach(function (fl) { fl.setAttribute('fill-opacity', fl.getAttribute('data-fill')); });
     }
   }
+  // Return a monotonic character count, driven by each spoken word's interval.
+  window.kiTypedCount=function(times,t) {
+    var count=0;
+    (times || []).forEach(function(w) {
+      if(t>=w.end) count=w.end_char;
+      else if(t>=w.start) count=Math.max(count,w.start_char+Math.floor((w.end_char-w.start_char)*Math.max(0,Math.min(1,(t-w.start)/Math.max(.001,w.end-w.start)))));
+    });
+    return count;
+  };
+  function renderTypewriter(ob,t) {
+    if(!ob.typeLines)return;
+    var times=ob.def.word_times || [], count=window.kiTypedCount(times,t);
+    var active=0;
+    ob.typeLines.forEach(function(ln,i){if(count>ln.offset)active=i;});
+    var br=ob.def.page_break, fading=br && t>=br.time && t<br.time+.15;
+    var page=br && t>=br.time+.15 ? 1 : 0;
+    ob.typeLines.forEach(function(ln,i){
+      var lp=ob.def.line_pages ? ob.def.line_pages[i] : 0;
+      var visible=lp===page;
+      ln.el.textContent=visible ? ln.text.slice(0,Math.max(0,Math.min(ln.text.length,count-ln.offset))) : '';
+      ln.el.setAttribute('opacity',fading ? Math.max(0,1-(t-br.time)/.15) : 1);
+    });
+    ob.el.setAttribute('data-typed-count',count);ob.el.setAttribute('data-typing-page',page);
+    var first=times.length?times[0].start:0,last=ob.def.quote_end;
+    var show=!fading && t>=first && t<last+.3 && Math.floor((t-first)*4)%2===0;
+    ob.caret.setAttribute('visibility',show?'visible':'hidden');
+    if(show){
+      var ln=ob.typeLines[active], n=Math.min(ln.el.textContent.length,Math.max(0,count-ln.offset));
+      var x=ln.left+(n?ln.el.getSubStringLength(0,n):0)+3, sz=ob.def.size;
+      ob.caret.setAttribute('x1',x);ob.caret.setAttribute('x2',x);
+      ob.caret.setAttribute('y1',ln.y-sz*.45);ob.caret.setAttribute('y2',ln.y+sz*.45);
+    }
+  }
   function renderObjects(t) {
     ambObjs.forEach(function (a) {
       strictInsetVisibility(a.ob, t);
+      renderTypewriter(a.ob,t);
+      if(D.strictLayout && a.ob.def.type==='scripture' && a.ob.showAt!=null && t>=a.ob.showAt) {
+        var gone=D.events.some(function(e){return e.do==='fade' && (e.ids||[e.id]).indexOf(a.ob.def.id)>=0 && t>=e.t+(e.dur||.5);});
+        a.ob.el.setAttribute('visibility',gone?'hidden':'visible');
+      }
       if (a.ob.el.getAttribute('visibility') === 'hidden') return;
       var mv = a.ob.mv, base = (mv.x || mv.y) ? 'translate(' + mv.x.toFixed(2) + ',' + mv.y.toFixed(2) + ') ' : '';
       if (a.fn || base) a.amb.setAttribute('transform', base + (a.fn ? a.fn(t, a.k) : ''));
@@ -1491,11 +1532,23 @@
   // All rectangles are measured in rendered screen coordinates, including
   // animated transforms. Inclusive edges mean touching also fails. Text stroke
   // extends 8 px outside the measured span boxes.
+  window.kiWalkCheck=function(t){
+    var out=[];
+    Object.keys(chars).forEach(function(id){
+      var c=chars[id],vx=charX(id,t+.05)-charX(id,t-.05);
+      if(c.s.walk>.3 && Math.abs(vx)>1 && Math.abs(c.s.flipX)>.3 && Math.sign(vx)!==Math.sign(c.s.flipX))out.push('WALK-FACING: '+id+' walks backwards');
+    });return out;
+  };
   window.kiStrictMediaCheck = function (t) {
     var failures = [];
     (D.mediaCoverage || []).forEach(function (need) {
       if (t < need.from || t >= need.to) return;
       var ob = objs[need.id];
+      if (need.kind === 'scripture') {
+        if(!ob || ob.el.getAttribute('visibility')==='hidden' || parseFloat(getComputedStyle(ob.el).opacity)<.99) failures.push('required scripture card not visible: '+need.id);
+        if(chars.guide && chars.guide.s.walk>.05) failures.push('guide walks while verse is being written: '+need.id);
+        return;
+      }
       if (!ob || ob.t0 == null || ob.t1 == null) { failures.push('required clip playback not initialized: ' + need.id); return; }
       if (ob.el.getAttribute('visibility') === 'hidden' || parseFloat(getComputedStyle(ob.el).opacity) < 0.99)
         failures.push('required clip not visible: ' + need.id);
@@ -1530,6 +1583,16 @@
       }
     });
     headBoxes().forEach(function(b) { if (touches(c,b)) failures.push('caption touches guide head'); });
+    if(typeof chars!=='undefined' && chars.guide && chars.guide.s.draw>.05){
+      var body=null;
+      chars.guide.strokes.forEach(function(st){
+        if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
+        var b=st.getBoundingClientRect();
+        if(!b.width&&!b.height)return;
+        body=body?{left:Math.min(body.left,b.left),right:Math.max(body.right,b.right),top:Math.min(body.top,b.top),bottom:Math.max(body.bottom,b.bottom)}:{left:b.left,right:b.right,top:b.top,bottom:b.bottom};
+      });
+      if(body && touches(c,{left:body.left-5,right:body.right+5,top:body.top-5,bottom:body.bottom+5})) failures.push('caption touches guide body');
+    }
     return failures;
   };
 

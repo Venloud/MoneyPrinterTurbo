@@ -174,11 +174,11 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         off = PANEL_W * beat.get("panel", 0)
         words = beat_words[b]
         if scene.get("strict_media"):
-            required = [e for e in beat.get("events", []) if e.get("type") == "inset"]
+            required = [e for e in beat.get("events", []) if e.get("type") == "inset" or e.get("scripture")]
             if words and not required:
                 raise SystemExit(f"FAIL: missing required media for beat {beat.get('id', b)}")
             if words:
-                media_coverage.append({"id": required[0]["id"], "from": words[0]["start"], "to": words[-1]["end"]})
+                media_coverage.append({"id": required[0]["id"], "from": words[0]["start"], "to": words[-1]["end"], "kind": "scripture" if required[0].get("scripture") else "inset"})
         used: dict = {}
         if beat.get("captions", True):
             captions += caption_chunks(words, **(scene.get("captions_chunk") or {}))
@@ -202,6 +202,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             e = dict(ev)
             if isinstance(e.get("scripture"), dict):
                 card_n = sum(1 for o in objects if o["type"] == "scripture")
+                if e.get("card_at_beat_start"):
+                    e["show_time"] = start
                 o, ev_draw = scripture_card(e, words, off, card_n, beat.get("id", b))
                 objects.append(o)
                 events.append(ev_draw)
@@ -322,14 +324,54 @@ def scripture_card(e: dict, words: list[dict], off: int, n: int, beat_id) -> tup
     t0, t1 = words[hit]["start"], words[hit + len(want) - 1]["end"]
     size = int(e.get("size", 76))
     w = int(e.get("w", 800))
-    lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
-    if len(lines) > 3:
-        size = int(size * 0.85)
-        lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
+    text = card["text"].strip().strip('"“”')
+    page_lines = None
+    page_break = None
+    line_pages = None
+    if e.get("fit_height"):
+        def height(sz, n): return 92 + n * sz * 1.08 + min(64, round(sz*.62))*1.5
+        for candidate in range(size, int(e.get("min_size",64))-1, -1):
+            candidate_lines = wrap(text, candidate, w-130)
+            if height(candidate,len(candidate_lines)) <= e["fit_height"]:
+                size,lines=candidate,candidate_lines
+                break
+        else:
+            size=max(64,int(e.get("min_size",64)))
+            capacity=max(1,int((e["fit_height"]-92-min(64,round(size*.62))*1.5)/(size*1.08)))
+            # Only punctuation boundaries are eligible; prefer a balanced pair of clauses.
+            candidates=[]
+            for boundary in re.finditer(r"[,;:.!?]\s+",text):
+                split=boundary.end()
+                left,right=text[:split].rstrip(),text[split:].lstrip()
+                a,b=wrap(left,size,w-130),wrap(right,size,w-130)
+                if a and b and max(len(a),len(b))<=capacity:
+                    candidates.append((abs(len(left)-len(right)),split,a,b))
+            if not candidates:
+                raise SystemExit(f"FAIL: {card['ref']} cannot fit in two punctuation-split pages at size {size}")
+            _,split,a,b=min(candidates,key=lambda c:c[0])
+            lines=a+b
+            page_lines=max(len(a),len(b))
+            line_pages=[0]*len(a)+[1]*len(b)
+            page_break={"line":len(a),"word":len(_norm_words(text[:split]))}
+    else:
+        lines = wrap(text,size,w-130)
+        if len(lines)>3:
+            size=int(size*.85);lines=wrap(text,size,w-130)
+    display_lines=[('“' if j==0 else '')+ln+('”' if j==len(lines)-1 else '') for j,ln in enumerate(lines)]
+    display='\n'.join(display_lines)
+    tokens=list(re.finditer(r"[A-Za-z0-9]+(?:[’'][A-Za-z0-9]+)*",display))
+    if len(tokens)!=len(want):
+        raise SystemExit(f"FAIL: typewriter word mapping mismatch for {card['ref']}")
+    word_times=[{"start":words[hit+j]["start"],"end":words[hit+j]["end"],
+                 "start_char":m.start() if j else 0,
+                 "end_char":tokens[j+1].start() if j+1<len(tokens) else len(display)} for j,m in enumerate(tokens)]
+    if page_break:
+        page_break["time"]=word_times[page_break["word"]-1]["end"]
+        page_break["char"]=word_times[page_break["word"]]["start_char"]
     o = {"id": e.get("id", f"card{n + 1}"), "type": "scripture", "x": off + e.get("x", 540), "y": e.get("y", 430),
-         "w": w, "size": size, "lines": lines, "ref": canonical(card["ref"]), "text": card["text"],
+         "w": w, "size": size, "lines": lines, "page_lines": page_lines, "line_pages": line_pages, "page_break": page_break, "word_times": word_times, "ref": canonical(card["ref"]), "text": card["text"],
          "quote_end": round(t1, 3), "_t0": round(t0, 3), "_t1": round(t1 + 1.0, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
-    return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "pop": False}
+    return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "show_at": e.get("show_time", max(0,t0-.3)), "pop": False}
 
 
 def hold_cards(events: list[dict], objects: list[dict]) -> None:
@@ -442,7 +484,7 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
         samples.mkdir(exist_ok=True)
         for frame in range(max(1, int(math.ceil(duration * FPS)))):
             t = frame / FPS
-            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t)); }", t)
+            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t), window.kiWalkCheck(t)); }", t)
             if issues:
                 (work / "strict_layout.json").write_text(json.dumps({"passed": False, "frame": frame, "time": t, "issues": issues}, indent=2))
                 raise SystemExit(f"FAIL: layout frame {frame} ({t:.3f}s): {'; '.join(issues)}")

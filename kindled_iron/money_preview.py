@@ -29,7 +29,10 @@ def build(script: str):
     scene = dict(id='love-of-money-v2', title='The Love of Money', exact_narration=True,
                  strict_layout=True, strict_media=True, ground=1430, camera_y=960,
                  inset_snap=False, fill_min=0, voice_profile='kindled_iron', end_hold=1.2,
-                 layout_zones={'captions':dict(left=140,top=1150,right=760,bottom=1430)},
+                 layout_zones={'captions':dict(left=140,top=1150,right=760,bottom=1430),
+                               'clip':dict(left=128,top=160,right=960,bottom=660),
+                               'verse':dict(left=128,top=650,right=768,bottom=1080),
+                               'guide_head':dict(left=770,top=650,right=960,bottom=1140)},
                  captions_box=dict(x=450,y=1190,w=580,size=104,min_scale=.68),
                  captions_chunk=dict(max_words=3,min_words=1,max_chars=19),
                  cast={'guide':dict(x=850,panel=0,scale=1.785,facing=-1,accent=True)}, beats=[])
@@ -49,6 +52,8 @@ def build(script: str):
         ev=[dict(at=0,do='draw',id=f'clip_{i}',type='inset',x=540,y=405,w=780,h=440,
                  sources=['pexels'],pin={'pexels':pin},required=True,query=f'pinned {pin}',
                  clip_dur=3,display_dur=duration,instant=True,pop=False)]
+        if pin == MECHANIC:
+            ev[0]['crop'] = [.55, .40, .40, .40] # engine-only: exclude the second vehicle's exterior
         ev.append(dict(at=0,do='express',who='guide',expression='thinking' if i%2 else 'speaking'))
         if i:
             ev.insert(0,dict(at=0,do='fade',ids=[f'clip_{i-1}'],opacity=0,dur=.01))

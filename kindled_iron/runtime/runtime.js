@@ -1488,9 +1488,12 @@
     var band = D.layoutZones && D.layoutZones.captions;
     if (!band) failures.push('fixed caption zone missing');
     else if (!inside(c,band)) failures.push('caption outside fixed caption band');
+    function visiblyDrawn(el) {
+      return el.getAttribute('visibility') !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0;
+    }
     Object.keys(objs).forEach(function(id) {
       var ob=objs[id];
-      if ((ob.def.type === 'inset' || ob.def.type === 'scripture') && shown(ob.el)) {
+      if ((ob.def.type === 'inset' || ob.def.type === 'scripture') && visiblyDrawn(ob.el)) {
         var b = ob.el.getBoundingClientRect();
         // SVG DOM bounds exclude the hand-drawn outline stroke.
         var outline = {left:b.left-8,top:b.top-8,right:b.right+8,bottom:b.bottom+8};

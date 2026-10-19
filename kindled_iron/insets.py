@@ -205,7 +205,7 @@ def fetch(scene: dict, work: Path, log) -> dict:
         sources.append({"inset": ev["id"], "query": ev.get("query"), "source": c["source"], "id": c["id"], "title": c["title"],
                         "page": c["page"], "file_url": c["file_url"],
                         "license": LICENSES[c["source"]].format(lic=c.get("license_name", "")),
-                        "start": start, "duration": round(len(frames) / fps, 2)})
+                        "start": start, "crop": ev.get("crop"), "duration": round(len(frames) / fps, 2)})
         log(f"inset {ev['id']}: {c['source']} {c['id']} ({c['title'][:50]})")
     (work / "sources.json").write_text(json.dumps(sources, indent=1))
     contact_sheet(found, sources, work, log)

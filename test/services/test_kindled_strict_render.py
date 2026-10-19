@@ -54,11 +54,12 @@ let rect={left:200,top:1200,right:500,bottom:1300};
 let heads=[]; const objs={};
 function capRect(){return rect;}
 function shown(){return true;}
+function getComputedStyle(){return {opacity:"1"};}
 function headBoxes(){return heads;}
 """
     touch = "{left:508,top:1200,right:600,bottom:1300}"  # stroke touches inclusive edge
     if kind in ("inset", "scripture"):
-        setup += f"objs.x={{def:{{type:{json.dumps(kind)}}},el:{{getBoundingClientRect:()=>({touch})}}}};"
+        setup += f"objs.x={{def:{{type:{json.dumps(kind)}}},el:{{getAttribute:()=>null,getBoundingClientRect:()=>({touch})}}}};"
     elif kind == "head":
         setup += f"heads=[{touch}];"
     elif kind == "safe":

@@ -1584,14 +1584,24 @@
     });
     headBoxes().forEach(function(b) { if (touches(c,b)) failures.push('caption touches guide head'); });
     if(typeof chars!=='undefined' && chars.guide && chars.guide.s.draw>.05){
-      var body=null;
+      var bodyTouch=false;
       chars.guide.strokes.forEach(function(st){
         if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
         var b=st.getBoundingClientRect();
         if(!b.width&&!b.height)return;
-        body=body?{left:Math.min(body.left,b.left),right:Math.max(body.right,b.right),top:Math.min(body.top,b.top),bottom:Math.max(body.bottom,b.bottom)}:{left:b.left,right:b.right,top:b.top,bottom:b.bottom};
+        if(!touches(c,{left:b.left-5,right:b.right+5,top:b.top-5,bottom:b.bottom+5}))return;
+        // Test the drawn limb, not the empty corners of its diagonal bounding box.
+        if(st.getTotalLength && st.getPointAtLength){
+          var matrix=st.getScreenCTM(), length=st.getTotalLength();
+          var step=1/Math.max(.1,Math.hypot(matrix.a,matrix.b));
+          for(var q=0;q<=length+step;q+=step){
+            var p=st.getPointAtLength(Math.min(q,length));
+            var x=matrix.a*p.x+matrix.c*p.y+matrix.e,y=matrix.b*p.x+matrix.d*p.y+matrix.f;
+            if(x>=c.left-6 && x<=c.right+6 && y>=c.top-6 && y<=c.bottom+6){bodyTouch=true;break;}
+          }
+        }else bodyTouch=true;
       });
-      if(body && touches(c,{left:body.left-5,right:body.right+5,top:body.top-5,bottom:body.bottom+5})) failures.push('caption touches guide body');
+      if(bodyTouch) failures.push('caption touches guide body');
     }
     return failures;
   };

@@ -33,8 +33,8 @@ def build(script: str):
                                'clip':dict(left=128,top=160,right=960,bottom=660)},
                  captions_box=dict(x=450,y=1190,w=580,size=104,min_scale=.68),
                  captions_chunk=dict(max_words=3,min_words=1,max_chars=19),
-                 cast={'guide':dict(x=-150,panel=0,scale=1.785,facing=1,accent=True)}, beats=[])
-    spans, words, t, lane = [], [], 1.9, 885
+                 cast={'guide':dict(x=-150,panel=0,scale=1.1,facing=1,accent=True)}, beats=[])
+    spans, words, t, lane = [], [], 1.9, 920
     last_visual = None
     for i,line in enumerate(lines):
         ws = words_of(line)
@@ -44,16 +44,16 @@ def build(script: str):
         ev=[]
         if i == 0:
             ev += [dict(at=-start,do='place',who='guide',x=-150,facing=1),
-                   dict(at=.05-start,do='walk',who='guide',to=885,speed=700),
+                   dict(at=.05-start,do='walk',who='guide',to=920,speed=700),
                    dict(at=-.1,do='caption_lane',x=450)]
         elif i % 3 == 0:
             # Finish the previous caption, turn in place, walk, settle, then switch captions.
             previous_end=spans[-1][1]
-            lane=195 if lane==885 else 885
-            direction=1 if lane==885 else -1
+            lane=160 if lane==920 else 920
+            direction=1 if lane==920 else -1
             ev += [dict(at=previous_end+.30-start,do='face',who='guide',facing=direction),
                    dict(at=previous_end+.55-start,do='walk',who='guide',to=lane,dur=.55),
-                   dict(at=previous_end+1.26-start,do='caption_lane',x=450 if lane==885 else 630)]
+                   dict(at=previous_end+1.26-start,do='caption_lane',x=450 if lane==920 else 630)]
         ref=re.search(r'\[([^]]+)\]',line)
         if last_visual:
             ev.append(dict(at=0,do='fade',ids=[last_visual],opacity=0,dur=.15))

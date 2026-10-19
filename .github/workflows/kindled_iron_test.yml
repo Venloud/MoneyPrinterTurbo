@@ -9,6 +9,10 @@ name: Kindled Iron Test Render
 on:
   workflow_dispatch:
     inputs:
+      money_audio_path:
+        description: "Optional owner-supplied MP3 path inside the private voice repo; use as-is, shorten final pause only"
+        required: false
+        default: ""
       money_video_script:
         description: "Exact approved Love of Money script: full PRIVATE review with original voice, never publish"
         required: false
@@ -402,7 +406,7 @@ jobs:
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = true ] || { echo 'FAIL: review media must stay private'; exit 1; }
           d="$RUNNER_TEMP/private_media"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
-          git -C "$d" sparse-checkout set reactions music
+          git -C "$d" sparse-checkout set reactions music review-inputs
           echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
           mkdir -p "$KI_TTS_CACHE" "$RUNNER_TEMP/music_themes"
           if gh release download test-renders --repo "$VOICE_REPO" --pattern money-voice-cache.zip --dir "$RUNNER_TEMP" --clobber; then
@@ -418,14 +422,20 @@ jobs:
           import os,pathlib
           pathlib.Path('approved-v2.txt').write_text(os.environ['APPROVED_SCRIPT'])
           PY
-      - name: Original ElevenLabs narration and measured word timings (no voice fallback)
+      - name: Prepare supplied/original narration and measured word timings
         env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ inputs.money_audio_path == '' && secrets.ELEVENLABS_API_KEY || '' }}
+          REVIEW_AUDIO_PATH: ${{ inputs.money_audio_path }}
         run: |
-          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work --prepare-only
+          args=()
+          if [ -n "$REVIEW_AUDIO_PATH" ]; then args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH"); fi
+          args=()
+          if [ -n "$REVIEW_AUDIO_PATH" ]; then args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH"); fi
+          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work "${args[@]}" --prepare-only "${args[@]}"
       - name: Fetch approved clips, audit every frame, mix and encode full video
         env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ inputs.money_audio_path == '' && secrets.ELEVENLABS_API_KEY || '' }}
+          REVIEW_AUDIO_PATH: ${{ inputs.money_audio_path }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
@@ -452,8 +462,10 @@ jobs:
           assert video['codec_name']=='h264'
           assert any(s['codec_type']=='audio' for s in info['streams'])
           assert 30<float(info['format']['duration'])<600  # script determines length; no two-minute truncation
-          assert meta['voice']['provider_used']=='elevenlabs' and not meta['voice'].get('fallback')
-          assert meta['audit']['passed'] and len(meta['reactions'])==3
+          assert meta['voice']['provider_used'] in ('elevenlabs','user_upload') and not meta['voice'].get('fallback')
+          if meta['voice']['provider_used']=='user_upload':
+              assert not meta['voice']['regenerated'] and not meta['voice']['speed_changed']
+          assert meta['audit']['passed'] and 1<=len(meta['reactions'])<=3
           assert meta['script_sha256']==hashlib.sha256(pathlib.Path('approved-v2.txt').read_bytes()).hexdigest()
           print('PASS: 1080x1920 H.264 + audio; original voice; exact script; every-frame audit passed; duration',info['format']['duration'])
           PY

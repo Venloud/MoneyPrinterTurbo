@@ -1150,6 +1150,7 @@
     if(captionLanes.length)CAP_TOP=cy;
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
+    if((D.captionSuppress || []).some(function(r){return t>=r.start && t<r.end;}))idx=-1;
     if (idx !== lastChunk) {
       lastChunk = idx;
       capEl.innerHTML = idx < 0 ? '' : D.captions[idx].words.map(function (w, k) { return '<span data-k="' + k + '">' + esc(w.text) + '</span>'; }).join(' ');

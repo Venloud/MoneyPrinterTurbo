@@ -252,3 +252,41 @@ def test_real_audio_retiming_preserves_speech_and_holds_card_before_walk():
     for i,bw in enumerate(words):
         original=aligned[i]
         assert bw[0]['end']-bw[0]['start']==pytest.approx(original['end']-original['start'])
+
+
+def test_only_requested_ending_silence_is_removed():
+    import numpy as np
+    from kindled_iron.money_video import shorten_final_silence
+    audio=np.concatenate([np.arange(1,1001),np.zeros(1550),np.arange(1001,1501)]).astype(np.float32)
+    trimmed,edit=shorten_final_silence(audio,1000,1,2.55,.4)
+    assert np.array_equal(trimmed[:1200],audio[:1200])
+    assert np.array_equal(trimmed[1200:],audio[2350:])
+    assert edit['removed_seconds']==pytest.approx(1.15)
+    assert edit['kept_seconds']==.4
+
+
+def test_slow_guide_walks_during_speech_without_moving_verse_timings():
+    from kindled_iron.money_video import slow_moves
+    scene={'beats':[]};spans=[];words=[]
+    for i in range(27):
+        word={4:'great',15:'checked',17:'does'}.get(i,'word')
+        events=[dict(reaction='surprised',at=word,dur=.7,card={})] if i in (4,15,17) else []
+        scene['beats'].append(dict(captions=i not in (12,21,22),events=events))
+        spans.append((i*4,i*4+3.5));words.append([dict(word=word,start=i*4+.8,end=i*4+1.1)])
+    before=json.dumps([spans,words])
+    moves=slow_moves(scene,spans,words)
+    assert json.dumps([spans,words])==before and len(moves)>=5
+    assert all(e['speed']==280 for b in scene['beats'] for e in b['events'] if e.get('do')=='walk')
+    assert all(end-start>2.7 for start,end,lane in moves)
+    assert all(not (a<spans[i][1]+1.1 and b>spans[i][0]-.3) for a,b,_ in moves for i in (12,21,22))
+
+
+def test_continuous_read_holds_card_without_covering_it_with_new_clip():
+    from kindled_iron.money_video import fit_continuous_visuals
+    data=dict(objects=[dict(id='verse',type='scripture',_t0=1,_t1=4),dict(id='clip',type='inset',display_dur=.5)],
+        events=[dict(do='draw',id='verse',t=1,show_at=.7),dict(do='fade',ids=['verse'],t=3.2),dict(do='draw',id='clip',t=3.2)],
+        mediaCoverage=[{'id':'verse','kind':'scripture','from':.7,'to':3},{'id':'clip','kind':'inset','from':3.2,'to':3.7}])
+    fit_continuous_visuals(data)
+    assert not any(e['do']=='draw' and e['id']=='clip' for e in data['events'])
+    assert data['mediaCoverage'][-1]=={'id':'verse','kind':'scripture','from':3.2,'to':3.7}
+    assert data['captionSuppress']==[dict(start=1,end=4)]

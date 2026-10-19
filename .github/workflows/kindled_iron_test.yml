@@ -429,9 +429,7 @@ jobs:
         run: |
           args=()
           if [ -n "$REVIEW_AUDIO_PATH" ]; then args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH"); fi
-          args=()
-          if [ -n "$REVIEW_AUDIO_PATH" ]; then args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH"); fi
-          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work "${args[@]}" --prepare-only "${args[@]}"
+          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work "${args[@]}" --prepare-only
       - name: Fetch approved clips, audit every frame, mix and encode full video
         env:
           ELEVENLABS_API_KEY: ${{ inputs.money_audio_path == '' && secrets.ELEVENLABS_API_KEY || '' }}
@@ -439,7 +437,9 @@ jobs:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
-          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work
+          args=()
+          if [ -n "$REVIEW_AUDIO_PATH" ]; then args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH"); fi
+          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work "${args[@]}"
       - name: Preserve voice cache privately even if a later check fails
         if: always()
         env:
@@ -451,9 +451,11 @@ jobs:
             gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/money-voice-cache.zip" --clobber
           fi
       - name: Verify MP4, original voice and passed frame audit
+        env:
+          REVIEW_AUDIO_PATH: ${{ inputs.money_audio_path }}
         run: |
           python - <<'PY'
-          import hashlib,json,pathlib,subprocess
+          import hashlib,json,os,pathlib,subprocess
           p=pathlib.Path('storage/money-video/love-of-money.mp4')
           info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(p)]))
           meta=json.loads(p.with_suffix('.json').read_text())
@@ -463,6 +465,10 @@ jobs:
           assert any(s['codec_type']=='audio' for s in info['streams'])
           assert 30<float(info['format']['duration'])<600  # script determines length; no two-minute truncation
           assert meta['voice']['provider_used'] in ('elevenlabs','user_upload') and not meta['voice'].get('fallback')
+          if os.environ.get('REVIEW_AUDIO_PATH'):
+              assert meta['voice']['provider_used']=='user_upload', 'Supplied narration was not used'
+              source=pathlib.Path(os.environ['KI_PRIVATE_MEDIA'])/os.environ['REVIEW_AUDIO_PATH']
+              assert meta['voice']['source_sha256']==hashlib.sha256(source.read_bytes()).hexdigest()
           if meta['voice']['provider_used']=='user_upload':
               assert not meta['voice']['regenerated'] and not meta['voice']['speed_changed']
           assert meta['audit']['passed'] and 1<=len(meta['reactions'])<=3

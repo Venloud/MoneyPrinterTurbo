@@ -90,3 +90,16 @@ def test_strict_layout_checks_every_frame_and_saves_half_second_samples(tmp_path
     result = json.loads((tmp_path / "strict_layout.json").read_text())
     assert result["passed"] and result["frames_checked"] == 30
     assert [s["time"] for s in result["review_samples"]] == [0, .5]
+
+
+def test_instant_frame_still_initializes_movie_playback():
+    runtime = Path("kindled_iron/runtime/runtime.js").read_text()
+    start = runtime.index("  function addDraw(e)")
+    end = runtime.index("  D.events.forEach(function (e)", start)
+    setup = """
+    const ob = {def:{type:'inset',display_dur:8,clip_dur:3},el:{},inner:{},strokes:[],fills:[]};
+    const objs = {cash:ob}; const D={strictLayout:true};
+    const tl={set(){},to(){},fromTo(){}};
+    """
+    js = setup + runtime[start:end] + "addDraw({id:'cash',t:2,instant:true}); console.log(JSON.stringify([ob.t0,ob.t1]));"
+    assert json.loads(subprocess.check_output(["node","-e",js],text=True)) == [2,10]

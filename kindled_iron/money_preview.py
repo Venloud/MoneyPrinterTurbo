@@ -51,7 +51,7 @@ def build(script: str):
         if '[Proverbs' in line: pin=BIBLE
         ev=[dict(at=0,do='draw',id=f'clip_{i}',type='inset',x=540,y=405,w=780,h=440,
                  sources=['pexels'],pin={'pexels':pin},required=True,query=f'pinned {pin}',
-                 clip_dur=3,display_dur=duration,instant=True,pop=False)]
+                 clip_dur=3,display_dur=duration,cover_beat=True,instant=True,pop=False)]
         if pin == MECHANIC:
             ev[0]['crop'] = [.55, .40, .40, .40] # engine-only: exclude the second vehicle's exterior
         ev.append(dict(at=0,do='express',who='guide',expression='thinking' if i%2 else 'speaking'))

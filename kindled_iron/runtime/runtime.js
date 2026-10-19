@@ -753,7 +753,7 @@
       if (ob.clipRect) tl.set(ob.clipRect, { attr: { width: ob.textW } }, e.t);
       if (ob.strokes.length) tl.set(ob.strokes, { attr: { 'stroke-dashoffset': 0 } }, e.t);
       ob.fills.forEach(function (f) { tl.set(f, { attr: { 'fill-opacity': f.getAttribute('data-fill') } }, e.t); });
-      return;
+      if (ob.def.type !== 'inset') return; // An instantly drawn frame still needs its video clock.
     }
     if (ob.clipRect) {
       tl.to(ob.clipRect, { attr: { width: ob.textW }, duration: d, ease: 'power1.inOut' }, e.t);
@@ -1477,6 +1477,19 @@
   // All rectangles are measured in rendered screen coordinates, including
   // animated transforms. Inclusive edges mean touching also fails. Text stroke
   // extends 8 px outside the measured span boxes.
+  window.kiStrictMediaCheck = function (t) {
+    var failures = [];
+    (D.mediaCoverage || []).forEach(function (need) {
+      if (t < need.from || t >= need.to) return;
+      var ob = objs[need.id];
+      if (!ob || ob.t0 == null || ob.t1 == null) { failures.push('required clip playback not initialized: ' + need.id); return; }
+      if (ob.el.getAttribute('visibility') === 'hidden' || parseFloat(getComputedStyle(ob.el).opacity) < 0.99)
+        failures.push('required clip not visible: ' + need.id);
+      if (t >= ob.t1) failures.push('required clip ends before narration: ' + need.id);
+    });
+    return failures;
+  };
+
   window.kiStrictCaptionCheck = function () {
     var failures = [], r = capRect();
     if (!r || !capEl.textContent.trim()) return failures;

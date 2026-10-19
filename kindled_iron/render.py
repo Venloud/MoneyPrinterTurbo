@@ -166,12 +166,19 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
         g = cast["guide"]
         cast["guide"] = {**HOST_LOOK, **g, "colors": {**HOST_LOOK["colors"], **(g.get("colors") or {})}}
     objects, events, captions = [], [], []
+    media_coverage = []
     ids = set()
     cam_y = scene.get("camera_y", 960)
     for b, beat in enumerate(scene["beats"]):
         start, end = spans[b]
         off = PANEL_W * beat.get("panel", 0)
         words = beat_words[b]
+        if scene.get("strict_media"):
+            required = [e for e in beat.get("events", []) if e.get("type") == "inset"]
+            if words and not required:
+                raise SystemExit(f"FAIL: missing required media for beat {beat.get('id', b)}")
+            if words:
+                media_coverage.append({"id": required[0]["id"], "from": words[0]["start"], "to": words[-1]["end"]})
         used: dict = {}
         if beat.get("captions", True):
             captions += caption_chunks(words, **(scene.get("captions_chunk") or {}))
@@ -218,6 +225,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 if e["id"] in ids:
                     raise SystemExit(f"duplicate object id {e['id']!r}")
                 if e.get("type") == "inset":
+                    if e.get("cover_beat"):
+                        e["display_dur"] = max(0.05, end - e["t"])
                     if "frames" not in e and e["id"] not in insets:
                         if scene.get("strict_media") or e.get("required"):
                             raise SystemExit(f"FAIL: missing required clip {e['id']}")
@@ -278,7 +287,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
             "captionSize": (scene.get("captions_box") or {}).get("size", CAPTION["size"]), "hud": HUD, "paper": None, "inboxReactions": [],
-            "strictLayout": bool(scene.get("strict_layout")), "layoutZones": scene.get("layout_zones"),
+            "mediaCoverage": media_coverage, "strictLayout": bool(scene.get("strict_layout")), "layoutZones": scene.get("layout_zones"),
             "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {}}
 
 
@@ -433,7 +442,7 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
         samples.mkdir(exist_ok=True)
         for frame in range(max(1, int(math.ceil(duration * FPS)))):
             t = frame / FPS
-            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck(); }", t)
+            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t)); }", t)
             if issues:
                 (work / "strict_layout.json").write_text(json.dumps({"passed": False, "frame": frame, "time": t, "issues": issues}, indent=2))
                 raise SystemExit(f"FAIL: layout frame {frame} ({t:.3f}s): {'; '.join(issues)}")

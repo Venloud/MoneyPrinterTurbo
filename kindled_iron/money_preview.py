@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from kindled_iron import insets, render, scripture
+from kindled_iron import insets, render, scripture, effects
 from kindled_iron.pacing import words_of
 
 # Exact IDs from claudevandam/docs/LOVE_OF_MONEY_SCENE_SHORTLIST.md.
@@ -71,6 +71,7 @@ def main():
     # Actions runtime. No external local clip cache is smuggled into the run.
     clips=insets.fetch(scene,a.out,render.log)
     data=render.build_data(scene,spans,words,duration,clips)
+    data["paper"] = effects.paper_texture(a.out, render.PALETTE["board"])
     picks=[0,1,5,8,12,19,21,22]
     times=[round(spans[i][0]+min(1.2,(spans[i][1]-spans[i][0])/2),3) for i in picks]
     page=render.write_page(data,a.out)

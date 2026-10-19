@@ -791,8 +791,13 @@
     }
     if (ob.def.type === 'inset') {
       ob.t0 = e.t; ob.t1 = e.t + (ob.def.clip_dur || 2.2);
+      if (ob.def.reaction_card) {     // a meme card pops in WITHOUT overshoot: it never grows past its own box
+        tl.fromTo(ob.inner, { scale: 0.55, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.22, ease: 'power3.out', immediateRender: false }, e.t);
+        tl.to(ob.inner, { scale: 0.6, duration: 0.18, ease: 'power2.in' }, ob.t1 - 0.18);
+      } else {
       tl.fromTo(ob.inner, { scale: 0.3, rotation: -8, transformOrigin: '50% 50%' }, { scale: 1, rotation: 0, duration: 0.4, ease: 'back.out(2.2)', immediateRender: false }, e.t);
       tl.to(ob.inner, { scale: 0.4, rotation: 6, duration: 0.25, ease: 'back.in(2)' }, ob.t1 - 0.25);
+      }
       tl.set(ob.el, { attr: { visibility: 'hidden' } }, ob.t1);
     }
   }
@@ -1597,10 +1602,22 @@
         if (box && inter(cr, grow(box)) > 0) out.push('CAPTION TOUCHES BOX');
         guides.forEach(function (g) { if (inter(cr, grow(g)) > 0) out.push('CAPTION TOUCHES GUIDE'); });
         safeIssues('captions', cr, out);
-        var n = capEl.textContent.trim().split(/\s+/).length;
-        if (n > 5) out.push('CAPTION OVER 5 WORDS');
+        var n = capEl.textContent.trim().split(/\s+/).length, maxW = (D.audit && D.audit.max_words) || 5;
+        if (n > maxW) out.push('CAPTION OVER ' + maxW + ' WORDS');
+        if (D.audit && D.audit.one_line && capEl.getBoundingClientRect().height > parseFloat(capEl.style.fontSize || D.captionSize) * 1.45)
+          out.push('CAPTION WRAPS TO 2 LINES');
       }
     }
+    // meme reaction cards: big, beside the guide, never over the box, the guide or the captions
+    Object.keys(objs).forEach(function (id) {
+      var ob = objs[id]; if (!ob.def.reaction_card || !shown(ob.el)) return;
+      var img = ob.el.querySelector('.inset-img'), r = (img || ob.el).getBoundingClientRect();
+      if (box && inter(r, box) > 0) out.push('REACTION OVER BOX');
+      guides.forEach(function (g) { if (inter(r, g) > 0) out.push('REACTION OVER GUIDE'); });
+      if (capOn) { var c2 = capRect(); if (c2 && inter(r, c2) > 0) out.push('REACTION OVER CAPTION'); }
+      if ((ob.def.w || 0) < 380) out.push('REACTION UNDER 380 PX');
+      safeIssues('reaction ' + id, r, out);
+    });
     return out;
   };
   if (D.debugSafe) {   // overlay the TikTok safe box (debug stills only)

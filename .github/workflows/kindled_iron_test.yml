@@ -48,6 +48,19 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Scene delivery settings (preview folder, public artifacts allowed?)
+        id: scene
+        run: |
+          python3 - "${{ inputs.scene }}" <<'PY' >> "$GITHUB_OUTPUT"
+          import json, sys
+          s = json.load(open(sys.argv[1]))
+          pv = s.get("preview") or {}
+          print("folder=" + pv.get("folder", s["id"] + "-from-scratch"))
+          print("public=" + ("false" if pv.get("public_artifacts") is False or s.get("voice_file") else "true"))
+          print("max_dur=" + str(s.get("max_duration", 150 if s.get("voice_file") else 120)))
+          PY
+          cat "$GITHUB_OUTPUT"
+
       - name: Install system packages (ffmpeg, espeak-ng, Chrome)
         run: |
           set -euo pipefail
@@ -127,7 +140,7 @@ jobs:
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::warning::$VOICE_REPO is not private: third-party media not loaded"; exit 0; }
           d="$RUNNER_TEMP/private_media"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
-          git -C "$d" sparse-checkout set reactions movie_reference music
+          git -C "$d" sparse-checkout set reactions movie_reference music approved_audio
           echo "music/ in the private repo:"; ls -la "$d/music" 2>/dev/null || echo "  (no music/ folder)"
           ls -la "$d/reactions" "$d/movie_reference" 2>/dev/null || true
           echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
@@ -185,6 +198,8 @@ jobs:
 
       - name: Check the MP4 with ffprobe
         id: check
+        env:
+          MAX_DUR: ${{ steps.scene.outputs.max_dur }}
         run: |
           set -euo pipefail
           f=storage/kindled_iron/test.mp4
@@ -201,8 +216,9 @@ jobs:
               problems.append("video is not 1080x1920")
           if not a:
               problems.append("no audio stream")
-          if not 30.0 <= dur <= 120.0:          # an owner's own reading sets its own length
-              problems.append(f"duration {dur:.1f} s is outside 30-120 s")
+          hi = float(os.environ.get("MAX_DUR", "120"))
+          if not 30.0 <= dur <= hi:              # an owner's own reading sets its own length
+              problems.append(f"duration {dur:.1f} s is outside 30-{hi:.0f} s")
           meta = json.load(open("storage/kindled_iron/test_meta.json"))
           tp = meta.get("third_party", {})
           used = bool(tp.get("clips") or tp.get("images") or meta.get("music", {}).get("source") in ("mine", "generated"))
@@ -238,18 +254,18 @@ jobs:
             [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
             d="$RUNNER_TEMP/voice_previews"; rm -rf "$d"
             git clone -q --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
-            dest="$d/previews/$id-from-scratch"; mkdir -p "$dest"
+            dest="$d/previews/${{ steps.scene.outputs.folder }}"; mkdir -p "$dest"
             cp preview/* "$dest/"
             git -C "$d" config user.name "kindled-iron-bot"; git -C "$d" config user.email "kindled-iron-bot@users.noreply.github.com"
-            git -C "$d" add "previews/$id-from-scratch"
-            git -C "$d" commit -q -m "Preview: $id from scratch (Kokoro, run ${{ github.run_id }})" || echo "nothing new to commit"
+            git -C "$d" add "previews/${{ steps.scene.outputs.folder }}"
+            git -C "$d" commit -q -m "Preview: $id -> previews/${{ steps.scene.outputs.folder }} (run ${{ github.run_id }})" || echo "nothing new to commit"
             for i in 1 2 3; do git -C "$d" push -q origin HEAD && break; sleep 5; git -C "$d" pull -q --rebase origin HEAD || true; done
-            echo "committed to $VOICE_REPO previews/$id-from-scratch/ ($(git -C "$d" rev-parse --short HEAD))"
+            echo "committed to $VOICE_REPO previews/${{ steps.scene.outputs.folder }}/ ($(git -C "$d" rev-parse --short HEAD))"
             rm -rf "$d"
           fi
 
       - name: Media-box preview artifacts (MP4 + 8-frame sheet + audit)
-        if: ${{ steps.preview.outcome == 'success' }}
+        if: ${{ steps.preview.outcome == 'success' && steps.scene.outputs.public == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.preview.outputs.id }}-from-scratch
@@ -288,7 +304,7 @@ jobs:
           echo "Uploaded to https://github.com/$VOICE_REPO/releases/tag/test-renders"
 
       - name: Upload metadata, sources, pose sheet (no voice audio, no third-party media)
-        if: always()
+        if: ${{ always() && steps.scene.outputs.public != 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-test-info
@@ -304,7 +320,7 @@ jobs:
           retention-days: 14
 
       - name: Stills (only when no third-party media was used)
-        if: ${{ steps.check.outputs.third_party != 'true' }}
+        if: ${{ steps.check.outputs.third_party != 'true' && steps.scene.outputs.public != 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-test-stills
@@ -312,7 +328,7 @@ jobs:
           retention-days: 14
 
       - name: Upload the videos (Kokoro voice, no third-party media only)
-        if: ${{ !inputs.my_voice && steps.check.outputs.third_party != 'true' }}
+        if: ${{ !inputs.my_voice && steps.check.outputs.third_party != 'true' && steps.scene.outputs.public != 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-test-video

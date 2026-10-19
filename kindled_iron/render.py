@@ -574,6 +574,21 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         browser.close()
 
 
+def approved_voice_file(scene: dict) -> Path | None:
+    """scene "voice_file": {"path": "<path inside the private repo>", ...}: the file is read from KI_PRIVATE_MEDIA (the
+    private repo checkout) or KI_VOICE_FILE (local tests). A missing file stops the render (never a silent TTS fallback)."""
+    vf = scene.get("voice_file")
+    if not vf:
+        return None
+    cands = [os.environ.get("KI_VOICE_FILE")]
+    if os.environ.get("KI_PRIVATE_MEDIA"):
+        cands.append(str(Path(os.environ["KI_PRIVATE_MEDIA"]) / vf["path"]))
+    for c in cands:
+        if c and Path(c).is_file():
+            return Path(c)
+    raise SystemExit(f"FAIL: the approved voice file {vf['path']} is not available (private repo checkout / KI_VOICE_FILE)")
+
+
 def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
     """music_source: mine (the owner's track from the private repo's music/, at music_start) | generated (an
     ElevenLabs Music theme from KI_MUSIC_DIR) | none. Mix settings from voice_profiles.json."""
@@ -664,7 +679,16 @@ def main() -> None:
         segs = pacing.plan(texts, profile)
         raw = work / "narration_raw.wav"
         tts_text = scene.get("tts_text")
-        if tts_text:     # voice-only punctuation (one request); must be the script's words exactly
+        given = approved_voice_file(scene)
+        if given:        # the owner's approved recording, used as it is: nothing is generated, 0 credits
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(given), "-ac", "1", "-ar", "44100", str(raw)], check=True)
+            vf = scene["voice_file"]
+            voice_meta = {"provider_used": vf.get("provider", "elevenlabs"), "provider_requested": vf.get("provider", "elevenlabs"),
+                          "fallback": False, "cached": False, "model": vf.get("model"), "voice": vf.get("voice"),
+                          "source_file": given.name, "regenerated": False, "credits": 0, "chars_billed": 0}
+            log(f"voice: approved recording {given.name} used as-is ({vf.get('voice')}, {vf.get('model')}): not regenerated, 0 credits")
+            tts_text = tts_text or " ".join(t for t in (pacing.strip_tags(x) for x in texts))
+        elif tts_text:     # voice-only punctuation (one request); must be the script's words exactly
             norm = lambda ws: [re.sub(r"[^a-z0-9']", "", w.lower().replace("’", "'")) for w in ws]
             if norm(tts_text.split()) != norm([w for txt in texts for w in words_of(txt)]):
                 raise SystemExit("FAIL: tts_text is not the script's words (only punctuation may differ)")
@@ -743,7 +767,7 @@ def main() -> None:
             if sg["kind"] == "verse":
                 data["events"].append({"t": sg["ref_t"], "do": "sfx", "sound": "chime"})
         data["events"].sort(key=lambda e: e["t"])
-        data["audit"] = {"gap": 6}
+        data["audit"] = {"gap": 6, **(scene.get("audit") or {})}
         with open(work / "box_segments.json", "w") as fh:
             json.dump([{k: v for k, v in sg.items() if k != "frames"} for sg in box_segs], fh, indent=1)
     data["captionColor"] = scene.get("caption_color")
@@ -751,6 +775,9 @@ def main() -> None:
     data["inboxReactions"], meme_images = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log,
                                                                        data, third_party)
     data["events"].sort(key=lambda e: e["t"])
+    for o in data["objects"]:
+        if any(o["id"] == m["id"] for m in meme_images):
+            o["reaction_card"] = True
     # a meme clip with its own audio may play after the last word: the video runs until it ends
     by_id = {o["id"]: o for o in data["objects"]}
     overlays = [(e["t"], by_id[e["id"]]["audio_file"], by_id[e["id"]]["clip_dur"]) for e in data["events"]

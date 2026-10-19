@@ -148,6 +148,13 @@ jobs:
           gh release upload music-themes --repo "$VOICE_REPO" --clobber "$d"/*.mp3 "$d"/themes.json 2>/dev/null || true
           echo "KI_MUSIC_DIR=$d" >> "$GITHUB_ENV"
 
+      - name: Saved music theme from the private music/ folder (no ElevenLabs call)
+        if: ${{ !inputs.my_voice && env.HAS_VOICE_REPO == 'true' }}
+        run: |
+          d="$RUNNER_TEMP/private_media/music"
+          if [ -f "$d/theme_1.mp3" ]; then echo "KI_MUSIC_DIR=$d" >> "$GITHUB_ENV"; echo "music themes: $(ls "$d" | grep -c '^theme_') in the private music/"; \
+          else echo "::warning::no theme_1.mp3 in the private music/ folder"; fi
+
       - name: Render (+ safe-box debug copy and stills)
         env:
           ELEVENLABS_API_KEY: ${{ inputs.my_voice && secrets.ELEVENLABS_API_KEY || '' }}
@@ -209,6 +216,45 @@ jobs:
           print("OK")
           PY
           ffmpeg -v error -i "$f" -f null - && echo "decode OK"
+
+      - name: Media-box scene -> 8-frame sheet, artifacts, private previews/<id>-from-scratch/
+        id: preview
+        if: ${{ steps.check.outcome == 'success' && hashFiles('storage/kindled_iron/work/box_segments.json') != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          id=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['id'])" "${{ inputs.scene }}")
+          mkdir -p preview
+          cp storage/kindled_iron/test.mp4 "preview/$id.mp4"
+          python3 kindled_iron/tools/frame_sheet.py storage/kindled_iron/test.mp4 --work storage/kindled_iron/work --out "preview/$id-8-frames.jpg"
+          cp storage/kindled_iron/work/audit.json "preview/$id-audit.json"
+          cp storage/kindled_iron/work/box_segments.json "preview/$id-box-segments.json"
+          cp storage/kindled_iron/test_meta.json "preview/$id-meta.json"
+          cp storage/kindled_iron/test.srt "preview/$id.srt"
+          cp storage/kindled_iron/work/sources.json "preview/$id-sources.json"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          if [ "$HAS_VOICE_REPO" = true ]; then
+            [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
+            d="$RUNNER_TEMP/voice_previews"; rm -rf "$d"
+            git clone -q --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+            dest="$d/previews/$id-from-scratch"; mkdir -p "$dest"
+            cp preview/* "$dest/"
+            git -C "$d" config user.name "kindled-iron-bot"; git -C "$d" config user.email "kindled-iron-bot@users.noreply.github.com"
+            git -C "$d" add "previews/$id-from-scratch"
+            git -C "$d" commit -q -m "Preview: $id from scratch (Kokoro, run ${{ github.run_id }})" || echo "nothing new to commit"
+            for i in 1 2 3; do git -C "$d" push -q origin HEAD && break; sleep 5; git -C "$d" pull -q --rebase origin HEAD || true; done
+            echo "committed to $VOICE_REPO previews/$id-from-scratch/ ($(git -C "$d" rev-parse --short HEAD))"
+            rm -rf "$d"
+          fi
+
+      - name: Media-box preview artifacts (MP4 + 8-frame sheet + audit)
+        if: ${{ steps.preview.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.preview.outputs.id }}-from-scratch
+          path: preview/
+          retention-days: 7
 
       - name: Private videos -> private repo (my voice and/or third-party media; never a public artifact)
         id: private

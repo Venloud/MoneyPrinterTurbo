@@ -192,6 +192,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                            "dur": cam.get("dur", 0.9 if b else 0.01)})
         for ev in beat.get("events", []):
             e = dict(ev)
+            if "box" in e:                        # media box requests: handled by mediabox.plan()
+                continue
             if isinstance(e.get("scripture"), dict):
                 card_n = sum(1 for o in objects if o["type"] == "scripture")
                 o, ev_draw = scripture_card(e, words, off, card_n, beat.get("id", b))
@@ -352,7 +354,8 @@ def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float, whoos
 GUIDE_TOUCHES = {"point", "reach", "touch", "pet", "ride", "peek", "climb", "shield_eyes", "look"}
 RESPONSE = {"tree": "wiggle", "plant": "wiggle", "cloud": "wiggle", "waves": "splash", "fish": "splash",
             "animal": "wiggle", "sun": "pulse", "light": "pulse", "moon": "pulse", "star": "pulse", "stars": "pulse",
-            "hill": "dirt", "globe": "wiggle", "book": "pulse", "scripture": None, "frame": None, "inset": None}
+            "hill": "dirt", "globe": "wiggle", "book": "pulse", "scripture": None, "frame": None, "inset": None,
+            "mediabox": None}
 
 
 def respond(events: list[dict], objects: list[dict]) -> None:
@@ -379,7 +382,7 @@ def respond(events: list[dict], objects: list[dict]) -> None:
 
 def interaction_check(scene: dict, events: list[dict], objects: list[dict], spans) -> None:
     """Every scene: the guide touches, points at or reacts to at least one drawing."""
-    ids = {o["id"] for o in objects}
+    ids = {o["id"] for o in objects} | ({"box"} if scene.get("mediabox") else set())
     for b, beat in enumerate(scene["beats"]):
         a, z = spans[b][0], spans[b + 1][0] if b + 1 < len(spans) else spans[b][1] + 5
         hit = any(e.get("who") == "guide" and e.get("do") in GUIDE_TOUCHES | {"present"} and
@@ -396,6 +399,8 @@ def write_page(data: dict, work: Path) -> Path:
         "__W__": str(WIDTH), "__H__": str(HEIGHT), "__BOARD__": PALETTE["board"], "__INK__": PALETTE["ink"],
         "__ACCENT__": PALETTE["accent"], "__CAPTION_X__": str(cap["x"]), "__CAPTION_Y__": str(cap["y"]), "__CAPTION_W__": str(cap["w"]),
         "__CAPTION_SIZE__": str(cap["size"]),
+        "__CAPTION_COLOR__": PALETTE.get(data.get("captionColor") or "ink", data.get("captionColor") or PALETTE["ink"]),
+        "__CAPTION_ON__": PALETTE.get(data.get("captionOn") or "accent", data.get("captionOn") or PALETTE["accent"]),
         "__FONT__": (VENDOR / "fonts" / "Caveat.ttf").as_uri(),
         "__GSAP__": (VENDOR / "gsap" / "gsap.min.js").as_uri(),
         "__RUNTIME__": (HERE / "runtime" / "runtime.js").as_uri(),
@@ -445,6 +450,33 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
     return out
 
 
+def strict_audit(page, duration: float, work: Path) -> dict:
+    """EVERY output frame (30 fps): captions never touch the guide or the media box (6 px gap, outline included),
+    never show while a verse is typed, max 5 words, inside the safe box; the guide never touches the box; something
+    is on screen from t=0. Any issue fails the render (audit.json lists every frame range)."""
+    frames = int(round(duration * FPS))
+    ranges: dict[str, list] = {}
+    for i in range(frames + 1):
+        t = round(i / FPS, 4)
+        issues = page.evaluate(f"(async () => {{ await window.kiSeek({t}); return window.kiAudit({t}); }})()")
+        for msg in issues:
+            r = ranges.setdefault(msg, [])
+            if r and t - r[-1][1] <= 1.5 / FPS:
+                r[-1][1] = t
+            else:
+                r.append([t, t])
+    out = {"frames_checked": frames + 1, "fps": FPS,
+           "issues": [{"issue": m, "from": a, "to": b} for m, rs in ranges.items() for a, b in rs]}
+    (work / "audit.json").write_text(json.dumps(out, indent=1))
+    if out["issues"]:
+        for x in out["issues"]:
+            log(f"AUDIT FAIL {x['from']:.2f}-{x['to']:.2f} s: {x['issue']}")
+        raise SystemExit(f"FAIL: per-frame audit found {len(out['issues'])} issue range(s) (see audit.json)")
+    log(f"per-frame audit: PASS ({frames + 1} frames: captions clear of guide and box, hidden during verses, "
+        f"guide clear of the box, something on screen from t=0)")
+    return out
+
+
 VISUAL_EVENTS = {"freeze", "lean_on", "place", "sit", "lie_down", "swim", "float", "parachute", "pop_up", "climb", "jump", "fall", "ride",
                  "peek", "pet", "shield_eyes", "stand", "look_viewer", "ghost", "wipe", "touch", "size", "drift",
                  "rise", "drop", "light_burst", "paper", "express", "fade",
@@ -491,7 +523,7 @@ def safe_overlay(src: Path, dst: Path) -> None:
 
 
 def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration: float, chrome: str | None,
-            stills: list[float] | None = None, still_dir: Path | None = None) -> None:
+            stills: list[float] | None = None, still_dir: Path | None = None, strict: bool = False) -> None:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
@@ -511,6 +543,8 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         for e in errors:
             log(f"page: {e}")
         layout_check(page, duration, page_file.parent)
+        if strict:
+            strict_audit(page, duration, page_file.parent)
         # GSAP can't reliably undo instant "set" steps when scrubbed backwards: start again from a fresh
         # page so the capture only ever plays forwards
         page.goto(page_file.as_uri())
@@ -591,6 +625,7 @@ def main() -> None:
                     help="voice provider (default: the voice profile's tts_provider)")
     ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
     ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
+    ap.add_argument("--audit", action="store_true", help="with --frames-only: also run the strict per-frame audit")
     ap.add_argument("--music", default=None, help="music source: mine | generated | none (default: voice_profiles.json music_source)")
     a = ap.parse_args()
 
@@ -676,8 +711,16 @@ def main() -> None:
     log(f"third-party clips/images: {'on' if third_party else 'off'}"
         f"{'' if not third_party else ' (private folders ' + ('found' if private_media.root() else 'NOT available') + ')'}")
     memes = private_media.resolve_scene(scene, chan, work, log)       # meme clips or their pinned fallbacks
-    clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
     duration = round(spans[-1][1] + end_hold, 3)
+    box_segs = None
+    if scene.get("mediabox"):           # one framed box: pinned clips, verses typed in it (mediabox.py)
+        from kindled_iron import mediabox
+        box_segs = mediabox.plan(scene, spans, beat_words, pauses, duration, resolve_at, log)
+        duration = max(duration, round(box_segs[-1]["t1"], 3))
+        box_segs = mediabox.fetch(scene, box_segs, work, log)     # network step, BEFORE the render
+        clips = {}
+    else:
+        clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
     lo, hi = chan.get("length_target", TARGET_LEN)
     w_lo, w_hi = chan.get("wpm_target", [165, 185])
     n_words = sum(len(words_of(x)) for x in texts)
@@ -692,6 +735,19 @@ def main() -> None:
     elif duration > hi:
         log(f"WARNING: over {hi:.0f} s")
     data = build_data(scene, spans, beat_words, duration, clips, pauses)
+    if box_segs is not None:
+        box_obj, data["mediabox"] = mediabox.page_data(scene, box_segs)
+        data["objects"].insert(0, box_obj)
+        data["captionFixed"] = True
+        for sg in box_segs:          # few, quiet effects: a soft chime as each verse reference appears
+            if sg["kind"] == "verse":
+                data["events"].append({"t": sg["ref_t"], "do": "sfx", "sound": "chime"})
+        data["events"].sort(key=lambda e: e["t"])
+        data["audit"] = {"gap": 6}
+        with open(work / "box_segments.json", "w") as fh:
+            json.dump([{k: v for k, v in sg.items() if k != "frames"} for sg in box_segs], fh, indent=1)
+    data["captionColor"] = scene.get("caption_color")
+    data["captionOn"] = scene.get("caption_on")
     data["inboxReactions"], meme_images = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log,
                                                                        data, third_party)
     data["events"].sort(key=lambda e: e["t"])
@@ -714,7 +770,7 @@ def main() -> None:
 
     if a.frames_only:
         stills = [float(x) for x in a.frames_only.split(",")]
-        capture(page, None, None, duration, a.chrome, stills, work / "stills")
+        capture(page, None, None, duration, a.chrome, stills, work / "stills", strict=bool(a.audit and box_segs is not None))
         log(f"stills in {work / 'stills'}")
         return
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -733,7 +789,7 @@ def main() -> None:
     (work / "sounds.json").write_text(json.dumps(snd, indent=1))
     log(f"sounds: {snd['cues']} cues, longest stretch without a new sound {snd['longest_gap']:.1f} s "
         f"(at {snd['longest_gap_at']:.1f} s), final {mixed['lufs']:.1f} LUFS")
-    capture(page, out, work / "mix.wav", duration, a.chrome)
+    capture(page, out, work / "mix.wav", duration, a.chrome, strict=box_segs is not None)
     novoice = out.with_name(out.stem + "_novoice.mp4")
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out), "-i", str(work / "mix_novoice.wav"), "-map", "0:v", "-map", "1:a",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", str(novoice)], check=True)

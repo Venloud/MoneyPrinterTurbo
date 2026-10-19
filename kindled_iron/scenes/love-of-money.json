@@ -1,0 +1,1220 @@
+{
+ "id": "love-of-money",
+ "title": "The Love of Money",
+ "voice_profile": "kindled_iron",
+ "voice": {
+  "kokoro": {
+   "voice": "am_fenrir",
+   "speed": 0.97,
+   "lang": "a"
+  }
+ },
+ "format": "one question, a car-sale story, three verses typed in the box, closing question",
+ "exact_narration": true,
+ "end_hold": 1.4,
+ "ground": 1490,
+ "camera_y": 960,
+ "fill_min": 0.3,
+ "max_visual_gap": 2.5,
+ "captions_box": {
+  "x": 450,
+  "y": 735,
+  "w": 640,
+  "size": 92,
+  "min_scale": 0.75
+ },
+ "captions_chunk": {
+  "max_words": 5,
+  "min_words": 3,
+  "max_chars": 24
+ },
+ "caption_color": "accent",
+ "caption_on": "#9E4100",
+ "cast": {
+  "guide": {
+   "panel": 0,
+   "x": 460,
+   "scale": 2.1,
+   "facing": 1,
+   "accent": true
+  }
+ },
+ "mediabox": {
+  "x": 540,
+  "y": 445,
+  "w": 820,
+  "h": 500,
+  "verse_size": 70,
+  "pad_x": 52
+ },
+ "clips": {
+  "cash": {
+   "pexels": "5466769",
+   "group": "cash",
+   "label": "A Person Counting Money"
+  },
+  "car_lot": {
+   "pexels": "7154208",
+   "label": "A Man Buying Car"
+  },
+  "dealer": {
+   "pexels": "7154221",
+   "label": "Diverse Couple Talking to a Car Dealer"
+  },
+  "gear": {
+   "pexels": "2075171",
+   "label": "Shift Gear"
+  },
+  "mechanic": {
+   "pexels": "14514790",
+   "crop": [
+    0.55,
+    0.4,
+    0.4,
+    0.4
+   ],
+   "label": "A Mechanic Repairing a Vehicle (engine crop)"
+  },
+  "phone": {
+   "pexels": "7535095",
+   "label": "A Man Using a Smartphone while Holding a Bank Card"
+  },
+  "meal": {
+   "pexels": "6305041",
+   "label": "People Having A Meal Together"
+  },
+  "doctor": {
+   "pexels": "4352135",
+   "label": "A Doctor Checking on a Patient's Blood Pressure"
+  },
+  "ticket": {
+   "pexels": "7252265",
+   "label": "Person Getting Ticket From the Machine"
+  },
+  "bible": {
+   "pexels": "5199724",
+   "label": "Close-Up View of a Person Reading a Bible"
+  },
+  "bill": {
+   "pexels": "7924459",
+   "label": "A Stressed Man Reading a Past Due Bill"
+  },
+  "saving": {
+   "pexels": "7710771",
+   "label": "Woman Saving Money"
+  },
+  "donation": {
+   "pexels": "7475240",
+   "label": "Young Woman Giving Donations to an Elderly Woman"
+  },
+  "groceries": {
+   "pexels": "8421648",
+   "label": "Person Paying Groceries via Credit Card"
+  }
+ },
+ "clip_limits": {
+  "cash": 3
+ },
+ "post": {
+  "title": "The Love of Money"
+ },
+ "beats": [
+  {
+   "id": "choice",
+   "panel": 0,
+   "narration": "Walk away with ten thousand dollars right now, or tell the truth?",
+   "camera_start": {
+    "x": 540,
+    "y": 960,
+    "zoom": 1.0,
+    "dur": 0.01
+   },
+   "events": [
+    {
+     "at": 0,
+     "box": "clip",
+     "clip": "cash"
+    },
+    {
+     "at": 0,
+     "do": "place",
+     "who": "guide",
+     "x": 460,
+     "facing": 1
+    },
+    {
+     "at": 0,
+     "do": "size",
+     "who": "guide",
+     "value": 0.85,
+     "dur": 0.01
+    },
+    {
+     "at": "dollars",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    },
+    {
+     "at": "truth",
+     "do": "look_viewer",
+     "who": "guide"
+    }
+   ]
+  },
+  {
+   "id": "car",
+   "panel": 0,
+   "narration": "Before you answer, imagine you’re selling a car. You know the transmission is going bad.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 310,
+     "speed": 520
+    },
+    {
+     "at": "selling-0.15",
+     "box": "clip",
+     "clip": "car_lot",
+     "start": 2.0
+    },
+    {
+     "at": "transmission-0.2",
+     "box": "clip",
+     "clip": "gear",
+     "start": 1.0
+    },
+    {
+     "at": "car",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "bad",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    }
+   ]
+  },
+  {
+   "id": "asks",
+   "panel": 0,
+   "narration": "The buyer asks, “Anything wrong with it?”",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "buyer-0.2",
+     "box": "clip",
+     "clip": "dealer",
+     "start": 1.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 570,
+     "speed": 520
+    },
+    {
+     "at": "Anything",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    }
+   ]
+  },
+  {
+   "id": "payment",
+   "panel": 0,
+   "narration": "You picture that payment hitting your account.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "hitting",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "picture-0.2",
+     "box": "clip",
+     "clip": "phone",
+     "start": 1.0
+    },
+    {
+     "at": "payment",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "account",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    }
+   ]
+  },
+  {
+   "id": "runs",
+   "panel": 0,
+   "narration": "“Runs great.”",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "Runs",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "Runs",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "great",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    }
+   ]
+  },
+  {
+   "id": "paid",
+   "panel": 0,
+   "narration": "They drive away. You get paid. A week later, they’re facing a repair bill you knew was coming.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "away",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "drive-0.2",
+     "box": "clip",
+     "clip": "car_lot",
+     "start": 6.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 460,
+     "speed": 520
+    },
+    {
+     "at": "paid",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "week-0.2",
+     "box": "clip",
+     "clip": "mechanic",
+     "start": 1.0
+    },
+    {
+     "at": "repair",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    },
+    {
+     "at": "coming",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    }
+   ]
+  },
+  {
+   "id": "sister",
+   "panel": 0,
+   "narration": "Now imagine the buyer is your little sister.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "buyer",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "imagine-0.2",
+     "box": "clip",
+     "clip": "dealer",
+     "start": 6.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 310,
+     "speed": 520
+    },
+    {
+     "at": "sister",
+     "do": "look_viewer",
+     "who": "guide"
+    }
+   ]
+  },
+  {
+   "id": "tell",
+   "panel": 0,
+   "narration": "Suddenly, there’s something you need to tell her.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "something",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    },
+    {
+     "at": "tell",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    }
+   ]
+  },
+  {
+   "id": "listen",
+   "panel": 0,
+   "narration": "“Listen, it drives, but the transmission needs work.”",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "Listen-0.2",
+     "box": "clip",
+     "clip": "gear",
+     "start": 3.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 570,
+     "speed": 520
+    },
+    {
+     "at": "transmission",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    }
+   ]
+  },
+  {
+   "id": "same",
+   "panel": 0,
+   "narration": "Same car. Same problem. Why did the stranger get a different answer?",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "car",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "Same-0.2",
+     "box": "clip",
+     "clip": "car_lot",
+     "start": 9.0
+    },
+    {
+     "at": "problem",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "Why",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "different",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    }
+   ]
+  },
+  {
+   "id": "because",
+   "panel": 0,
+   "narration": "Because getting that money mattered more to you than what would happen to them.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "Because-0.2",
+     "box": "clip",
+     "clip": "cash",
+     "start": 6.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 460,
+     "speed": 520
+    },
+    {
+     "at": "money",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    },
+    {
+     "at": "them",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    }
+   ]
+  },
+  {
+   "id": "root",
+   "panel": 0,
+   "narration": "People love to say money is the root of all evil. The Bible never actually says that. Money can feed a family, pay for treatment, and help someone get home.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "actually",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "evil",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    },
+    {
+     "at": "People-0.2",
+     "box": "clip",
+     "clip": "bible",
+     "start": 1.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 310,
+     "speed": 520
+    },
+    {
+     "at": "Bible",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.7
+    },
+    {
+     "at": "never",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "feed-0.2",
+     "box": "clip",
+     "clip": "meal",
+     "start": 1.0
+    },
+    {
+     "at": "treatment-0.2",
+     "box": "clip",
+     "clip": "doctor",
+     "start": 1.0
+    },
+    {
+     "at": "home-0.25",
+     "box": "clip",
+     "clip": "ticket",
+     "start": 1.0
+    },
+    {
+     "at": "home",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    }
+   ]
+  },
+  {
+   "id": "timothy",
+   "panel": 0,
+   "narration": "First Timothy says, “For the love of money is a root of all kinds of evil.” [1 Timothy 6:10]",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "root",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "box": "verse",
+     "scripture": {
+      "ref": "1 Timothy 6:10",
+      "text": "For the love of money is a root of all kinds of evil."
+     }
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 570,
+     "speed": 520
+    },
+    {
+     "at": "love",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 1.2
+    }
+   ]
+  },
+  {
+   "id": "loveofit",
+   "panel": 0,
+   "narration": "The love of it.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "of",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "love-0.2",
+     "box": "clip",
+     "clip": "cash",
+     "start": 10.0
+    },
+    {
+     "at": "love",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "it",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    }
+   ]
+  },
+  {
+   "id": "grows",
+   "panel": 0,
+   "narration": "And in that car sale, you can see how it grows. You want the money. The truth might ruin the deal. So you start making excuses.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "money",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "at": "deal",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "car-0.2",
+     "box": "clip",
+     "clip": "car_lot",
+     "start": 12.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 460,
+     "speed": 520
+    },
+    {
+     "at": "grows",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "want-0.2",
+     "box": "clip",
+     "clip": "phone",
+     "start": 5.0
+    },
+    {
+     "at": "truth-0.2",
+     "box": "clip",
+     "clip": "dealer",
+     "start": 10.0
+    },
+    {
+     "at": "excuses",
+     "do": "shrug",
+     "who": "guide"
+    }
+   ]
+  },
+  {
+   "id": "checked",
+   "panel": 0,
+   "narration": "“They should’ve checked.”",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "checked+0.35",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "They-0.2",
+     "box": "clip",
+     "clip": "mechanic",
+     "start": 6.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 310,
+     "speed": 520
+    },
+    {
+     "at": "They",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    }
+   ]
+  },
+  {
+   "id": "need",
+   "panel": 0,
+   "narration": "“I need the money.”",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "need-0.25",
+     "box": "clip",
+     "clip": "bill",
+     "start": 1.0
+    },
+    {
+     "at": "money",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    }
+   ]
+  },
+  {
+   "id": "everybody",
+   "panel": 0,
+   "narration": "“Everybody does it.”",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "it",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "Everybody-0.2",
+     "box": "clip",
+     "clip": "dealer",
+     "start": 14.0
+    },
+    {
+     "at": "does",
+     "do": "shrug",
+     "who": "guide"
+    }
+   ]
+  },
+  {
+   "id": "fixes",
+   "panel": 0,
+   "narration": "None of that fixes the car. It just makes hiding the problem easier.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "hiding",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "None-0.2",
+     "box": "clip",
+     "clip": "gear",
+     "start": 6.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 570,
+     "speed": 520
+    },
+    {
+     "at": "car",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.7
+    },
+    {
+     "at": "easier",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    }
+   ]
+  },
+  {
+   "id": "savings",
+   "panel": 0,
+   "narration": "And maybe you really do need the money. But that buyer might be spending their savings just to get to work. Your bills don’t make theirs disappear.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "disappear",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "savings",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    },
+    {
+     "at": "spending",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    },
+    {
+     "at": "maybe-0.2",
+     "box": "clip",
+     "clip": "bill",
+     "start": 6.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 460,
+     "speed": 520
+    },
+    {
+     "at": "need",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "savings-0.25",
+     "box": "clip",
+     "clip": "saving",
+     "start": 1.0
+    },
+    {
+     "at": "work-0.25",
+     "box": "clip",
+     "clip": "ticket",
+     "start": 5.0
+    },
+    {
+     "at": "bills",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "disappear",
+     "do": "look_viewer",
+     "who": "guide"
+    }
+   ]
+  },
+  {
+   "id": "rich",
+   "panel": 0,
+   "narration": "You don’t have to be rich to let money control you. You can have almost nothing and still give it the final say.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "almost",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "rich-0.25",
+     "box": "clip",
+     "clip": "saving",
+     "start": 6.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 310,
+     "speed": 520
+    },
+    {
+     "at": "control",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.7
+    },
+    {
+     "at": "nothing",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    },
+    {
+     "at": "final",
+     "do": "look_viewer",
+     "who": "guide"
+    }
+   ]
+  },
+  {
+   "id": "proverbs",
+   "panel": 0,
+   "narration": "Proverbs says, “Better is a little with righteousness, than great revenues with injustice.” [Proverbs 16:8]",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "revenues",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "righteousness",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "box": "verse",
+     "scripture": {
+      "ref": "Proverbs 16:8",
+      "text": "Better is a little with righteousness, than great revenues with injustice."
+     }
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 460,
+     "speed": 520
+    },
+    {
+     "at": "little",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 1.0
+    }
+   ]
+  },
+  {
+   "id": "hebrews",
+   "panel": 0,
+   "narration": "And Hebrews says, “Be free from the love of money, content with such things as you have, for he has said, ‘I will in no way leave you, neither will I in any way forsake you.’” [Hebrews 13:5]",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "leave",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "at": "neither",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "content",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "said",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    },
+    {
+     "box": "verse",
+     "scripture": {
+      "ref": "Hebrews 13:5",
+      "text": "Be free from the love of money, content with such things as you have, for he has said, ‘I will in no way leave you, neither will I in any way forsake you.’"
+     },
+     "split_after": "have"
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 570,
+     "speed": 520
+    },
+    {
+     "at": "free",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 1.2
+    },
+    {
+     "at": "forsake",
+     "do": "look_viewer",
+     "who": "guide"
+    }
+   ]
+  },
+  {
+   "id": "skip",
+   "panel": 0,
+   "narration": "That’s the part we skip. God’s promise gives you a reason to do what’s right, even when you need the money and telling the truth could cost you.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "skip",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "right",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "part-0.2",
+     "box": "clip",
+     "clip": "bible",
+     "start": 8.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 460,
+     "speed": 520
+    },
+    {
+     "at": "promise",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    },
+    {
+     "at": "telling-0.25",
+     "box": "clip",
+     "clip": "donation",
+     "start": 1.0
+    },
+    {
+     "at": "cost",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    }
+   ]
+  },
+  {
+   "id": "work",
+   "panel": 0,
+   "narration": "So work. Earn. Save. Provide for your family. The warning was never about the bills in your wallet. It’s about who’s running your heart.",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "wallet",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    },
+    {
+     "at": "Earn",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "warning",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "work-0.2",
+     "box": "clip",
+     "clip": "mechanic",
+     "start": 10.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 310,
+     "speed": 520
+    },
+    {
+     "at": "Save-0.2",
+     "box": "clip",
+     "clip": "saving",
+     "start": 10.0
+    },
+    {
+     "at": "Provide-0.2",
+     "box": "clip",
+     "clip": "meal",
+     "start": 6.0
+    },
+    {
+     "at": "family",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.6
+    },
+    {
+     "at": "wallet-0.3",
+     "box": "clip",
+     "clip": "groceries",
+     "start": 1.0
+    },
+    {
+     "at": "heart",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    }
+   ]
+  },
+  {
+   "id": "decide",
+   "panel": 0,
+   "narration": "So when telling the truth could cost you ten thousand dollars, who gets to decide what you do?",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "truth",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "cost",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "telling-0.2",
+     "box": "clip",
+     "clip": "car_lot",
+     "start": 15.0
+    },
+    {
+     "at": 0.05,
+     "do": "walk",
+     "who": "guide",
+     "to": 460,
+     "speed": 520
+    },
+    {
+     "at": "dollars",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.7
+    },
+    {
+     "at": "decide",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    }
+   ]
+  },
+  {
+   "id": "final",
+   "panel": 0,
+   "narration": "Your love of money, or your trust in God?",
+   "camera_start": false,
+   "events": [
+    {
+     "at": "or",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "Your-0.15",
+     "box": "off"
+    },
+    {
+     "at": "Your",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "God",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    }
+   ],
+   "interaction": false
+  }
+ ]
+}

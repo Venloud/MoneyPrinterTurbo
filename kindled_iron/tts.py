@@ -44,10 +44,10 @@ def _eq(wav: Path, eq: str | None) -> None:
     tmp.replace(wav)
 
 
-def voice(segments: list[tuple[str, float]], out_wav: Path, profile: dict, provider: str, log) -> dict:
+def voice(segments: list[tuple[str, float]], out_wav: Path, profile: dict, provider: str, log, strict: bool = False) -> dict:
     """segments = [(sentence, pause after)] from pacing.plan()."""
     beats = [list(s) for s in segments]
-    order = [provider] + [p for p in ("chatterbox", "kokoro") if p != provider]
+    order = [provider] if strict else [provider] + [p for p in ("chatterbox", "kokoro") if p != provider]
     chars = sum(len(t) for t, _ in segments)
     reasons: list[str] = []
     for p in order:

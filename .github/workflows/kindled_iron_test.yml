@@ -9,6 +9,10 @@ name: Kindled Iron Test Render
 on:
   workflow_dispatch:
     inputs:
+      money_video_script:
+        description: "Exact approved Love of Money script: full PRIVATE review with original voice, never publish"
+        required: false
+        default: ""
       preview_script:
         description: "Exact approved Love of Money V2 text: nonempty runs eight stills ONLY, no voice or full render"
         required: false
@@ -41,7 +45,7 @@ env:
 
 jobs:
   render:
-    if: ${{ inputs.preview_script == '' }}
+    if: ${{ inputs.preview_script == '' && inputs.money_video_script == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -310,7 +314,7 @@ jobs:
           echo "::warning::This render has your cloned voice and/or third-party clips, but VOICE_REPO_TOKEN is not set, so the video was NOT uploaded anywhere. Set up the private repo (kindled_iron/README.md) and run again."
 
   money_preview:
-    if: ${{ inputs.preview_script != '' }}
+    if: ${{ inputs.preview_script != '' && inputs.money_video_script == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -322,7 +326,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg
-          pip install playwright pillow pytest numpy
+          pip install playwright pillow pytest numpy soundfile
           python -m playwright install --with-deps chromium
       - name: Check strict media and collision regressions
         run: python -m pytest test/services/test_kindled_strict_render.py -q
@@ -369,3 +373,99 @@ jobs:
           done
           gh release upload test-renders --repo "$PRIVATE_REPO" storage/money-preview/eight-frames.jpg --clobber
           echo "Eight-frame review stored privately: $tag" >> "$GITHUB_STEP_SUMMARY"
+
+
+  money_video:
+    if: ${{ inputs.money_video_script != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      KI_TTS_CACHE: ${{ runner.temp }}/money-tts-cache
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install full review dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          pip install playwright pillow pytest numpy soundfile faster-whisper
+          python -m playwright install --with-deps chromium
+      - name: Verify render and voice regressions
+        run: python -m pytest test/services/test_kindled_strict_render.py -q
+      - name: Restore private reactions, music and original-voice cache
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = true ] || { echo 'FAIL: review media must stay private'; exit 1; }
+          d="$RUNNER_TEMP/private_media"
+          git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+          git -C "$d" sparse-checkout set reactions music
+          echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
+          mkdir -p "$KI_TTS_CACHE" "$RUNNER_TEMP/music_themes"
+          if gh release download test-renders --repo "$VOICE_REPO" --pattern money-voice-cache.zip --dir "$RUNNER_TEMP" --clobber; then
+            unzip -q -o "$RUNNER_TEMP/money-voice-cache.zip" -d "$KI_TTS_CACHE"
+          fi
+          gh release download music-themes --repo "$VOICE_REPO" --pattern theme_1.mp3 --dir "$RUNNER_TEMP/music_themes" --clobber || true
+          echo "KI_MUSIC_DIR=$RUNNER_TEMP/music_themes" >> "$GITHUB_ENV"
+      - name: Save the exact approved script
+        env:
+          APPROVED_SCRIPT: ${{ inputs.money_video_script }}
+        run: |
+          python - <<'PY'
+          import os,pathlib
+          pathlib.Path('approved-v2.txt').write_text(os.environ['APPROVED_SCRIPT'])
+          PY
+      - name: Original ElevenLabs narration and measured word timings (no voice fallback)
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work --prepare-only
+      - name: Fetch approved clips, audit every frame, mix and encode full video
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+        run: |
+          python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work
+      - name: Preserve voice cache privately even if a later check fails
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -d "$KI_TTS_CACHE" ] && find "$KI_TTS_CACHE" -name '*.wav' -print -quit | read -r voice_file; then
+            (cd "$KI_TTS_CACHE" && zip -q -r "$RUNNER_TEMP/money-voice-cache.zip" .)
+            gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/money-voice-cache.zip" --clobber
+          fi
+      - name: Verify MP4, original voice and passed frame audit
+        run: |
+          python - <<'PY'
+          import hashlib,json,pathlib,subprocess
+          p=pathlib.Path('storage/money-video/love-of-money.mp4')
+          info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(p)]))
+          meta=json.loads(p.with_suffix('.json').read_text())
+          video=next(s for s in info['streams'] if s['codec_type']=='video')
+          assert (video['width'],video['height'])==(1080,1920)
+          assert video['codec_name']=='h264'
+          assert any(s['codec_type']=='audio' for s in info['streams'])
+          assert 30<float(info['format']['duration'])<600  # script determines length; no two-minute truncation
+          assert meta['voice']['provider_used']=='elevenlabs' and not meta['voice'].get('fallback')
+          assert meta['audit']['passed'] and len(meta['reactions'])==3
+          assert meta['script_sha256']==hashlib.sha256(pathlib.Path('approved-v2.txt').read_bytes()).hexdigest()
+          print('PASS: 1080x1920 H.264 + audio; original voice; exact script; every-frame audit passed; duration',info['format']['duration'])
+          PY
+          ffmpeg -v error -i storage/money-video/love-of-money.mp4 -f null -
+      - name: Store full video privately for Venloud (no platform publishing)
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = true ]
+          cp storage/money-video/love-of-money.mp4 "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.mp4"
+          cp storage/money-video/love-of-money.json "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.json"
+          gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.mp4" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.json"
+          gh release upload test-renders --repo "$VOICE_REPO" storage/money-video/love-of-money.mp4 --clobber
+          echo "Private video: https://github.com/$VOICE_REPO/releases/download/test-renders/love-of-money.mp4" >> "$GITHUB_STEP_SUMMARY"

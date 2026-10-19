@@ -94,16 +94,12 @@ def build(script: str):
     return scene,spans,words,t+1.2
 
 
-def main():
-    ap=argparse.ArgumentParser();ap.add_argument('script',type=Path);ap.add_argument('--out',type=Path,required=True)
-    a=ap.parse_args();a.out=a.out.resolve();a.out.mkdir(parents=True,exist_ok=True)
-    text=a.script.read_text();scene,spans,words,duration=build(text)
-    (a.out/'scene.json').write_text(json.dumps(scene,indent=2))
+def resolve_media(scene,spans,words,duration,work):
     # Always resolve approved pins using repository provider credentials in the
     # Actions runtime. No external local clip cache is smuggled into the run.
-    clips=insets.fetch(scene,a.out,render.log)
+    clips=insets.fetch(scene,work,render.log)
     data=render.build_data(scene,spans,words,duration,clips)
-    data['inboxReactions'], memes=effects.apply_reaction_rules(data['events'],scene,spans,words,a.out,render.log,data,True)
+    data['inboxReactions'], memes=effects.apply_reaction_rules(data['events'],scene,spans,words,work,render.log,data,True)
     requested=[e for e in data['events'] if e['do']=='reaction']
     if len(memes)!=3 or len(requested)!=3 or any(e.get('_drop') for e in requested):
         missing=[e['emotion'] for e in requested if e.get('_drop') or not any(m['emotion']==e['emotion'] for m in memes)]
@@ -114,8 +110,17 @@ def main():
         obj.update(required=True,reaction_card=True,display_dur=obj['clip_dur'])
         event.update(instant=True,pop=False)
     data['events'].sort(key=lambda e:e['t'])
-    (a.out/'reactions.json').write_text(json.dumps(memes,indent=2))
-    data["paper"] = effects.paper_texture(a.out, render.PALETTE["board"])
+    (work/'reactions.json').write_text(json.dumps(memes,indent=2))
+    data["paper"] = effects.paper_texture(work, render.PALETTE["board"])
+    return data,memes
+
+
+def main():
+    ap=argparse.ArgumentParser();ap.add_argument('script',type=Path);ap.add_argument('--out',type=Path,required=True)
+    a=ap.parse_args();a.out=a.out.resolve();a.out.mkdir(parents=True,exist_ok=True)
+    text=a.script.read_text();scene,spans,words,duration=build(text)
+    (a.out/'scene.json').write_text(json.dumps(scene,indent=2))
+    data,memes=resolve_media(scene,spans,words,duration,a.out)
     # Opening mid-stride; both lanes; verse mid-type; pointing; long verse page.
     times=[.3, .75, spans[4][0]+1.0,
            spans[12][0]+2.15, spans[15][0]+1.35,

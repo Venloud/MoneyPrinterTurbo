@@ -219,3 +219,36 @@ def test_authored_memes_use_existing_rules_and_stock_varies(tmp_path):
     assert all(b['t']-a['t']>=3 for a,b in zip(reactions,reactions[1:]))
     for e in reactions:
         assert not any(e['t']<end and e['t']+e['dur']>start for (start,end),b in zip(spans,scene['beats']) if b.get('serious'))
+
+
+def test_strict_original_voice_never_calls_another_provider(tmp_path):
+    from kindled_iron import tts
+    with patch.dict('os.environ',{'KI_TTS_CACHE':str(tmp_path)}), \
+         patch.object(tts.elevenlabs_tts,'available',return_value=(False,'test failure',{})), \
+         patch.object(tts.chatterbox_tts,'available') as other, \
+         patch.object(tts.kokoro_tts,'available') as fallback:
+        with pytest.raises(SystemExit,match='test failure'):
+            tts.voice([('Exact approved text',0)],tmp_path/'out.wav',{},'elevenlabs',lambda _:None,strict=True)
+    other.assert_not_called();fallback.assert_not_called()
+
+
+def test_real_audio_retiming_preserves_speech_and_holds_card_before_walk():
+    import numpy as np
+    from kindled_iron.money_video import assemble_read,retime_moves
+    scene={'end_hold':1.2,'beats':[
+        dict(narration='one',captions=True,events=[]),
+        dict(narration='two',captions=True,events=[]),
+        dict(narration='three',captions=False,events=[]),
+        dict(narration='four',captions=True,events=[dict(do='walk',at=-99),dict(do='face',at=-99)])]}
+    sr=1000;audio=np.arange(1,4001,dtype=np.float32)
+    aligned=[dict(word=w,start=i+.1,end=i+.8) for i,w in enumerate(['one','two','three','four'])]
+    result,spans,words=assemble_read(scene,audio,sr,aligned)
+    retime_moves(scene,spans)
+    assert np.array_equal(result[result!=0],audio)
+    assert spans[3][0]-spans[2][1]>=1.4-1/sr
+    assert len(result)/sr>=spans[-1][1]+1.2
+    walk=scene['beats'][3]['events'][0]
+    assert spans[3][0]+walk['at']==pytest.approx(spans[2][1]+.55)
+    for i,bw in enumerate(words):
+        original=aligned[i]
+        assert bw[0]['end']-bw[0]['start']==pytest.approx(original['end']-original['start'])

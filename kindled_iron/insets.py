@@ -5,7 +5,7 @@ https://www.nasa.gov/nasa-brand-center/images-and-media/), Pexels (Pexels Licens
 PEXELS_API_KEY), Pixabay (Pixabay Content License, PIXABAY_API_KEY), Wikimedia Commons (no key;
 ONLY files whose API metadata says public domain or CC0). Never CC BY / CC BY-SA.
 Default search order: Pexels -> Pixabay -> Commons; space / Earth shots list NASA first.
-A clip that can't be found or downloaded is skipped silently (the inset is dropped).
+Optional clips may be skipped. Required clips and strict_media scenes fail closed with clip IDs.
 Each clip becomes a short JPEG sequence the page swaps frame by frame. sources.json records
 source page, file URL and licence for every clip used.
 """
@@ -155,7 +155,8 @@ def fetch(scene: dict, work: Path, log) -> dict:
     found, sources = {}, []
     wanted = [ev for b in scene["beats"] for ev in b.get("events", []) if ev.get("do") == "draw" and ev.get("type") == "inset"
               and "frames" not in ev]
-    if len(wanted) > MAX_INSETS:
+    strict = bool(scene.get("strict_media"))
+    if len(wanted) > MAX_INSETS and not strict and not any(e.get("required") for e in wanted):
         log(f"WARNING: {len(wanted)} insets requested, keeping the first {MAX_INSETS}")
         wanted = wanted[:MAX_INSETS]
     for ev in wanted:
@@ -165,13 +166,20 @@ def fetch(scene: dict, work: Path, log) -> dict:
         order = ev.get("sources", DEFAULT_ORDER)
         pins = ev.get("pin", {})
         hit = None
+        required = strict or ev.get("required", False)
+        if required and not any(pins.get(src) for src in order):
+            raise SystemExit(f"FAIL: required clip {ev['id']}: pinned provider ID missing")
         for src in order:
+            if required and not pins.get(src):
+                continue
             try:
                 cands = SEARCH[src](ev.get("query", ""), pins.get(src))
             except Exception:  # noqa: BLE001 - a source being down is not an error
                 cands = []
             for c in cands[:3]:
                 try:
+                    if required and str(c["id"]) != str(pins.get(src)):
+                        continue
                     clip = _download(c["file_url"])
                     length = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                                             "-of", "csv=p=0", str(clip)]).decode().strip() or 0)
@@ -187,6 +195,9 @@ def fetch(scene: dict, work: Path, log) -> dict:
             if hit:
                 break
         if not hit:
+            if required:
+                providers = ", ".join(f"{src}:{pins.get(src, 'unpinned')}" for src in order)
+                raise SystemExit(f"FAIL: missing required clip {ev['id']} ({providers}); check provider API key, response and media decode")
             log(f"inset {ev['id']}: no clip found for {ev.get('query')!r}, skipped")
             continue
         c, start, frames = hit

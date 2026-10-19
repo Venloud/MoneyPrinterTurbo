@@ -18,6 +18,7 @@ Options: --frames-only T1,T2,...  write PNG stills at those seconds (quick check
 from __future__ import annotations
 
 import argparse
+import math
 import json
 import os
 import re
@@ -218,7 +219,9 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                     raise SystemExit(f"duplicate object id {e['id']!r}")
                 if e.get("type") == "inset":
                     if "frames" not in e and e["id"] not in insets:
-                        continue                      # no clip found: the inset is simply left out
+                        if scene.get("strict_media") or e.get("required"):
+                            raise SystemExit(f"FAIL: missing required clip {e['id']}")
+                        continue                      # legacy optional inset
                     e.update(insets.get(e["id"], {}))
                     # a real clip lands in the nearest pause (within 1.5 s before / 0.5 s after)
                     near = [p for p in pauses if p[1] - p[0] >= 0.3 and e["t"] - 1.5 <= p[0] <= e["t"] + 0.5] \
@@ -275,6 +278,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
             "captionSize": (scene.get("captions_box") or {}).get("size", CAPTION["size"]), "hud": HUD, "paper": None, "inboxReactions": [],
+            "strictLayout": bool(scene.get("strict_layout")), "layoutZones": scene.get("layout_zones"),
             "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {}}
 
 
@@ -421,6 +425,26 @@ def find_chrome(explicit: str | None) -> str | None:
 def layout_check(page, duration: float, work: Path) -> list[dict]:
     """Sample the timeline every 0.2 s: safe box, right button column, a character over key
     text, a walking character passing through another. Warnings only (logged + checks.json)."""
+    # Strict productions validate actual DOM geometry at every output frame, not
+    # just at caption changes. This includes camera and animated head movement.
+    if page.evaluate("Boolean(window.KI_DATA.strictLayout)"):
+        audit = []
+        samples = work / "review_half_second"
+        samples.mkdir(exist_ok=True)
+        for frame in range(max(1, int(math.ceil(duration * FPS)))):
+            t = frame / FPS
+            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck(); }", t)
+            if issues:
+                (work / "strict_layout.json").write_text(json.dumps({"passed": False, "frame": frame, "time": t, "issues": issues}, indent=2))
+                raise SystemExit(f"FAIL: layout frame {frame} ({t:.3f}s): {'; '.join(issues)}")
+            if frame % (FPS // 2) == 0:
+                page.screenshot(path=str(samples / f"frame_{frame:06d}.png"))
+                audit.append({"frame": frame, "time": t})
+        (work / "strict_layout.json").write_text(json.dumps({"passed": True, "frames_checked": max(1, int(math.ceil(duration * FPS))), "review_samples": audit}, indent=2))
+        # Reload before the legacy forward-only walk; GSAP instant sets are not
+        # reliably reversible after scanning to the end of a timeline.
+        page.reload()
+        page.wait_for_function("window.KI_READY === true", timeout=60000)
     ranges: dict[str, list] = {}
     t = 0.0
     while t <= duration:

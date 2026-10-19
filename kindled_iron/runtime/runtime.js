@@ -772,9 +772,10 @@
       tl.to(ob.el, { opacity: 0, duration: 0.35 }, e.t + (e.hold || 1.2));
     }
     if (ob.def.type === 'inset') {
-      ob.t0 = e.t; ob.t1 = e.t + (ob.def.clip_dur || 2.2);
-      tl.fromTo(ob.inner, { scale: 0.3, rotation: -8, transformOrigin: '50% 50%' }, { scale: 1, rotation: 0, duration: 0.4, ease: 'back.out(2.2)', immediateRender: false }, e.t);
-      tl.to(ob.inner, { scale: 0.4, rotation: 6, duration: 0.25, ease: 'back.in(2)' }, ob.t1 - 0.25);
+      ob.t0 = e.t; ob.t1 = e.t + (ob.def.display_dur || ob.def.clip_dur || 2.2);
+      if (D.strictLayout) { tl.set(ob.inner, {scale:1,rotation:0}, e.t); }
+      else tl.fromTo(ob.inner, { scale: 0.3, rotation: -8, transformOrigin: '50% 50%' }, { scale: 1, rotation: 0, duration: 0.4, ease: 'back.out(2.2)', immediateRender: false }, e.t);
+      if (!D.strictLayout) tl.to(ob.inner, { scale: 0.4, rotation: 6, duration: 0.25, ease: 'back.in(2)' }, ob.t1 - 0.25);
       tl.set(ob.el, { attr: { visibility: 'hidden' } }, ob.t1);
     }
   }
@@ -1189,6 +1190,7 @@
     var fit = parseFloat(capEl.dataset.fit || D.captionSize);
     capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; capEl.style.visibility = 'visible';
     if (!capEl.children.length) return;
+    if (D.strictLayout) return; // Fixed band: never relocate or hide a caption to conceal a collision.
     // the same words already written big on screen: no caption on top of it (never "NOBODY. NOBODY.")
     var norm = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); };
     var said = norm(capEl.textContent), tbs = titleBoxes();
@@ -1264,7 +1266,7 @@
         g.setAttribute('transform', 'translate(' + g.getAttribute('data-x') + ',' + g.getAttribute('data-y') + ') scale(' + sc.toFixed(3) + ') rotate(' + (8 * Math.sin(t * 2 + i)).toFixed(1) + ')');
       });
       if (a.img && a.ob.def.frames && a.ob.t0 != null) {   // real clip: pick this video frame
-        var fr = a.ob.def.frames, idx = Math.max(0, Math.min(fr.length - 1, Math.floor((t - a.ob.t0) * (a.ob.def.fps || 30))));
+        var fr = a.ob.def.frames, idx = Math.max(0, Math.min(fr.length - 1, (Math.floor((t - a.ob.t0) * (a.ob.def.fps || 30)) % fr.length)));
         if (a.img.getAttribute('href') !== fr[idx]) {
           pending.push(new Promise(function (res) {
             var done = function () { a.img.removeEventListener('load', done); a.img.removeEventListener('error', done); res(); };
@@ -1471,6 +1473,33 @@
       '<rect x="' + SAFE.x0 + '" y="' + SAFE.y0 + '" width="' + (SAFE.x1 - SAFE.x0) + '" height="' + (SAFE.y1 - SAFE.y0) + '" fill="none" stroke="#0a0" stroke-width="4" stroke-dasharray="18 10"/>';
     document.getElementById('stage').appendChild(ov);
   }
+
+  // All rectangles are measured in rendered screen coordinates, including
+  // animated transforms. Inclusive edges mean touching also fails. Text stroke
+  // extends 8 px outside the measured span boxes.
+  window.kiStrictCaptionCheck = function () {
+    var failures = [], r = capRect();
+    if (!r || !capEl.textContent.trim()) return failures;
+    if (capEl.style.visibility === 'hidden') return ['caption unexpectedly hidden'];
+    var c = {left:r.left-8, top:r.top-8, right:r.right+8, bottom:r.bottom+8};
+    function inside(a,b) { return a.left >= b.left && a.right <= b.right && a.top >= b.top && a.bottom <= b.bottom; }
+    function touches(a,b) { return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top; }
+    if (!inside(c,{left:120,top:160,right:960,bottom:1440})) failures.push('caption outside TikTok safe box');
+    var band = D.layoutZones && D.layoutZones.captions;
+    if (!band) failures.push('fixed caption zone missing');
+    else if (!inside(c,band)) failures.push('caption outside fixed caption band');
+    Object.keys(objs).forEach(function(id) {
+      var ob=objs[id];
+      if ((ob.def.type === 'inset' || ob.def.type === 'scripture') && shown(ob.el)) {
+        var b = ob.el.getBoundingClientRect();
+        // SVG DOM bounds exclude the hand-drawn outline stroke.
+        var outline = {left:b.left-8,top:b.top-8,right:b.right+8,bottom:b.bottom+8};
+        if (touches(c,outline)) failures.push('caption touches ' + ob.def.type + ' ' + id);
+      }
+    });
+    headBoxes().forEach(function(b) { if (touches(c,b)) failures.push('caption touches guide head'); });
+    return failures;
+  };
 
   window.kiSeek = function (t) {
     pending = [];

@@ -9,6 +9,10 @@ name: Kindled Iron Test Render
 on:
   workflow_dispatch:
     inputs:
+      preview_script:
+        description: "Exact approved Love of Money V2 text: nonempty runs eight stills ONLY, no voice or full render"
+        required: false
+        default: ""
       scene:
         description: "Scene JSON to render"
         required: true
@@ -37,6 +41,7 @@ env:
 
 jobs:
   render:
+    if: ${{ inputs.preview_script == '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -303,3 +308,52 @@ jobs:
         if: ${{ (inputs.my_voice || steps.check.outputs.third_party == 'true') && env.HAS_VOICE_REPO != 'true' }}
         run: |
           echo "::warning::This render has your cloned voice and/or third-party clips, but VOICE_REPO_TOKEN is not set, so the video was NOT uploaded anywhere. Set up the private repo (kindled_iron/README.md) and run again."
+
+  money_preview:
+    if: ${{ inputs.preview_script != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install preview dependencies (no TTS or paid generation)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          pip install playwright pillow pytest
+          python -m playwright install --with-deps chromium
+      - name: Check strict media and collision regressions
+        run: python -m pytest test/services/test_kindled_strict_render.py -q
+      - name: Preview eight frames with required pinned real clips
+        env:
+          APPROVED_SCRIPT: ${{ inputs.preview_script }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          KI_CLIP_CACHE: ${{ runner.temp }}/required-clips
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, pathlib
+          pathlib.Path('approved-v2.txt').write_text(os.environ['APPROVED_SCRIPT'])
+          PY
+          python -m kindled_iron.money_preview approved-v2.txt --out storage/money-preview
+      - name: Store frames privately for owner review (never a public artifact)
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+          PRIVATE_REPO: ${{ env.VOICE_REPO }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$PRIVATE_REPO" --json isPrivate -q .isPrivate)" = true ] || { echo 'FAIL: private preview repository unavailable'; exit 1; }
+          gh release view test-renders --repo "$PRIVATE_REPO" >/dev/null
+          tag="love-money-preview-${GITHUB_RUN_ID}"
+          mkdir -p "$RUNNER_TEMP/$tag"
+          cp storage/money-preview/eight_frames/*.png storage/money-preview/eight-frames.jpg storage/money-preview/preview.json storage/money-preview/strict_layout.json storage/money-preview/sources.json "$RUNNER_TEMP/$tag/"
+          (cd storage/money-preview && zip -q -r "$RUNNER_TEMP/$tag/half-second-review.zip" review_half_second)
+          for f in "$RUNNER_TEMP/$tag/"*; do
+            name="$tag-$(basename "$f")"
+            cp "$f" "$RUNNER_TEMP/$name"
+            gh release upload test-renders --repo "$PRIVATE_REPO" "$RUNNER_TEMP/$name"
+          done
+          echo "Eight-frame review stored privately: $tag" >> "$GITHUB_STEP_SUMMARY"

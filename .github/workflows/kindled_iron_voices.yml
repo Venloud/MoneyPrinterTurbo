@@ -12,6 +12,10 @@ on:
         description: "Speed (1.0 = normal)"
         required: true
         default: "1.0"
+      elevenlabs_list:
+        description: "Only list the ElevenLabs voices on the account (name, voice ID, type; read-only, 0 credits)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -21,26 +25,46 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      - name: ElevenLabs voices on the account (read-only, 0 credits; the key is never printed)
+        if: ${{ inputs.elevenlabs_list }}
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.request
+          req = urllib.request.Request("https://api.elevenlabs.io/v1/voices", headers={"xi-api-key": os.environ["ELEVENLABS_API_KEY"]})
+          voices = json.load(urllib.request.urlopen(req, timeout=60))["voices"]
+          print(f"{len(voices)} voice(s):")
+          for v in sorted(voices, key=lambda v: (v.get("category") != "cloned", v.get("name", ""))):
+              print(f"  {v['voice_id']}  {v.get('name')}  [{v.get('category')}]  created {v.get('created_at_unix') or '?'}")
+          PY
       - uses: actions/checkout@v4
+        if: ${{ !inputs.elevenlabs_list }}
       - uses: actions/setup-python@v5
+        if: ${{ !inputs.elevenlabs_list }}
         with:
           python-version: "3.11"
       - name: Install ffmpeg + espeak-ng
+        if: ${{ !inputs.elevenlabs_list }}
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng
       - name: Cache models
+        if: ${{ !inputs.elevenlabs_list }}
         uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
           key: kindled-iron-models-v1
       - name: Install Python packages
+        if: ${{ !inputs.elevenlabs_list }}
         run: |
           set -euo pipefail
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install kokoro soundfile
           python -m spacy download en_core_web_sm
       - name: Render samples
+        if: ${{ !inputs.elevenlabs_list }}
         run: python -m kindled_iron.voice_samples --out storage/kindled_iron/voices --voices "${{ inputs.voices }}" --speed "${{ inputs.speed }}"
       - name: Upload samples
+        if: ${{ !inputs.elevenlabs_list }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-voices

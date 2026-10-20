@@ -70,6 +70,24 @@
   // Each returns SVG markup centred on (0,0). Stroked paths draw themselves;
   // [data-fill] shapes fade their fill in after the stroke.
   var OBJ = {
+    benefits: function(o){return '<g class="benefit-part" transform="translate(-240,0) scale(.72)">'+OBJ.sketch_house({})+'</g><g class="benefit-part" transform="scale(.72)">'+OBJ.sketch_grocery({})+'</g><g class="benefit-part" transform="translate(245,0) scale(.72)">'+OBJ.sketch_plane({})+'</g>';},
+    clown_card: function(o){return '<g transform="scale(.8)">'+p('M-90,-150 Q0,-165 90,-150 L90,150 Q0,162 -90,150 Z',{fill:'board'})+p('M-55,-25 Q0,-115 55,-25 L30,-95 0,-65 -35,-100 Z',{c:'accent',fill:'accent',fo:.3})+p(circlePath(0,10,54),{fill:'board'})+p('M-32,-2 L-12,5 M12,5 L32,-2 M-34,32 Q0,70 36,24 M-15,41 L-12,51 M8,40 L10,50',{c:'ink'})+p(circlePath(0,20,10),{c:'accent',fill:'accent'})+'</g>';},
+    myth_bible: function(o){return p('M-340,-155 Q-170,-185 0,-130 Q170,-185 340,-155 L340,150 Q170,115 0,170 Q-170,115 -340,150 Z',{fill:'water',fo:.4})+p('M0,-130 L0,170 M-320,-135 L-320,125 M320,-135 L320,125')+'<text x="0" y="-55" text-anchor="middle" font-family="Caveat" font-size="60" fill="'+C.ink+'">Money is the root</text><text x="0" y="25" text-anchor="middle" font-family="Caveat" font-size="60" fill="'+C.ink+'">of all evil</text><text x="0" y="112" text-anchor="middle" font-family="Caveat" font-size="42" fill="'+C.accent+'">IS THAT WHAT IT SAYS?</text>';},
+    myth_cross: function(o){return p('M-285,-78 L270,45 M-275,40 L275,-85',{c:'accent',w:14});},
+    sketch_house: function(o){return '<g transform="scale('+(o.k||1)+')">'+p('M-115,15 L0,-100 115,15 M-85,-15 L-85,125 85,125 85,-15',{c:'waterLine'})+p('M-25,125 L-25,55 25,55 25,125 M-65,15 L-35,15 -35,40 -65,40 Z M40,15 L65,15 65,40 40,40 Z',{c:'accent'})+'</g>';},
+    sketch_grocery: function(o){return p('M-80,-30 L-60,130 65,130 85,-30 Z',{fill:'water',fo:.4})+p('M-42,-30 Q-40,-100 5,-90 Q45,-85 45,-30 M-55,-30 L-80,-95 M-10,-30 L-5,-125 M35,-30 Q95,-125 105,-80 M-5,-125 L10,-150',{c:'accent'});},
+    sketch_plane: function(o){return p('M-130,0 L-25,-15 55,-100 80,-95 25,-10 115,-5 Q150,0 115,15 L25,25 65,90 40,95 -25,25 -130,35 -100,10 Z',{c:'waterLine',fill:'water',fo:.5});},
+    hammer_house: function(o){return '<g transform="translate(-65,0)">'+OBJ.sketch_house({k:1.2})+'</g><g transform="translate(180,-70) rotate(30)">'+p('M-20,120 L-20,-30 8,-30 8,120 Z',{c:'trunk',fill:'trunk',fo:.6})+p('M-75,-80 L70,-80 70,-30 -75,-30 Z',{c:'waterLine',fill:'water',fo:.7})+'</g>';},
+    hammer_smash: function(o){return p('M-120,15 L-104,0 -98,22 -82,8 -70,40 M-16,15 L-3,35 10,8 21,40 M-95,70 L-110,95 M-15,70 L0,95 M-42,-30 L-40,-65 M10,-25 L40,-50',{c:'accent',w:7})+p('M-85,150 L-75,165 -95,163 Z M-20,142 L-8,160 -30,159 Z',{c:'waterLine'});},
+    cents: function(o){return '<text x="225" y="145" text-anchor="middle" font-family="Caveat" font-weight="700" font-size="100" fill="'+C.accent+'" stroke="'+C.board+'" stroke-width="10" paint-order="stroke fill">62¢</text>';},
+    money_heart: function(o){return p('M0,130 C-230,-5 -140,-190 0,-70 C140,-190 230,-5 0,130 Z',{c:'accent',fill:'accent',fo:.12})+'<text x="0" y="45" text-anchor="middle" font-family="Caveat" font-size="130" fill="'+C.ink+'">$</text>';},
+    chain: function(o){return p('M-150,-95 Q-150,-170 -65,-165 L70,-165 Q150,-165 150,-95 L150,75 Q150,145 70,145 L-65,145 Q-150,145 -150,75 Z',{c:'waterLine'})+p('M-75,-30 L75,-30 75,95 -75,95 Z M-40,-30 L-40,-70 Q0,-125 40,-70 L40,-30',{c:'accent'})+'<text x="0" y="65" text-anchor="middle" font-family="Caveat" font-size="90" fill="'+C.ink+'">$</text>';},
+    open_hand: function(o){return p('M-160,110 L-155,30 Q-175,-25 -140,-25 L-80,30 -75,-95 Q-70,-145 -45,-100 L-30,-20 -20,-130 Q-5,-165 10,-125 L20,-20 40,-105 Q65,-145 75,-95 L65,5 95,-65 Q130,-95 140,-50 L110,80 Q60,160 -70,150 Z',{c:'waterLine',fill:'water',fo:.2})+p(circlePath(-10,-160,23),{c:'accent'})+p(circlePath(75,-190,24),{c:'accent'})+p('M-10,-120 L-10,-90 M75,-150 L75,-120',{c:'accent'});},
+    hand_heart: function(o){return '<g transform="translate(-190,10) scale(.65)">'+OBJ.open_hand({})+'</g><g transform="translate(190,0) scale(.7)">'+OBJ.money_heart({})+'</g>'+p('M-255,160 L-220,185 -160,120',{c:'greenLine',w:12})+p('M140,130 L220,195 M220,130 L140,195',{c:'accent',w:12});},
+
+    heart: function(o) {
+      return p('M0,112 C-42,75 -150,8 -150,-65 C-150,-148 -43,-160 0,-83 C43,-160 150,-148 150,-65 C150,8 42,75 0,112 Z', {c:'accent',w:10,fill:'accent',fo:.18});
+    },
     word: function (o) {
       var size = o.size || 120;
       return '<text class="ki-text" x="0" y="0" text-anchor="middle" dominant-baseline="central" ' +
@@ -256,18 +274,25 @@
     },
     scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
       var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
-      var refSize = Math.min(64, Math.round(size * 0.62)), h = pad * 2 + lines.length * lh + refSize * 1.5, top = -h / 2;
+      var refSize = Math.min(64, Math.round(size * 0.62)), h = Math.max(220, pad * 2 + Math.min(lines.length,o.page_lines || lines.length) * lh + refSize * 1.5), top = -h / 2;
+      var layouts=o.page_layouts || [{height:h,text_top:-(lines.length*lh+refSize*1.5)/2,ref_y:top+pad+lines.length*lh+refSize*.55}];
+      var s=layouts.map(function(layout,j){
+        var top=-layout.height/2,h=layout.height;
       var r = 30, x0 = -w / 2, x1 = w / 2, y0 = top, y1 = top + h;
       var card = 'M' + (x0 + r) + ',' + y0 + ' L' + (x1 - r) + ',' + y0 + ' Q' + x1 + ',' + y0 + ' ' + x1 + ',' + (y0 + r) + ' L' + x1 + ',' + (y1 - r) +
         ' Q' + x1 + ',' + y1 + ' ' + (x1 - r) + ',' + y1 + ' L' + (x0 + r) + ',' + y1 + ' Q' + x0 + ',' + y1 + ' ' + x0 + ',' + (y1 - r) + ' L' + x0 + ',' + (y0 + r) + ' Q' + x0 + ',' + y0 + ' ' + (x0 + r) + ',' + y0 + ' Z';
-      var s = '<path d="' + card + '" transform="translate(7,8)" fill="' + C.shadow + '" stroke="none" data-fill="0.9" fill-opacity="0"/>' +
-        p(card, { w: 7, fill: 'page', fo: 1 });
+        return '<g class="sc-surface" data-page="'+j+'"'+(j?' visibility="hidden"':'')+'>'+
+          '<path d="'+card+'" transform="translate(7,8)" fill="'+C.shadow+'" stroke="none" data-fill="0.9" fill-opacity="0"/>'+
+          p(card,{w:7,fill:'page',fo:1})+'</g>';
+      }).join('');
       lines.forEach(function (ln, i) {
         var t = (i === 0 ? '\u201C' : '') + ln + (i === lines.length - 1 ? '\u201D' : '');
-        s += '<text class="sc-line" x="0" y="' + (top + pad + lh * (i + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
+        var page=o.line_pages ? o.line_pages[i] : 0, count=o.line_pages ? o.line_pages.filter(function(p){return p===page;}).length : lines.length;
+        var line=i-(page && o.page_break ? o.page_break.line : 0), textTop=layouts[page].text_top;
+        s += '<text class="sc-line" x="0" y="' + (textTop + lh * (line + 0.5)).toFixed(1) + '" text-anchor="middle" dominant-baseline="central" ' +
           'font-family="Caveat" font-weight="700" font-size="' + size + '" fill="' + C.ink + '">' + esc(t) + '</text>';
       });
-      var ry = top + pad + lines.length * lh + refSize * 0.55;
+      var ry = layouts[layouts.length-1].ref_y;
       s += '<g class="sc-ref" opacity="0"><g transform="translate(' + (-refSize * 2.9) + ',' + ry.toFixed(1) + ') scale(' + (refSize / 260).toFixed(3) + ')">' + OBJ.book({ ribbon: false }) + '</g>' +
         '<text x="' + (-refSize * 2.0) + '" y="' + ry.toFixed(1) + '" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + refSize + '" fill="' + C.accent + '">' +
         '\u2014 ' + esc(o.ref || '') + '</text></g>';
@@ -570,19 +595,25 @@
       if (u) u.setAttribute('d', 'M' + (b.x + 10) + ',' + (b.y + b.height * 0.92) + ' C' + (b.x + b.width * 0.4) + ',' + (b.y + b.height * 0.86) + ' ' + (b.x + b.width * 0.7) + ',' + (b.y + b.height * 0.98) + ' ' + (b.x + b.width - 5) + ',' + (b.y + b.height * 0.9));
     }
   });
-  D.objects.forEach(function (o) {      // scripture card: one wipe clip per line, written on in order
+  // Measure the complete prewrapped text once; only textContent changes later.
+  D.objects.forEach(function (o) {
     if (o.type !== 'scripture') return;
-    var ob = objs[o.id];
-    ob.lineClips = [];
-    ob.el.querySelectorAll('.sc-line').forEach(function (t, i) {
-      var b = t.getBBox(), cid = 'clip-' + o.id + '-' + i;
-      var clip = document.createElementNS(SVGNS, 'clipPath'); clip.id = cid;
-      var r = document.createElementNS(SVGNS, 'rect');
-      r.setAttribute('x', b.x - 20); r.setAttribute('y', b.y - 20); r.setAttribute('width', 0); r.setAttribute('height', b.height + 40);
-      clip.appendChild(r); board.querySelector('defs').appendChild(clip); t.setAttribute('clip-path', 'url(#' + cid + ')');
-      ob.lineClips.push({ rect: r, w: b.width + 40, n: t.textContent.length });
+    var ob=objs[o.id], offset=0;
+    var ref=ob.inner.querySelector('.sc-ref');
+    if(ref){var rb=ref.getBBox();ref.setAttribute('transform','translate('+(-(rb.x+rb.width/2))+',0)');}
+    ob.surfaces=ob.el.querySelectorAll('.sc-surface');
+    ob.typeLines=[];
+    ob.el.querySelectorAll('.sc-line').forEach(function(el) {
+      var text=el.textContent, left=-el.getComputedTextLength()/2;
+      el.setAttribute('text-anchor','start');el.setAttribute('x',left);
+      ob.typeLines.push({el:el,text:text,offset:offset,left:left,y:parseFloat(el.getAttribute('y'))});
+      offset+=text.length+1;
+      el.textContent='';
     });
-    ob.refEl = ob.el.querySelector('.sc-ref');
+    ob.caret=document.createElementNS(SVGNS,'line');
+    ob.caret.setAttribute('stroke',C.accent);ob.caret.setAttribute('stroke-width','3');
+    ob.caret.setAttribute('visibility','hidden');ob.inner.appendChild(ob.caret);
+    ob.refEl=ob.el.querySelector('.sc-ref');
   });
   D.objects.forEach(function (o) {
     var ob = objs[o.id];
@@ -731,18 +762,14 @@
     var d = e.dur || ob.def.dur || 1.1;
     tl.set(ob.el, { attr: { visibility: 'visible' } }, e.t);
     if (ob.def.type === 'scripture') {     // card pops in, the quote is written on as it is spoken, then the reference
-      tl.set(ob.el, { attr: { visibility: 'visible' } }, Math.max(0, e.t - 0.3));
+      var appear=e.show_at == null ? Math.max(0,e.t-.3) : e.show_at;
+      ob.showAt=appear;
+      tl.set(ob.el, { attr: { visibility: 'visible' } }, appear);
       var refStrokes = Array.prototype.filter.call(ob.strokes, function (st) { return st.closest('.sc-ref'); });
       var cardStrokes = Array.prototype.filter.call(ob.strokes, function (st) { return !st.closest('.sc-ref'); });
-      tl.to(cardStrokes, { attr: { 'stroke-dashoffset': 0 }, duration: 0.3, ease: 'power1.out' }, e.t - 0.3);
-      ob.fills.forEach(function (fl) { if (!fl.closest('.sc-ref')) tl.to(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') }, duration: 0.25 }, e.t - 0.2); });
-      tl.fromTo(ob.inner, { scale: 0.95, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'power2.out', immediateRender: false }, e.t - 0.3);
-      var total = ob.lineClips.reduce(function (a, c) { return a + c.n; }, 0) || 1, at = e.t;
-      ob.lineClips.forEach(function (c) {
-        var ld = d * c.n / total;
-        tl.to(c.rect, { attr: { width: c.w }, duration: ld, ease: 'none' }, at);
-        at += ld;
-      });
+      tl.to(cardStrokes, { attr: { 'stroke-dashoffset': 0 }, duration: 0.3, ease: 'power1.out' }, appear);
+      ob.fills.forEach(function (fl) { if (!fl.closest('.sc-ref')) tl.to(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') }, duration: 0.25 }, appear); });
+      tl.fromTo(ob.inner, { scale: 0.95, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'power2.out', immediateRender: false }, appear);
       var rt = e.t + d + (e.ref_delay == null ? 0.1 : e.ref_delay);
       tl.set(refStrokes, { attr: { 'stroke-dashoffset': 0 } }, rt);
       ob.fills.forEach(function (fl) { if (fl.closest('.sc-ref')) tl.set(fl, { attr: { 'fill-opacity': fl.getAttribute('data-fill') } }, rt); });
@@ -753,7 +780,7 @@
       if (ob.clipRect) tl.set(ob.clipRect, { attr: { width: ob.textW } }, e.t);
       if (ob.strokes.length) tl.set(ob.strokes, { attr: { 'stroke-dashoffset': 0 } }, e.t);
       ob.fills.forEach(function (f) { tl.set(f, { attr: { 'fill-opacity': f.getAttribute('data-fill') } }, e.t); });
-      return;
+      if (ob.def.type !== 'inset') return; // An instantly drawn frame still needs its video clock.
     }
     if (ob.clipRect) {
       tl.to(ob.clipRect, { attr: { width: ob.textW }, duration: d, ease: 'power1.inOut' }, e.t);
@@ -772,9 +799,10 @@
       tl.to(ob.el, { opacity: 0, duration: 0.35 }, e.t + (e.hold || 1.2));
     }
     if (ob.def.type === 'inset') {
-      ob.t0 = e.t; ob.t1 = e.t + (ob.def.clip_dur || 2.2);
-      tl.fromTo(ob.inner, { scale: 0.3, rotation: -8, transformOrigin: '50% 50%' }, { scale: 1, rotation: 0, duration: 0.4, ease: 'back.out(2.2)', immediateRender: false }, e.t);
-      tl.to(ob.inner, { scale: 0.4, rotation: 6, duration: 0.25, ease: 'back.in(2)' }, ob.t1 - 0.25);
+      ob.t0 = e.t; ob.t1 = e.t + (ob.def.display_dur || ob.def.clip_dur || 2.2);
+      if (D.strictLayout) { tl.set(ob.inner, {scale:1,rotation:0}, e.t); }
+      else tl.fromTo(ob.inner, { scale: 0.3, rotation: -8, transformOrigin: '50% 50%' }, { scale: 1, rotation: 0, duration: 0.4, ease: 'back.out(2.2)', immediateRender: false }, e.t);
+      if (!D.strictLayout) tl.to(ob.inner, { scale: 0.4, rotation: 6, duration: 0.25, ease: 'back.in(2)' }, ob.t1 - 0.25);
       tl.set(ob.el, { attr: { visibility: 'hidden' } }, ob.t1);
     }
   }
@@ -957,7 +985,7 @@
         tl.to(cam, { x: e.x, y: e.y, z: e.zoom, r: e.rotate || 0, duration: e.dur || 0.8, ease: e.ease || 'power2.inOut' }, e.t); break;
       case 'freeze': {         // record-scratch freeze-frame (in colour): the camera snaps onto the guide (or e.focus)
         var fg = chars[e.who || 'guide'], fd = e.dur || 1.0;
-        if (fg) {
+        if (fg && !e.local) {
           var fsc = fg.scale * (fg.s.k || 1), gx = charX(e.who || 'guide', e.t), gy = GROUND - 230 * fsc;
           var px = Math.floor(gx / 1080) * 1080 + 540;
           var fx = e.focus ? Math.floor(gx / 1080) * 1080 + e.focus.x : gx, fy = e.focus ? e.focus.y : gy + 120;
@@ -965,6 +993,7 @@
           tl.to(cam, { x: px, y: D.camera.y, z: 1, duration: 0.35, ease: 'power2.inOut' }, e.t + fd);
           tl.set(fg.s, { expr: 'surprised' }, e.t);
         }
+        if(e.local && fg){tl.to(fg.s,{rpop:1.6,duration:.12},e.t);tl.to(fg.s,{rpop:0,duration:.2},e.t+fd);}
         tl.set(freezeState, { v: 1 }, e.t);
         tl.set(freezeState, { v: 0 }, e.t + fd);
         break;
@@ -989,6 +1018,7 @@
       case 'exit': tl.to(s, { opacity: 0, duration: e.dur || 0.4 }, e.t); break;
       case 'express': tl.set(s, { expr: e.expression }, e.t); break;
       case 'face': tl.to(s, { flipX: e.facing, duration: 0.22 }, e.t); s._facing = e.facing; break;
+      case 'verse_highlight': { break; }
       case 'walk': {
         f = e.to >= e.fromX ? 1 : -1;
         // turn first (in place), then walk forwards
@@ -1129,20 +1159,46 @@
   }
 
 
+  // Cumulative bullets belong INSIDE the inset, with their own geometry audit.
+  var bulletEl=document.createElement('div');bulletEl.id='ki-inset-bullets';
+  bulletEl.style.cssText='position:absolute;pointer-events:none;z-index:2;font-family:Caveat,sans-serif;font-weight:700;font-size:64px;line-height:1;color:#fff8e8;-webkit-text-stroke:5px #24211d;paint-order:stroke fill;';
+  document.getElementById('stage').appendChild(bulletEl);
+  function renderBullets(t){
+    var b=(D.bulletOverlays || []).find(function(b){return t>=b.start && t<b.end;});
+    bulletEl.innerHTML='';bulletEl.style.visibility=b?'visible':'hidden';
+    if(!b)return;
+    bulletEl.style.left=(b.zone.left+8)+'px';bulletEl.style.top=(b.zone.top+8)+'px';
+    bulletEl.style.width=(b.zone.right-b.zone.left)+'px';bulletEl.style.height=(b.zone.bottom-b.zone.top)+'px';
+    b.words.forEach(function(w,i){
+      if(t<w.start)return;
+      var box=document.createElement('div');box.className='ki-bullet';
+      box.style.cssText='position:absolute;white-space:nowrap;left:'+(i%2*340)+'px;top:'+(Math.floor(i/2)*86)+'px;';
+      var ink=document.createElement('span'),age=t-w.start,scale=age<.12?.86+.14*age/.12:1;
+      ink.style.cssText='display:inline-block;transform-origin:left center;transform:scale('+scale.toFixed(3)+');';
+      ink.textContent=w.text;box.appendChild(ink);bulletEl.appendChild(box);
+    });
+  }
+
   // captions
   var capEl = document.getElementById('captions');
   var lastChunk = -1;
+  var captionLanes=D.events.filter(function(e){return e.do==='caption_lane';});
   function renderCaptions(t) {
+    var cx=(D.captionBox || {}).x || 450, cy=(D.captionBox || {}).y || 1190;
+    captionLanes.forEach(function(e){if(e.t<=t){cx=e.x;if(e.y!=null)cy=e.y;}});
+    capEl.style.left=cx+'px';
+    if(captionLanes.length)CAP_TOP=cy;
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
+    if((D.captionSuppress || []).some(function(r){return t>=r.start && t<r.end;}))idx=-1;
     if (idx !== lastChunk) {
       lastChunk = idx;
       capEl.innerHTML = idx < 0 ? '' : D.captions[idx].words.map(function (w, k) { return '<span data-k="' + k + '">' + esc(w.text) + '</span>'; }).join(' ');
       // shrink to fit the safe box on one line; below the minimum size, wrap instead
       var size = D.captionSize, min = Math.round(size * ((D.captionBox || {}).min_scale || 0.68));   // below min: wrap to 2 lines
       capEl.style.whiteSpace = 'nowrap'; capEl.style.fontSize = size + 'px';
-      while (size > min && capEl.scrollWidth > capEl.clientWidth) { size -= 4; capEl.style.fontSize = size + 'px'; }
-      if (capEl.scrollWidth > capEl.clientWidth) capEl.style.whiteSpace = 'normal';
+      while (size > min && capEl.scrollWidth > capEl.clientWidth) { size = Math.max(min,size-4); capEl.style.fontSize = size + 'px'; }
+      if (capEl.scrollWidth > capEl.clientWidth && !(D.captionBox || {}).single_line) capEl.style.whiteSpace = 'normal';
       capEl.dataset.fit = size;
     }
     if (idx < 0) return;
@@ -1189,6 +1245,7 @@
     var fit = parseFloat(capEl.dataset.fit || D.captionSize);
     capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; capEl.style.visibility = 'visible';
     if (!capEl.children.length) return;
+    if (D.strictLayout) return; // Fixed band: never relocate or hide a caption to conceal a collision.
     // the same words already written big on screen: no caption on top of it (never "NOBODY. NOBODY.")
     var norm = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); };
     var said = norm(capEl.textContent), tbs = titleBoxes();
@@ -1254,8 +1311,64 @@
              tw: ob.el.querySelectorAll('.tw'), spk: ob.el.querySelectorAll('.spk-i'), img: ob.el.querySelector('.inset-img') };
   });
   var pending = [];
+  function strictInsetVisibility(ob, t) {
+    if (!D.strictLayout || ob.def.type !== 'inset' || !ob.def.required || ob.t0 == null) return;
+    // Required clips use a deterministic cut, including frame zero. GSAP's
+    // zero-duration visibility setters are not reliable when seeking at zero.
+    var active = t >= ob.t0 && t < ob.t1;
+    ob.el.setAttribute('visibility', active ? 'visible' : 'hidden');
+    ob.el.style.opacity = active ? '1' : '0';
+    if (active) {
+      ob.strokes.forEach(function (st) { st.setAttribute('stroke-dashoffset', '0'); });
+      ob.fills.forEach(function (fl) { fl.setAttribute('fill-opacity', fl.getAttribute('data-fill')); });
+    }
+  }
+  // Return a monotonic character count, driven by each spoken word's interval.
+  window.kiTypedCount=function(times,t) {
+    var count=0;
+    (times || []).forEach(function(w) {
+      if(t>=w.end) count=w.end_char;
+      else if(t>=w.start) count=Math.max(count,w.start_char+Math.max(1,Math.ceil((w.end_char-w.start_char)*Math.max(0,Math.min(1,(t-w.start)/Math.max(.001,.7*(w.end-w.start)))))));
+    });
+    return count;
+  };
+  function renderTypewriter(ob,t) {
+    if(!ob.typeLines)return;
+    var times=ob.def.word_times || [], count=window.kiTypedCount(times,t);
+    var active=0;
+    ob.typeLines.forEach(function(ln,i){if(count>ln.offset)active=i;});
+    var br=ob.def.page_break, fading=br && t>=br.time && t<br.time+.15;
+    var page=br && t>=br.time+.15 ? 1 : 0;
+    ob.surfaces.forEach(function(el,j){el.setAttribute('visibility',j===page?'visible':'hidden');});
+    ob.typeLines.forEach(function(ln,i){
+      var lp=ob.def.line_pages ? ob.def.line_pages[i] : 0;
+      var visible=lp===page;
+      ln.el.textContent=visible ? ln.text.slice(0,Math.max(0,Math.min(ln.text.length,count-ln.offset))) : '';
+      ln.el.setAttribute('opacity',fading ? Math.max(0,1-(t-br.time)/.15) : 1);
+    });
+    ob.el.setAttribute('data-typed-count',count);ob.el.setAttribute('data-typing-page',page);
+    var first=times.length?times[0].start:0,last=ob.def.quote_end;
+    var show=!fading && t>=first && t<last+.3 && Math.floor((t-first)*4)%2===0;
+    ob.caret.setAttribute('visibility',show?'visible':'hidden');
+    if(show){
+      var ln=ob.typeLines[active], n=Math.min(ln.el.textContent.length,Math.max(0,count-ln.offset));
+      var x=ln.left+(n?ln.el.getSubStringLength(0,n):0)+3, sz=ob.def.size;
+      ob.caret.setAttribute('x1',x);ob.caret.setAttribute('x2',x);
+      ob.caret.setAttribute('y1',ln.y-sz*.45);ob.caret.setAttribute('y2',ln.y+sz*.45);
+    }
+  }
   function renderObjects(t) {
+    (D.verseHighlights || []).forEach(function(h){var ob=objs[h.id];if(!ob)return;ob.el.querySelectorAll('.sc-line').forEach(function(el){el.setAttribute('fill',t>=h.start&&t<h.end?C.accent:C.ink);});});
+    Object.keys(D.sketchCues || {}).forEach(function(id){var ob=objs[id];if(ob)ob.el.querySelectorAll('.benefit-part').forEach(function(el,j){el.setAttribute('visibility',t>=D.sketchCues[id][j]?'visible':'hidden');});});
+    (D.v3Windows || []).forEach(function(w){var ob=objs[w.id];if(!ob)return;var active=t>=w.from && t<w.to;ob.el.setAttribute('visibility',active?'visible':'hidden');ob.el.style.opacity=active?'1':'0';});
     ambObjs.forEach(function (a) {
+      strictInsetVisibility(a.ob, t);
+      if(a.ob.def.v3_visual && D.v3Windows){var win=D.v3Windows.find(function(w){return w.id===a.ob.def.id;});if(win){a.ob.el.setAttribute('visibility',t>=win.from&&t<win.to?'visible':'hidden');a.ob.el.style.opacity=t>=win.from&&t<win.to?'1':'0';}}
+      renderTypewriter(a.ob,t);
+      if(D.strictLayout && a.ob.def.type==='scripture' && a.ob.showAt!=null && t>=a.ob.showAt && (!(D.v3Windows)||D.v3Windows.some(function(w){return w.id===a.ob.def.id && t<w.to;}))) {
+        var gone=D.events.some(function(e){return e.do==='fade' && (e.ids||[e.id]).indexOf(a.ob.def.id)>=0 && t>=e.t+(e.dur||.5);});
+        a.ob.el.setAttribute('visibility',gone?'hidden':'visible');
+      }
       if (a.ob.el.getAttribute('visibility') === 'hidden') return;
       var mv = a.ob.mv, base = (mv.x || mv.y) ? 'translate(' + mv.x.toFixed(2) + ',' + mv.y.toFixed(2) + ') ' : '';
       if (a.fn || base) a.amb.setAttribute('transform', base + (a.fn ? a.fn(t, a.k) : ''));
@@ -1264,13 +1377,14 @@
         g.setAttribute('transform', 'translate(' + g.getAttribute('data-x') + ',' + g.getAttribute('data-y') + ') scale(' + sc.toFixed(3) + ') rotate(' + (8 * Math.sin(t * 2 + i)).toFixed(1) + ')');
       });
       if (a.img && a.ob.def.frames && a.ob.t0 != null) {   // real clip: pick this video frame
-        var fr = a.ob.def.frames, idx = Math.max(0, Math.min(fr.length - 1, Math.floor((t - a.ob.t0) * (a.ob.def.fps || 30))));
-        if (a.img.getAttribute('href') !== fr[idx]) {
+        var fr = a.ob.def.frames, idx = Math.max(0, Math.min(fr.length - 1, (t < a.ob.t1 ? Math.floor((t - a.ob.t0) * (a.ob.def.fps || 30)) % fr.length : fr.length - 1)));
+        if (a.loadedURI !== fr[idx]) {
           pending.push(new Promise(function (res) {
-            var done = function () { a.img.removeEventListener('load', done); a.img.removeEventListener('error', done); res(); };
-            a.img.addEventListener('load', done); a.img.addEventListener('error', done); setTimeout(res, 3000);
+            var uri = fr[idx], pre = new Image();
+            pre.onload = function () { a.img.setAttribute('href', uri); a.img.removeAttribute('data-ki-media-error'); a.loadedURI = uri; res(); };
+            pre.onerror = function () { a.img.setAttribute('data-ki-media-error', '1'); res(); };
+            pre.src = uri;
           }));
-          a.img.setAttribute('href', fr[idx]);
         }
       }
     });
@@ -1315,6 +1429,7 @@
     var z = cam.z;
     world.setAttribute('transform', 'translate(' + (W / 2) + ',' + (H / 2) + ') rotate(' + cam.r.toFixed(3) + ') scale(' + z.toFixed(4) + ') translate(' + (-cam.x).toFixed(2) + ',' + (-cam.y).toFixed(2) + ')');
     renderCaptions(t);
+    renderBullets(t);
     renderObjects(t);
     renderLight(t);
     var fz = freezeState.v > 0.5;
@@ -1472,6 +1587,176 @@
     document.getElementById('stage').appendChild(ov);
   }
 
+  // All rectangles are measured in rendered screen coordinates, including
+  // animated transforms. Inclusive edges mean touching also fails. Text stroke
+  // extends 8 px outside the measured span boxes.
+  window.kiWalkCheck=function(t){
+    var out=[];
+    Object.keys(chars).forEach(function(id){
+      var c=chars[id],vx=charX(id,t+.05)-charX(id,t-.05);
+      if(c.s.walk>.3 && Math.abs(vx)>1 && Math.abs(c.s.flipX)>.3 && Math.sign(vx)!==Math.sign(c.s.flipX))out.push('WALK-FACING: '+id+' walks backwards');
+      if(D.guideSpots && c.s.walk>.05){
+        if(Math.abs(vx)/.1>160.5)out.push('GUIDE SPEED: '+id+' exceeds slow walking pace');
+        D.events.forEach(function(e){
+          if(e.who===id && ['point','reach','touch','present','shrug','wave'].indexOf(e.do)>=0 && t>=e.t && t<e.t+(e.hold || 1.5)+.45)out.push('GUIDE GESTURE: '+id+' walks during '+e.do);
+        });
+      }
+    });return out;
+  };
+  window.kiStrictMediaCheck = function (t) {
+    var failures = [];
+    (D.mediaCoverage || []).forEach(function (need) {
+      if (t < need.from || t >= need.to) return;
+      var ob = objs[need.id];
+      if(need.kind==='drawing'){
+        if(!ob || ob.el.getAttribute('visibility')==='hidden' || parseFloat(getComputedStyle(ob.el).opacity)<.99)failures.push('required drawing not visible: '+need.id);
+        return;
+      }
+      if (need.kind === 'scripture') {
+        if(!ob || ob.el.getAttribute('visibility')==='hidden' || parseFloat(getComputedStyle(ob.el).opacity)<.99) failures.push('required scripture card not visible: '+need.id);
+        if(chars.guide && chars.guide.s.walk>.05) failures.push('guide walks while verse is being written: '+need.id);
+        return;
+      }
+      if (!ob || ob.t0 == null || ob.t1 == null) { failures.push('required clip playback not initialized: ' + need.id); return; }
+      if (ob.el.getAttribute('visibility') === 'hidden' || parseFloat(getComputedStyle(ob.el).opacity) < 0.99)
+        failures.push('required clip not visible: ' + need.id);
+      if (t >= ob.t1) failures.push('required clip ends before narration: ' + need.id);
+      var image = ob.el.querySelector('.inset-img');
+      if (!image || image.getAttribute('data-ki-media-error')) failures.push('required clip frame failed to decode: ' + need.id);
+    });
+    return failures;
+  };
+
+  window.kiStrictReactionCheck=function(t){
+    var failures=[], zone=D.layoutZones && D.layoutZones.reaction;
+    function touches(a,b){return a.left<=b.right && a.right>=b.left && a.top<=b.bottom && a.bottom>=b.top;}
+    Object.keys(objs).forEach(function(id){
+      var ob=objs[id];if(!ob.def.reaction_card || t<ob.t0 || t>=ob.t1)return;
+      var b=ob.el.getBoundingClientRect();
+      if(!zone || b.left<zone.left || b.right>zone.right || b.top<zone.top || b.bottom>zone.bottom)failures.push('reaction outside guide lane zone: '+id);
+      if(ob.el.getAttribute('visibility')==='hidden' || +getComputedStyle(ob.el).opacity<.99)failures.push('reaction image not visible: '+id);
+      var image=ob.el.querySelector('.inset-img');
+      if(!image || image.getAttribute('data-ki-media-error'))failures.push('reaction image failed to decode: '+id);
+      Object.keys(objs).forEach(function(other){
+        var x=objs[other];if(x===ob || x.def.reaction_card || x.el.getAttribute('visibility')==='hidden' || +getComputedStyle(x.el).opacity<.01)return;
+        if(x.def.type==='inset' || x.def.type==='scripture'){
+          if(x.def.type==='scripture')failures.push('reaction during scripture card: '+id);
+          if(touches(b,x.el.getBoundingClientRect()))failures.push('reaction touches clip/card: '+id);
+        }
+      });
+      headBoxes().forEach(function(h){if(touches(b,h))failures.push('reaction touches guide head: '+id);});
+      if(chars.guide){
+        var distance=Math.abs(charX('guide',t)-ob.def.x);
+        if(D.guideSpots){
+          if(distance<ob.def.w/2+100 || distance>ob.def.w/2+240)failures.push('reaction is not beside guide at current spot: '+id);
+          chars.guide.strokes.forEach(function(st){
+            if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
+            var body=st.getBoundingClientRect();
+            if((body.width || body.height) && touches(b,body))failures.push('reaction touches guide body: '+id);
+          });
+        }else if((charX('guide',t)<540)!==(ob.def.x<540))failures.push('reaction is outside guide lane: '+id);
+      }
+    });
+    var guide=chars.guide,band=D.layoutZones && D.layoutZones.captions;
+    if(guide && band && (D.captionBox || {}).single_line && guide.s.draw>.05){
+      guide.strokes.forEach(function(st){
+        if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
+        var b=st.getBoundingClientRect();
+        if((b.width || b.height) && b.top-6<band.bottom)failures.push('guide enters fixed caption band');
+      });
+    }
+    return failures;
+  };
+
+  window.kiStrictCaptionCheck = function () {
+    var failures = [], r = capRect();
+    if (!r || !capEl.textContent.trim()) return failures;
+    if (capEl.style.visibility === 'hidden') return ['caption unexpectedly hidden'];
+    if((D.captionBox || {}).single_line){
+      var first=capEl.children[0].getBoundingClientRect();
+      Array.prototype.forEach.call(capEl.children,function(sp){if(Math.abs(sp.getBoundingClientRect().top-first.top)>1)failures.push('caption wraps onto another line');});
+      if(parseFloat(capEl.style.fontSize)!==(capEl.dataset.bullets==='1'?60:D.captionSize))failures.push('fixed caption font size changed');
+      if(Math.abs(parseFloat(capEl.style.left)-D.captionBox.x)>.1 || Math.abs(parseFloat(capEl.style.top)-D.captionBox.y)>.1)failures.push('fixed caption band moved');
+    }
+    var c = {left:r.left-8, top:r.top-8, right:r.right+8, bottom:r.bottom+8};
+    function inside(a,b) { return a.left >= b.left && a.right <= b.right && a.top >= b.top && a.bottom <= b.bottom; }
+    function touches(a,b) { return a.left <= b.right && a.right >= b.left && a.top <= b.bottom && a.bottom >= b.top; }
+    if (!inside(c,{left:120,top:160,right:960,bottom:1440})) failures.push('caption outside TikTok safe box');
+    var band = D.layoutZones && D.layoutZones.captions;
+    if (!band) failures.push('fixed caption zone missing');
+    else if (!inside(c,band)) failures.push('caption outside fixed caption band');
+    function visiblyDrawn(el) {
+      return el.getAttribute('visibility') !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0;
+    }
+    Object.keys(objs).forEach(function(id) {
+      var ob=objs[id];
+      if ((ob.def.type === 'inset' || ob.def.type === 'scripture') && visiblyDrawn(ob.el)) {
+        var b = ob.el.getBoundingClientRect();
+        // SVG DOM bounds exclude the hand-drawn outline stroke.
+        var outline = {left:b.left-8,top:b.top-8,right:b.right+8,bottom:b.bottom+8};
+        if (touches(c,outline)) failures.push('caption touches ' + ob.def.type + ' ' + id);
+      }
+    });
+    headBoxes().forEach(function(b) { if (touches(c,b)) failures.push('caption touches guide head'); });
+    if(typeof chars!=='undefined' && chars.guide && chars.guide.s.draw>.05){
+      var bodyTouch=false;
+      chars.guide.strokes.forEach(function(st){
+        if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
+        var b=st.getBoundingClientRect();
+        if(!b.width&&!b.height)return;
+        if(!touches(c,{left:b.left-5,right:b.right+5,top:b.top-5,bottom:b.bottom+5}))return;
+        // Test the drawn limb, not the empty corners of its diagonal bounding box.
+        if(st.getTotalLength && st.getPointAtLength){
+          var matrix=st.getScreenCTM(), length=st.getTotalLength();
+          var step=1/Math.max(.1,Math.hypot(matrix.a,matrix.b));
+          for(var q=0;q<=length+step;q+=step){
+            var p=st.getPointAtLength(Math.min(q,length));
+            var x=matrix.a*p.x+matrix.c*p.y+matrix.e,y=matrix.b*p.x+matrix.d*p.y+matrix.f;
+            if(x>=c.left-6 && x<=c.right+6 && y>=c.top-6 && y<=c.bottom+6){bodyTouch=true;break;}
+          }
+        }else bodyTouch=true;
+      });
+      if(bodyTouch) failures.push('caption touches guide body');
+    }
+    return failures;
+  };
+
+  window.kiBulletCheck=function(t){
+    var failures=[],spec=(D.bulletOverlays || []).find(function(b){return t>=b.start && t<b.end;});
+    if(!spec){if(bulletEl.children.length)failures.push('bullets remain after sentence');return failures;}
+    function touches(a,b){return a.left<=b.right && a.right>=b.left && a.top<=b.bottom && a.bottom>=b.top;}
+    function inside(a,b){return a.left>=b.left && a.right<=b.right && a.top>=b.top && a.bottom<=b.bottom;}
+    var expected=spec.words.filter(function(w){return t>=w.start;}).length;
+    if(bulletEl.children.length!==expected)failures.push('bullet count differs from spoken cue progress');
+    var boxes=[];
+    Array.prototype.forEach.call(bulletEl.children,function(el){
+      var r=el.getBoundingClientRect(),b={left:r.left-5,right:r.right+5,top:r.top-5,bottom:r.bottom+5};
+      if(!inside(b,spec.zone))failures.push('bullet outside its fixed inset region');
+      if(!inside(b,{left:150,top:185,right:930,bottom:625}))failures.push('bullet touches inset frame');
+      boxes.forEach(function(other){if(touches(b,other))failures.push('bullet boxes overlap');});boxes.push(b);
+      headBoxes().forEach(function(h){if(touches(b,h))failures.push('bullet touches guide head');});
+      if(chars.guide)chars.guide.strokes.forEach(function(st){if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;var r=st.getBoundingClientRect();if((r.width||r.height)&&touches(b,r))failures.push('bullet touches guide body');});
+      Object.keys(objs).forEach(function(id){var o=objs[id];if(o.def.type==='scripture' && shown(o.el) && +getComputedStyle(o.el).opacity>.01)failures.push('bullets during scripture');});
+      var c=capRect();if(c && capEl.textContent.trim() && touches(b,c))failures.push('bullet touches caption band');
+    });
+    return failures;
+  };
+
+  window.kiV3Check=function(t){
+    var out=[];
+    function rect(el){var r=el.getBoundingClientRect();return {left:r.left-5,right:r.right+5,top:r.top-5,bottom:r.bottom+5};}
+    function overlap(a,b){return a.left<b.right && a.right>b.left && a.top<b.bottom && a.bottom>b.top;}
+    var top=[]; Object.keys(objs).forEach(function(id){var ob=objs[id];if(!shown(ob.el)||+getComputedStyle(ob.el).opacity<.01)return;
+      if(ob.def.reaction_popup)return; var r=rect(ob.el);if(r.width===0)return;
+      if(ob.def.v3_visual){if(r.left<120||r.right>960||r.top<160||r.bottom>660)out.push('visual outside zone: '+id);top.push([id,r]);}
+      if(ob.def.type!=='inset' && ob.def.type!=='scripture' && ob.def.v3_visual){var c=capRect();if(c&&capEl.textContent.trim()&&overlap(r,c))out.push('drawing touches caption: '+id);}
+    });
+    Object.keys(objs).forEach(function(id){var ob=objs[id];if(!ob.def.reaction_popup||!shown(ob.el)||+getComputedStyle(ob.el).opacity<.01)return;
+      var r=rect(ob.el); if(r.left<120||r.right>960||r.top<900||r.bottom>1430)out.push('reaction outside band: '+id);
+      if(chars.guide)chars.guide.strokes.forEach(function(st){if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;var b=st.getBoundingClientRect();if((b.width||b.height)&&overlap(r,b))out.push('reaction touches guide: '+id);});
+      top.forEach(function(a){if(overlap(r,a[1]))out.push('reaction touches visual: '+id);});
+    });return out;
+  };
   window.kiSeek = function (t) {
     pending = [];
     tl.seek(t, true); render(t);

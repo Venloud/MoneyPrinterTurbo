@@ -1,0 +1,848 @@
+{
+  "id": "love-of-money-v3",
+  "title": "The Love of Money",
+  "exact_narration": true,
+  "voice_profile": "kindled_iron",
+  "end_hold": 0.8,
+  "ground": 1430,
+  "camera_y": 960,
+  "fill_min": 0.3,
+  "max_visual_gap": 2,
+  "inset_snap": false,
+  "strict_layout": true,
+  "captions_box": {
+    "x": 540,
+    "y": 720,
+    "w": 800,
+    "size": 92,
+    "min_scale": 0.68,
+    "single_line": true
+  },
+  "captions_chunk": {
+    "max_words": 3,
+    "min_words": 1,
+    "max_chars": 19
+  },
+  "layout_zones": {
+    "clip": {
+      "left": 120,
+      "top": 160,
+      "right": 960,
+      "bottom": 660
+    },
+    "captions": {
+      "left": 120,
+      "top": 680,
+      "right": 960,
+      "bottom": 850
+    },
+    "reaction": {
+      "left": 120,
+      "top": 900,
+      "right": 960,
+      "bottom": 1430
+    }
+  },
+  "cast": {
+    "guide": {
+      "panel": 0,
+      "x": 195,
+      "scale": 1.785,
+      "facing": 1,
+      "accent": true
+    }
+  },
+  "beats": [
+    {
+      "id": "temptation",
+      "panel": 0,
+      "narration": "You probably would walk away with 10k even if u had to lie to get it.",
+      "camera_start": {
+        "x": 540,
+        "y": 960,
+        "zoom": 1,
+        "dur": 0.01
+      },
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "smart"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "cash_open",
+          "type": "inset",
+          "file": "opening shot.jpeg",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "walk",
+          "do": "draw",
+          "id": "cash_run",
+          "type": "inset",
+          "file": "running-with-cash-register.gif",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "lie",
+          "do": "draw",
+          "id": "pop_lie",
+          "type": "inset",
+          "file": "evil-grin-meme-mrburnssimpson.jpg",
+          "x": 650,
+          "y": 1120,
+          "w": 380,
+          "h": 250,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "reaction_popup": true,
+          "display_dur": 1.2
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "clown",
+          "type": "clown_card",
+          "x": 875,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true,
+          "k": 0.65,
+          "decorative": true
+        }
+      ]
+    },
+    {
+      "id": "surprise",
+      "panel": 0,
+      "narration": "The most quoted Bible verse about money isn't even in the Bible.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "surprised"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "pikachu",
+          "type": "inset",
+          "file": "Ideas_Surprised_Pikachu_HD.webp",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "isn't",
+          "do": "freeze",
+          "who": "guide",
+          "dur": 1,
+          "zoom": 1.45,
+          "local": true
+        }
+      ]
+    },
+    {
+      "id": "myth",
+      "panel": 0,
+      "narration": "\u201cMoney is the root of all evil.\u201d is what you hear people say all the time, but in the bible it doesnt says. Nope. Not in there.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "confused"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "nick",
+          "type": "inset",
+          "file": "confused-nick-young.jpeg",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "but",
+          "do": "draw",
+          "id": "myth_book",
+          "type": "myth_bible",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true
+        },
+        {
+          "at": "Nope",
+          "do": "draw",
+          "id": "myth_strike",
+          "type": "myth_cross",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true,
+          "overlay": true
+        }
+      ]
+    },
+    {
+      "id": "timothy",
+      "panel": 0,
+      "narration": "What it actually says is, \u201cFor the love of money is a root of all kinds of evil.\u201d",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "thoughtful"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "uno",
+          "type": "inset",
+          "file": "eminem-throwing-uno-reverse-card.jpeg",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "id": "timothy_card",
+          "scripture": {
+            "ref": "1 Timothy 6:10",
+            "text": "For the love of money is a root of all kinds of evil."
+          },
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "size": 64,
+          "min_size": 64,
+          "fit_height": 500,
+          "visual": true
+        }
+      ]
+    },
+    {
+      "id": "love",
+      "panel": 0,
+      "narration": "Not money. The love of it.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "smart"
+        },
+        {
+          "at": "love",
+          "do": "draw",
+          "id": "kakuzu",
+          "type": "inset",
+          "file": "kakuzu-counting0=-money.mov",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": 0,
+          "do": "verse_highlight",
+          "id": "timothy_card",
+          "text": "love of money"
+        }
+      ]
+    },
+    {
+      "id": "tool",
+      "panel": 0,
+      "narration": "Money's a tool. It pays rent, buys groceries, gets your mom a plane ticket home.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "happy"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "benefits",
+          "type": "benefits",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true
+        },
+        {
+          "at": "home",
+          "do": "draw",
+          "id": "pop_home",
+          "type": "inset",
+          "file": "happy-dog-meme.jpg",
+          "x": 650,
+          "y": 1120,
+          "w": 380,
+          "h": 250,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "reaction_popup": true,
+          "display_dur": 1.2
+        }
+      ]
+    },
+    {
+      "id": "hammer",
+      "panel": 0,
+      "narration": "A hammer can build you a house. Same hammer can be used to break it.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "house",
+          "type": "hammer_house",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true
+        },
+        {
+          "at": "break",
+          "do": "draw",
+          "id": "smash",
+          "type": "hammer_smash",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true,
+          "overlay": true
+        }
+      ]
+    },
+    {
+      "id": "krabs",
+      "panel": 0,
+      "narration": "Look at Mr. Krabs. He owns a whole restaurant, and he still sold SpongeBob's soul for sixty-two cents.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "happy"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "krabs",
+          "type": "inset",
+          "file": "mr-krab-money-eyes.mp4",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "sold",
+          "do": "draw",
+          "id": "soul",
+          "type": "inset",
+          "file": "yall-remember-when-mr-krabs-sold-spongebob-for-62-cents-v0-49e5dfcz91q11.webp",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        }
+      ]
+    },
+    {
+      "id": "cents",
+      "panel": 0,
+      "narration": "Sixty-two cents.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "happy"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "cents",
+          "type": "inset",
+          "file": "62cents.webp",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "cents_draw",
+          "type": "cents",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true,
+          "overlay": true
+        }
+      ]
+    },
+    {
+      "id": "heart",
+      "panel": 0,
+      "narration": "That's not a money problem. That's a love problem.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "thoughtful"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "realization",
+          "type": "inset",
+          "file": "happy-face-shock-face-realization-standing-size-9x-16.jpg",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "love",
+          "do": "draw",
+          "id": "heart",
+          "type": "money_heart",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true
+        }
+      ]
+    },
+    {
+      "id": "broke",
+      "panel": 0,
+      "narration": "And you don't have to be rich to have it. You can be broke and still let money make every call. Who you trust. Whether you tell the truth.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "thoughtful"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "pablo",
+          "type": "inset",
+          "file": "pablo-escobar-sitting-on-yellow-banch.webp",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "broke",
+          "do": "draw",
+          "id": "broke",
+          "type": "inset",
+          "file": "broke.jpg",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "call",
+          "do": "draw",
+          "id": "side_eye",
+          "type": "inset",
+          "file": "side-eye.webp",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "Whether",
+          "do": "draw",
+          "id": "pop_truth",
+          "type": "inset",
+          "file": "suspisious-fry-futurama.webp",
+          "x": 650,
+          "y": 1120,
+          "w": 380,
+          "h": 250,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "reaction_popup": true,
+          "display_dur": 1.2
+        }
+      ]
+    },
+    {
+      "id": "hebrews",
+      "panel": 0,
+      "narration": "So how do you get free? Hebrews says, \u201cBe free from the love of money, content with such things as you have, for he has said, 'I will in no way leave you, neither will I in any way forsake you.'\u201d",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "chain",
+          "type": "chain",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true
+        },
+        {
+          "at": "free",
+          "do": "shrug",
+          "who": "guide",
+          "hold": 0.5
+        },
+        {
+          "id": "hebrews_card",
+          "scripture": {
+            "ref": "Hebrews 13:5",
+            "text": "Be free from the love of money, content with such things as you have, for he has said, 'I will in no way leave you, neither will I in any way forsake you.'"
+          },
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "size": 64,
+          "min_size": 64,
+          "fit_height": 500,
+          "visual": true
+        }
+      ]
+    },
+    {
+      "id": "grip",
+      "panel": 0,
+      "narration": "That's the reason. You loosen your grip on money when you know you're not on your own without it.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "happy"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "open_hand",
+          "type": "open_hand",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true
+        },
+        {
+          "at": "not",
+          "do": "draw",
+          "id": "bush",
+          "type": "inset",
+          "file": "burning_bush.mp4",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        }
+      ]
+    },
+    {
+      "id": "provide",
+      "panel": 0,
+      "narration": "So work. Earn. Save. Provide.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "happy"
+        },
+        {
+          "at": "work",
+          "do": "draw",
+          "id": "provide_work",
+          "type": "inset",
+          "pin": {
+            "pexels": "10374892"
+          },
+          "sources": [
+            "pexels"
+          ],
+          "query": "work",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "Earn",
+          "do": "draw",
+          "id": "provide_earn",
+          "type": "inset",
+          "pin": {
+            "pexels": "7535095"
+          },
+          "sources": [
+            "pexels"
+          ],
+          "query": "Earn",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "Save",
+          "do": "draw",
+          "id": "provide_save",
+          "type": "inset",
+          "pin": {
+            "pexels": "7710771"
+          },
+          "sources": [
+            "pexels"
+          ],
+          "query": "Save",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "Provide",
+          "do": "draw",
+          "id": "provide_provide",
+          "type": "inset",
+          "pin": {
+            "pexels": "8421648"
+          },
+          "sources": [
+            "pexels"
+          ],
+          "query": "Provide",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        }
+      ]
+    },
+    {
+      "id": "hand",
+      "panel": 0,
+      "narration": "Keep it in your hand, just not in your heart.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "thoughtful"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "hand_heart",
+          "type": "hand_heart",
+          "x": 540,
+          "y": 405,
+          "dur": 0.45,
+          "pop": false,
+          "visual": true
+        }
+      ]
+    },
+    {
+      "id": "ending",
+      "panel": 0,
+      "narration": "Be honest do you control your money? Or u more like Mr. Krabs.",
+      "camera_start": false,
+      "events": [
+        {
+          "at": 0,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "id": "dog_end",
+          "type": "inset",
+          "file": "doglookingatphoneshocked.jpg",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": "Mr",
+          "do": "draw",
+          "id": "krabs_end",
+          "type": "inset",
+          "file": "mr-krab-money-eyes.mp4",
+          "x": 540,
+          "y": 405,
+          "w": 780,
+          "h": 440,
+          "instant": true,
+          "pop": false,
+          "required": true,
+          "visual": true
+        },
+        {
+          "at": 0,
+          "do": "look_viewer",
+          "who": "guide"
+        },
+        {
+          "at": "Or",
+          "do": "shrug",
+          "who": "guide",
+          "hold": 0.7
+        }
+      ]
+    }
+  ],
+  "post": {
+    "title": "The Love of Money",
+    "youtube_title": "What Does the Bible Really Say About Money? #shorts",
+    "caption": "Ten thousand dollars or the truth. Who really decides? #bible #money #faith #christian #truth"
+  }
+}

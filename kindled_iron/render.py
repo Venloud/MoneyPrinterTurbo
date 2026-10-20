@@ -18,6 +18,7 @@ Options: --frames-only T1,T2,...  write PNG stills at those seconds (quick check
 from __future__ import annotations
 
 import argparse
+import math
 import json
 import os
 import re
@@ -234,7 +235,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                 pop = e.get("pop", obj["type"] not in NO_POP)
                 events.append({"t": e["t"], "do": "draw", "id": e["id"], "dur": e.get("dur"), "pop": pop, "hold": e.get("hold"),
                                "instant": e.get("instant"),
-                               **{k: e[k] for k in ("hit", "why", "main", "sound", "sound_dur", "hit_sound") if k in e}})
+                               **{k: e[k] for k in ("hit", "why", "main", "sound", "sound_dur", "hit_sound", "show_at") if k in e}})
                 if e.get("sparkle"):                  # a burst of little stars as it lands
                     sid = e["id"] + "_spk"
                     objects.append({"id": sid, "type": "sparkle", "x": obj["x"], "y": obj["y"], "r": e.get("sparkle_r", 120),
@@ -275,6 +276,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
             "captionSize": (scene.get("captions_box") or {}).get("size", CAPTION["size"]), "hud": HUD, "paper": None, "inboxReactions": [],
+            "strictLayout": bool(scene.get("strict_layout")), "layoutZones": scene.get("layout_zones"),
             "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {}}
 
 
@@ -309,14 +311,61 @@ def scripture_card(e: dict, words: list[dict], off: int, n: int, beat_id) -> tup
     t0, t1 = words[hit]["start"], words[hit + len(want) - 1]["end"]
     size = int(e.get("size", 76))
     w = int(e.get("w", 800))
-    lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
-    if len(lines) > 3:
-        size = int(size * 0.85)
-        lines = wrap(card["text"].strip().strip('"“”'), size, w - 130)
+    text = card["text"].strip().strip('"“”')
+    page_lines = None
+    page_break = None
+    line_pages = None
+    if e.get("fit_height"):
+        def height(sz, n): return 92 + n * sz * 1.08 + min(64, round(sz*.62))*1.5
+        for candidate in range(size, int(e.get("min_size",64))-1, -1):
+            candidate_lines = wrap(text, candidate, w-130)
+            if height(candidate,len(candidate_lines)) <= e["fit_height"]:
+                size,lines=candidate,candidate_lines
+                break
+        else:
+            size=max(64,int(e.get("min_size",64)))
+            capacity=max(1,int((e["fit_height"]-92-min(64,round(size*.62))*1.5)/(size*1.08)))
+            # Only punctuation boundaries are eligible; prefer a balanced pair of clauses.
+            candidates=[]
+            for boundary in re.finditer(r"[,;:.!?]\s+",text):
+                split=boundary.end()
+                left,right=text[:split].rstrip(),text[split:].lstrip()
+                a,b=wrap(left,size,w-130),wrap(right,size,w-130)
+                if a and b and max(len(a),len(b))<=capacity:
+                    candidates.append((abs(len(left)-len(right)),split,a,b))
+            if not candidates:
+                raise SystemExit(f"FAIL: {card['ref']} cannot fit in two punctuation-split pages at size {size}")
+            _,split,a,b=min(candidates,key=lambda c:c[0])
+            lines=a+b
+            page_lines=max(len(a),len(b))
+            line_pages=[0]*len(a)+[1]*len(b)
+            page_break={"line":len(a),"word":len(_norm_words(text[:split]))}
+    else:
+        lines = wrap(text,size,w-130)
+        if len(lines)>3:
+            size=int(size*.85);lines=wrap(text,size,w-130)
+    display_lines=[('“' if j==0 else '')+ln+('”' if j==len(lines)-1 else '') for j,ln in enumerate(lines)]
+    display='\n'.join(display_lines)
+    tokens=list(re.finditer(r"[A-Za-z0-9]+(?:[’'][A-Za-z0-9]+)*",display))
+    if len(tokens)!=len(want):
+        raise SystemExit(f"FAIL: typewriter word mapping mismatch for {card['ref']}")
+    word_times=[{"start":words[hit+j]["start"],"end":words[hit+j]["end"],
+                 "start_char":m.start() if j else 0,
+                 "end_char":tokens[j+1].start() if j+1<len(tokens) else len(display)} for j,m in enumerate(tokens)]
+    if page_break:
+        page_break["time"]=word_times[page_break["word"]-1]["end"]
+        page_break["char"]=word_times[page_break["word"]]["start_char"]
+    counts=[len(lines)] if not page_break else [page_break['line'],len(lines)-page_break['line']]
+    page_layouts=[]
+    for j,count in enumerate(counts):
+        ref_space=min(64,round(size*.62))*1.5 if j==len(counts)-1 else 0
+        page_layouts.append(dict(height=max(220,92+count*size*1.08+ref_space),
+                                 text_top=-(count*size*1.08+ref_space)/2,
+                                 ref_y=count*size*1.08/2+min(64,round(size*.62))*.15))
     o = {"id": e.get("id", f"card{n + 1}"), "type": "scripture", "x": off + e.get("x", 540), "y": e.get("y", 430),
-         "w": w, "size": size, "lines": lines, "ref": canonical(card["ref"]), "text": card["text"],
+         "w": w, "size": size, "lines": lines, "page_lines": page_lines, "line_pages": line_pages, "page_break": page_break, "page_layouts": page_layouts, "word_times": word_times, "ref": canonical(card["ref"]), "text": card["text"],
          "quote_end": round(t1, 3), "_t0": round(t0, 3), "_t1": round(t1 + 1.0, 3), "allow_overlap": e.get("allow_overlap", False), "over": e.get("over", [])}
-    return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "pop": False}
+    return o, {"t": round(t0, 3), "do": "draw", "id": o["id"], "dur": round(max(0.4, t1 - t0), 3), "show_at": e.get("show_time", max(0,t0-.3)), "pop": False}
 
 
 def hold_cards(events: list[dict], objects: list[dict]) -> None:
@@ -421,6 +470,26 @@ def find_chrome(explicit: str | None) -> str | None:
 def layout_check(page, duration: float, work: Path) -> list[dict]:
     """Sample the timeline every 0.2 s: safe box, right button column, a character over key
     text, a walking character passing through another. Warnings only (logged + checks.json)."""
+    # Strict productions validate actual DOM geometry at every output frame, not
+    # just at caption changes. This includes camera and animated head movement.
+    if page.evaluate("Boolean(window.KI_DATA.strictLayout)"):
+        audit = []
+        samples = work / "review_half_second"
+        samples.mkdir(exist_ok=True)
+        for frame in range(max(1, int(math.ceil(duration * FPS)))):
+            t = frame / FPS
+            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t), window.kiWalkCheck(t), window.kiStrictReactionCheck(t), window.kiBulletCheck(t), window.kiV3Check(t)); }", t)
+            if issues:
+                (work / "strict_layout.json").write_text(json.dumps({"passed": False, "frame": frame, "time": t, "issues": issues}, indent=2))
+                raise SystemExit(f"FAIL: layout frame {frame} ({t:.3f}s): {'; '.join(issues)}")
+            if frame % (FPS // 2) == 0:
+                page.screenshot(path=str(samples / f"frame_{frame:06d}.jpg"), type="jpeg", quality=88)
+                audit.append({"frame": frame, "time": t})
+        (work / "strict_layout.json").write_text(json.dumps({"passed": True, "frames_checked": max(1, int(math.ceil(duration * FPS))), "review_samples": audit}, indent=2))
+        # Reload before the legacy forward-only walk; GSAP instant sets are not
+        # reliably reversible after scanning to the end of a timeline.
+        page.reload()
+        page.wait_for_function("window.KI_READY === true", timeout=60000)
     ranges: dict[str, list] = {}
     t = 0.0
     while t <= duration:
@@ -590,6 +659,8 @@ def post_text(scene: dict) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("scene")
+    ap.add_argument("--audio", default=None)
+    ap.add_argument("--review-phase", choices=["preview","video"],default="preview")
     ap.add_argument("--out", default=None)
     ap.add_argument("--work", default=None)
     ap.add_argument("--frames-only", default=None)
@@ -602,6 +673,10 @@ def main() -> None:
     ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
     ap.add_argument("--music", default=None, help="music source: mine | generated | none (default: voice_profiles.json music_source)")
     a = ap.parse_args()
+
+    if a.audio:
+        from kindled_iron.love_money_v3 import main as v3_main
+        return v3_main(a.scene, a.audio, a.work or "storage/love-money-v3", a.review_phase)
 
     scene_path = Path(a.scene)
     scene = json.loads(scene_path.read_text(encoding="utf-8"))

@@ -84,13 +84,21 @@ jobs:
           pick = [i for i in items if i["file"] == want] if want else items[-1:]
           if not pick:
               raise SystemExit(f"FAIL: {want or 'no render'} is not approved")
-          print(pick[0]["file"])
+          it = pick[0]
+          # "path" / "meta": a render kept in the private repo itself (previews/...) instead of the test-renders release
+          print(it["file"], it.get("path", ""), it.get("meta", ""))
           PY
           )
+          read -r file src metasrc <<< "$file"
           base="${file%.mp4}"
           mkdir -p pub
-          gh release download test-renders --repo "$VOICE_REPO" --dir pub --clobber \
-            --pattern "$file" --pattern "$base.meta.json" --pattern "$base.post.txt"
+          if [ -n "$src" ]; then
+            gh api -H "Accept: application/vnd.github.raw" "repos/$VOICE_REPO/contents/$src" > "pub/$file"
+            gh api -H "Accept: application/vnd.github.raw" "repos/$VOICE_REPO/contents/$metasrc" > "pub/$base.meta.json"
+          else
+            gh release download test-renders --repo "$VOICE_REPO" --dir pub --clobber \
+              --pattern "$file" --pattern "$base.meta.json" --pattern "$base.post.txt"
+          fi
           # post ledger: every platform a scene was already posted to (never posted twice)
           if gh api "repos/$VOICE_REPO/contents/approved/posted.json" > ledger_api.json 2>ledger_err.txt; then
             python3 -c "import json,base64;print(base64.b64decode(json.load(open('ledger_api.json'))['content']).decode(),end='')" > posted.json
@@ -104,7 +112,7 @@ jobs:
           echo "video=pub/$file" >> "$GITHUB_OUTPUT"
           echo "name=$file" >> "$GITHUB_OUTPUT"
           echo "meta=pub/$base.meta.json" >> "$GITHUB_OUTPUT"
-          echo "post=pub/$base.post.txt" >> "$GITHUB_OUTPUT"
+          [ -f "pub/$base.post.txt" ] && echo "post=pub/$base.post.txt" >> "$GITHUB_OUTPUT" || echo "post=" >> "$GITHUB_OUTPUT"   # no post.txt: text from the scene file
           echo "tag=ki-tmp-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
       - name: Short-lived public copy (Threads / Instagram fallback fetch from a URL), deleted at the end

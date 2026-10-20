@@ -48,6 +48,7 @@ def resolve_media(scene,work):
  for i,b in enumerate(scene['beats']):
   for e in b['events']:
    if e.get('file'):
+    if e['id']=='cash_open':e.update(x=410,w=500)
     f=root/'movie_reference'/e['file']
     if not f.is_file():raise SystemExit('FAIL: required file failed to load: '+e['file'])
     still=f.suffix.lower() in private_media.IMG_EXT
@@ -127,7 +128,7 @@ def timeline(scene,spans,words,duration):
    t=cue(e,words[i],spans[i]);pops.append((t,e['id']));protected.append((t-.3,t+1.5))
  data['guideSpots']=[195,345,495,645,795,885];x=195;last=0;moves=[]
  for i in [1,3,5,7,9,11,13]:
-  target=[345,495,645,795,885,645,345][len(moves)%7];dur=abs(target-x)/155;t=max(spans[i][0]+.1,last+.3)
+  target=[345,195,495,795,885,645,345][len(moves)%7];dur=abs(target-x)/155;t=max(spans[i][0]+.1,last+.3)
   for _ in range(50):
    hit=next(((a,b) for a,b in sorted(protected) if t+.25+dur+.3>a and t<b),None)
    if not hit:break
@@ -139,7 +140,7 @@ def timeline(scene,spans,words,duration):
   x=195
   for m in moves:
    if m['end']<=t:x=m['to']
-  objs[id]['x']=700 if x<540 else 300;objs[id]['reaction_popup']=True
+  objs[id]['x']=700 if x<540 else 350;objs[id]['reaction_popup']=True
  data['moves']=moves
  # Cumulative inset bullets pop on the exact spoken word, clear before the next sentence.
  bw=words[13];ws=[]
@@ -148,6 +149,7 @@ def timeline(scene,spans,words,duration):
  data['bulletOverlays']=[dict(start=ws[0]['start'],end=spans[14][0],words=ws,zone=dict(left=200,top=410,right=880,bottom=605))]
  data['captionSuppress'].append(dict(start=ws[0]['start'],end=spans[14][0]))
  data['captions'][0]['start']=0
+ data['sketchActions']=[dict(id='house',start=cue(dict(at='break'),words[6],spans[6]))]
  data['sketchCues']={'benefits':[cue(dict(at=w),words[5],spans[5]) for w in ['rent','groceries','plane']]}
  data['paper']=effects.paper_texture(Path(os.environ['KI_V3_WORK']),render.PALETTE['board'])
  data['events']=sorted(events,key=lambda e:e['t'])
@@ -178,5 +180,13 @@ def main(scene_path,audio,work,phase='preview'):
   render.capture(page,work/'love-of-money-v3.mp4',work/'mix.wav',data['duration'],None)
   subprocess.run(['ffmpeg','-v','error','-i',str(work/'love-of-money-v3.mp4'),'-f','null','-'],check=True)
  audit=json.loads((work/'strict_layout.json').read_text());meta=dict(scene=scene['id'],duration=data['duration'],voice=voice,verse_check=verse,audit=audit,moves=data['moves'],cue_files=records,failed_files=[])
- (work/'metadata.json').write_text(json.dumps(meta,indent=2));(work/'shot-list.md').write_text('# Love of Money V3\n\n'+'\n'.join(f"- {r['cue']} → {r['file']} ({r['use']}; {r['source']})" for r in records)+'\n')
+ meta['branch']=os.environ.get('GITHUB_REF_NAME','claude/love-money-v3');meta['code_sha']=os.environ.get('GITHUB_SHA',subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip())
+ (work/'metadata.json').write_text(json.dumps(meta,indent=2));lines=['# Love of Money V3', '',f"Branch: {meta['branch']} · code {meta['code_sha']}",f"Duration: {data['duration']:.3f}s · every-frame audit: {audit['passed']} ({audit['frames_checked']} frames)",f"Voice SHA256: {voice['source_sha256']} · synthesized: false · speed changed: false",'Music: private music/theme_1.mp3','Failed files: none','']
+ for beat in scene['beats']:
+  lines.extend(['## '+beat['id'],beat['narration']])
+  for e in beat['events']:
+   if e.get('file') or e.get('pin') or e.get('visual'):
+    label=e.get('file') or ('Pexels '+e['pin']['pexels'] if e.get('pin') else e.get('type','scripture'))
+    lines.append(f"- {e.get('at','quote')} → {label} ({'POP' if e.get('reaction_popup') else 'BOX / drawn'})")
+ (work/'shot-list.md').write_text('\n'.join(lines)+'\n')
  print(json.dumps(dict(phase=phase,duration=data['duration'],audit=audit['passed'],frames=audit['frames_checked'])))

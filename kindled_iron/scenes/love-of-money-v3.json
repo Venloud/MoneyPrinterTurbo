@@ -21,7 +21,7 @@
   "captions_chunk": {
     "max_words": 3,
     "min_words": 1,
-    "max_chars": 19
+    "max_chars": 14
   },
   "layout_zones": {
     "clip": {

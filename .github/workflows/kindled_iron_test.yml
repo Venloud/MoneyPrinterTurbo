@@ -30,6 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(gh repo view Venloud/kindled-iron-voice --json isPrivate -q .isPrivate)" = true
+          gh auth setup-git
           git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" clone --depth 1 --filter=blob:none --sparse https://github.com/Venloud/kindled-iron-voice.git "$RUNNER_TEMP/private"
           git -C "$RUNNER_TEMP/private" sparse-checkout set movie_reference music approved_audio/love-of-money-v3 previews/love-of-money-v3
           echo "KI_PRIVATE_MEDIA=$RUNNER_TEMP/private" >> "$GITHUB_ENV"

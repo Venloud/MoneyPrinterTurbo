@@ -28,7 +28,7 @@ SHOTS = {
 17:[(0,'8987078','Repair work: Everybody does it reaction')],
 18:[(0,'14514790','The unfixed car'),('hiding','8986488','Engine fault remains')],
 19:[(0,'8421648','Essential groceries'),('savings','7710771','US-dollar savings jar'),('work','33825911','Commuter getting to work'),('bills','7924459','Past-due bills')],
-20:[(0,'8479284','Wealth stereotype; rich reaction'),('almost','36036686','Almost nothing: coins in a hand')],
+20:[(0,'7710826','Verified US dollars; rich reaction'),('almost','36036686','Almost nothing: coins in a hand')],
 21:[(0,'13013179','Proverbs: different open Bible')],
 22:[(0,'16577160','Hebrews: another Bible opening')],
 23:[(0,'29119700','Hope: sunrise'),('right','6685054','Honest work and agreement'),('money','7924953','Need: an empty wallet')],

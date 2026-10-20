@@ -275,9 +275,9 @@
           return '<g class="mb-bullet" opacity="0"><rect class="mb-bullet-bg" rx="16" fill="' + C.page + '" fill-opacity="0.93" stroke="' + C.ink + '" stroke-width="4"/>' +
             '<text class="mb-bullet-t" x="0" y="0" font-family="Caveat" font-weight="700" font-size="66" fill="' + C.ink + '"></text></g>';
         }).join('') + '</g>' +
-        '<g class="mb-verse" visibility="hidden">' + s +
+        '<g class="mb-verse" visibility="hidden"><rect class="mb-hl" x="0" y="0" width="0" height="0" rx="8" fill="' + C.accent + '" fill-opacity="0.32"/>' + s +
           '<rect class="mb-caret" x="0" y="0" width="7" height="' + Math.round(vs * 0.82) + '" rx="2" fill="' + C.accent + '"/>' +
-          '<text class="mb-ref" x="' + (w / 2 - o.pad_x) + '" y="' + (h / 2 - 40) + '" text-anchor="end" font-family="Caveat" font-weight="700" font-size="' + Math.round(vs * 0.85) + '" fill="' + C.accent + '" opacity="0"></text></g>' +
+          '<text class="mb-ref" x="0" y="' + (h / 2 - 40) + '" text-anchor="middle" font-family="Caveat" font-weight="700" font-size="' + Math.round(vs * 0.85) + '" fill="' + C.accent + '" opacity="0"></text></g>' +
         '<path d="' + rr + '" stroke="' + C.ink + '" stroke-width="8" fill="none" stroke-linejoin="round"/>' +
         '<path d="' + rr + '" transform="translate(-4,3) rotate(-0.6)" stroke="' + C.ink + '" stroke-width="3" fill="none" opacity="0.6"/>' +
         '<path d="M-50,' + (-h / 2 - 16) + ' L50,' + (-h / 2 - 10) + ' L46,' + (-h / 2 + 18) + ' L-54,' + (-h / 2 + 12) + ' Z" fill="' + C.marker + '" fill-opacity="0.85" stroke="none"/>';
@@ -355,6 +355,84 @@
       return p(d, { w: 7, c: 'accent', fill: 'ink', fo: 0.92 }) +
         '<text x="0" y="4" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + (o.size || 80) +
         '" fill="' + C.page + '">' + t + '</text>';
+    },
+    // ---- Love of Money v3 sketches (orange accent + blue, ink lines, no hands drawing)
+    clowncard: function () {    // a playing card with a clown: devious grin, hat, red nose
+      var B = '#3D7DB0';
+      return f('M-112,-150 L118,-146 L122,156 L-108,158 Z', 'shadow', 0.6, false) +
+        p('M-100,-155 L100,-155 Q115,-155 115,-140 L115,140 Q115,155 100,155 L-100,155 Q-115,155 -115,140 L-115,-140 Q-115,-155 -100,-155 Z', { w: 7, fill: 'page', fo: 1 }) +
+        p('M-92,-128 L-72,-128 M-82,-138 L-82,-118', { c: 'accent', w: 6 }) + p('M92,128 L72,128 M82,138 L82,118', { c: 'accent', w: 6 }) +
+        p('M-48,-40 L0,-118 L48,-40 Z', { c: B, w: 6, fill: B, fo: 0.85 }) + p(circlePath(0, -122, 12), { c: 'accent', w: 5, fill: 'accent', fo: 1 }) +
+        p(wobbleCircle(0, 10, 58, 7, 0.05), { w: 7, fill: 'page', fo: 1 }) +
+        p('M-34,-14 L-12,-4 M34,-14 L12,-4', { w: 7 }) + p(circlePath(-22, 4, 5) + ' ' + circlePath(22, 4, 5), { w: 4, fill: 'ink', fo: 1 }) +
+        p(circlePath(0, 22, 11), { c: 'accent', w: 5, fill: 'accent', fo: 1 }) +
+        p('M-40,36 Q0,74 40,36 Q20,50 0,52 Q-20,50 -40,36 Z', { w: 6, fill: 'ink', fo: 0.9 }) + p('M-44,32 L-36,40 M44,32 L36,40', { w: 5 }) +
+        p('M-70,84 Q-40,70 0,92 Q40,70 70,84', { c: B, w: 6 });
+    },
+    house: function (o) {       // a little house, two windows, a door
+      var k = o.k || 1, S = function (d) { return d.replace(/-?[\d.]+/g, function (n) { return (parseFloat(n) * k).toFixed(1); }); };
+      return p(S('M-90,-10 L0,-90 L90,-10'), { c: 'accent', w: 8 }) +
+        p(S('M-75,-20 L75,-20 L75,85 L-75,85 Z'), { w: 7, fill: 'page', fo: 1 }) +
+        p(S('M-55,5 L-20,5 L-20,38 L-55,38 Z'), { c: '#3D7DB0', w: 5, fill: 'water', fo: 0.9 }) +
+        p(S('M20,5 L55,5 L55,38 L20,38 Z'), { c: '#3D7DB0', w: 5, fill: 'water', fo: 0.9 }) +
+        p(S('M-14,85 L-14,52 L14,52 L14,85'), { w: 6 });
+    },
+    cracks: function (o) {      // broken window glass on the house (no people)
+      var k = o.k || 1, S = function (d) { return d.replace(/-?[\d.]+/g, function (n) { return (parseFloat(n) * k).toFixed(1); }); };
+      return p(S('M-38,8 L-44,20 L-30,26 L-40,38 M-38,20 L-24,14 M-30,26 L-22,34'), { w: 4 }) +
+        p(S('M38,6 L30,18 L44,24 L34,38 M30,18 L22,12 M44,24 L52,32'), { w: 4 });
+    },
+    shards: function (o) {      // glass bits flying out (pops in and fades)
+      var R = rng(hash(o.id)), s = '', n = o.n || 9;
+      for (var i = 0; i < n; i++) {
+        var a = -Math.PI / 2 + (R() - 0.5) * 2.4, r = 40 + R() * 70, x = Math.cos(a) * r, y = Math.sin(a) * r, z = 7 + R() * 7;
+        s += '<g class="spk" transform="translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')"><g class="spk-i">' +
+          p('M0,' + (-z) + ' L' + z + ',' + (z * 0.6) + ' L' + (-z * 0.8) + ',' + (z * 0.4) + ' Z', { c: '#3D7DB0', w: 3, fill: 'water', fo: 1 }) + '</g></g>';
+      }
+      return s;
+    },
+    hammer: function () {       // pivot at the bottom of the handle (0,0): rotate to swing
+      return p('M0,0 L0,-150', { w: 13, c: '#9A6A43' }) + p('M-44,-150 L46,-150 L46,-185 L-44,-185 Z', { w: 7, fill: 'woolGray', fo: 1 }) +
+        p('M-44,-150 Q-70,-168 -60,-195', { w: 6 });
+    },
+    bag: function () {          // a grocery bag with a baguette and greens
+      return p('M-55,-30 L55,-30 L65,80 L-65,80 Z', { w: 7, fill: '#E8D3A9', fo: 1 }) + p('M-20,-30 Q-20,-55 0,-55 Q20,-55 20,-30', { w: 5 }) +
+        p('M-35,-30 L-50,-95 L-30,-98 L-15,-30', { w: 5, fill: '#E4B565', fo: 1 }) + p('M20,-30 Q30,-80 45,-70 Q40,-50 30,-30', { c: 'greenLine', w: 5, fill: 'green', fo: 1 });
+    },
+    plane: function () {        // a small plane flying home
+      return p('M-90,10 Q-90,-12 -60,-12 L70,-14 Q100,-12 100,4 Q100,18 70,18 L-60,20 Q-90,22 -90,10 Z', { w: 7, fill: 'page', fo: 1 }) +
+        p('M-10,-12 L30,-70 L50,-70 L30,-12', { c: '#3D7DB0', w: 6, fill: 'water', fo: 1 }) + p('M-10,18 L20,60 L40,60 L30,18', { c: '#3D7DB0', w: 6, fill: 'water', fo: 1 }) +
+        p('M-80,-12 L-92,-46 L-74,-46 L-58,-12', { c: 'accent', w: 6, fill: 'accent', fo: 1 }) + p('M50,-4 L58,-4 M66,-4 L74,-4', { c: '#3D7DB0', w: 6 });
+    },
+    heartdollar: function () {  // a heart with a $ in it
+      return p('M0,95 C-170,-10 -110,-150 0,-70 C110,-150 170,-10 0,95 Z', { c: 'accent', w: 10, fill: 'accent', fo: 0.18 }) +
+        '<text x="0" y="8" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="130" fill="' + C.ink + '">$</text>';
+    },
+    lockdollar: function () {   // a $ wrapped in a chain, locked
+      var s = '<text x="0" y="-10" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="190" fill="' + C.accent + '">$</text>';
+      for (var i = 0; i < 6; i++) { var x = -125 + i * 50, y = -10 + (i % 2 ? -14 : 14); s += p(wobbleCircle(x, y, 22, 20 + i, 0.03), { c: 'inkSoft', w: 7 }); }
+      return s + p('M-32,40 L32,40 L32,100 L-32,100 Z', { w: 7, fill: 'woolGray', fo: 1 }) + p('M-20,40 L-20,18 Q0,-8 20,18 L20,40', { w: 7 }) + p(circlePath(0, 70, 7), { w: 4, fill: 'ink', fo: 1 });
+    },
+    fist: function () {         // a closed hand gripping tight
+      return p('M-70,-40 Q-70,-75 -40,-75 L50,-75 Q80,-75 80,-45 L80,40 Q80,80 40,80 L-40,80 Q-70,80 -70,50 Z', { w: 7, fill: 'skin', fo: 1 }) +
+        p('M-40,-75 L-40,-35 M-10,-75 L-10,-35 M20,-75 L20,-35 M50,-75 L50,-35 M-70,-20 Q-30,-10 10,-28', { w: 5 });
+    },
+    openhand: function () {     // an open hand, palm up, fingers relaxed
+      return p('M-90,20 Q-90,-10 -60,-12 L-55,-80 Q-48,-95 -38,-80 L-32,-25 L-24,-100 Q-14,-112 -6,-98 L0,-28 L10,-102 Q20,-114 28,-100 L28,-26 L44,-88 Q54,-100 62,-86 L56,-10 Q80,-30 98,-18 Q70,30 40,70 L-50,70 Q-90,60 -90,20 Z', { w: 7, fill: 'skin', fo: 1 });
+    },
+    coins: function () {        // a few coins (they fall from the opening hand)
+      var s = '';
+      [[-40, 0], [0, -14], [40, 4], [-12, 26], [24, 30]].forEach(function (q, i) { s += p(wobbleCircle(q[0], q[1], 18, 40 + i, 0.03), { c: '#B8860B', w: 5, fill: 'starFill', fo: 1 }); });
+      return s;
+    },
+    coinhand: function () {     // a palm holding one coin
+      return OBJ.openhand() + p(wobbleCircle(8, -10, 30, 77, 0.03), { c: '#B8860B', w: 6, fill: 'starFill', fo: 1 }) +
+        '<text x="8" y="-8" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="40" fill="#8A6A1E">$</text>';
+    },
+    scribble: function (o) {    // an orange scratch-out over text
+      var w = (o.w || 300) / 2, h = (o.h || 80) / 2, d = 'M' + (-w) + ',' + (-h * 0.2), n = 7;
+      for (var i = 1; i <= n; i++) d += ' L' + (-w + 2 * w * i / n).toFixed(0) + ',' + ((i % 2 ? -h : h) * 0.9).toFixed(0);
+      return p(d, { c: 'accent', w: 12 }) + p('M' + (-w) + ',' + (h * 0.5) + ' L' + w + ',' + (-h * 0.6), { c: 'accent', w: 10 });
     },
     check: function (o) { var k = o.k || 1; return p('M' + (-110 * k) + ',' + (-5 * k) + ' L' + (-35 * k) + ',' + (75 * k) + ' L' + (130 * k) + ',' + (-110 * k), { c: 'accent', w: 22 }); },
     arrow: function (o) {
@@ -796,7 +874,7 @@
     }
     ob.fills.forEach(function (f) { tl.to(f, { attr: { 'fill-opacity': f.getAttribute('data-fill') }, duration: 0.4 }, e.t + d * 0.8); });
     if (e.pop) tl.fromTo(ob.inner, { scale: 0.55, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.55, ease: 'back.out(2.6)', immediateRender: false }, e.t);
-    if (ob.def.type === 'sparkle' || ob.def.type === 'splash') {
+    if (ob.def.type === 'sparkle' || ob.def.type === 'splash' || ob.def.type === 'shards') {
       var sp = ob.el.querySelectorAll('.spk-i');
       tl.fromTo(sp, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'back.out(3)', stagger: 0.06, immediateRender: false }, e.t);
       tl.to(ob.el, { opacity: 0, duration: 0.35 }, e.t + (e.hold || 1.2));
@@ -979,6 +1057,16 @@
         break;
       case 'move':           // slide a drawing along (e.g. an animal walking across)
         if (objs[e.id]) tl.to(objs[e.id].mv, { x: e.dx || 0, y: e.dy || 0, duration: e.dur || 2, ease: e.ease || 'none' }, e.t);
+        break;
+      case 'swing':            // a hammer (pivot at its handle end) swings: taps (build) or a big smash
+        if (objs[e.id]) {
+          var sn = e.n || 3, big = e.smash, a0 = big ? -70 : -35, a1 = big ? 25 : 8, sd = e.dur || 0.3;
+          for (var si = 0; si < sn; si++) {
+            tl.to(objs[e.id].inner, { rotation: a0, duration: sd * 0.6, ease: 'power1.out', transformOrigin: '50% 100%' }, e.t + si * sd);
+            tl.to(objs[e.id].inner, { rotation: a1, duration: sd * 0.4, ease: 'power3.in', transformOrigin: '50% 100%' }, e.t + si * sd + sd * 0.6);
+          }
+          tl.to(objs[e.id].inner, { rotation: 0, duration: 0.2, transformOrigin: '50% 100%' }, e.t + sn * sd);
+        }
         break;
       case 'wiggle':
         if (objs[e.id]) tl.fromTo(objs[e.id].inner, { rotation: -7 }, { rotation: 7, duration: 0.09, yoyo: true, repeat: 5, ease: 'sine.inOut', transformOrigin: '50% 50%', immediateRender: false }, e.t);
@@ -1227,7 +1315,7 @@
     capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; capEl.style.visibility = 'visible';
     if (!capEl.children.length) return;
     if (D.captionFixed) {          // fixed caption band (the per-frame audit proves it never touches the guide / box)
-      if (window.kiVerseOn && window.kiVerseOn(T_NOW)) capEl.style.visibility = 'hidden';
+      if ((window.kiVerseOn && window.kiVerseOn(T_NOW)) || freezeState.v > 0.5) capEl.style.visibility = 'hidden';
       return;
     }
     // the same words already written big on screen: no caption on top of it (never "NOBODY. NOBODY.")
@@ -1397,7 +1485,7 @@
     renderBullets(t);
     MB.split.setAttribute('visibility', sg.kind === 'split' ? 'visible' : 'hidden');
     MB.heart.setAttribute('visibility', sg.kind === 'heart' ? 'visible' : 'hidden');
-    if (sg.kind === 'clip') {
+    if (sg.kind === 'clip' || sg.kind === 'media') {
       MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'visible');
       swapFrame(MB.img, sg.frames, sg.t0, sg.fps, t);
       return;
@@ -1432,6 +1520,22 @@
     if (last) { cx = parseFloat(last[0].getAttribute('x')) + last[0].getComputedTextLength() + 6; cy = pg.y0 + last[1] * pg.lh; }
     else { cx = parseFloat(MB.lines[0].getAttribute('x')); cy = pg.y0; }
     MB.caret.setAttribute('x', cx.toFixed(1)); MB.caret.setAttribute('y', (cy - vs * 0.62).toFixed(1));
+    var hl = MB.el.querySelector('.mb-hl'), hon = null;
+    (sg.highlights || []).forEach(function (h) { if (t >= h.t) hon = h; });
+    hl.setAttribute('width', '0');
+    if (hon) {                    // a marker swipe over the words being talked about
+      for (var li = 0; li < pg.lines.length; li++) {
+        var at = pg.lines[li].text.toLowerCase().indexOf(hon.text.toLowerCase());
+        if (at < 0) continue;
+        var el2 = MB.lines[li];
+        if (el2.textContent.length < at + hon.text.length) break;
+        var x0 = parseFloat(el2.getAttribute('x')) + el2.getSubStringLength(0, at), wd = el2.getSubStringLength(at, hon.text.length);
+        var kk = Math.min(1, (t - hon.t) / 0.35);
+        hl.setAttribute('x', (x0 - 8).toFixed(1)); hl.setAttribute('y', (pg.y0 + li * pg.lh - vs * 0.72).toFixed(1));
+        hl.setAttribute('width', ((wd + 16) * kk).toFixed(1)); hl.setAttribute('height', (vs * 0.95).toFixed(1));
+        break;
+      }
+    }
     var blinkOn = typing || (Math.floor((t - sg.t0) * 2.2) % 2 === 0);
     MB.caret.setAttribute('opacity', (blinkOn && t < sg.ref_t) ? '1' : '0');
     MB.ref.textContent = '— ' + sg.ref;
@@ -1674,6 +1778,20 @@
         bbs.push(rb);
       });
     }
+    // drawings: never on the guide, the box, the captions or a meme card; inside the safe box
+    var cr0 = capOn ? capRect() : null, cards = [];
+    Object.keys(objs).forEach(function (id) { var ob = objs[id]; if (ob.def.reaction_card && shown(ob.el)) cards.push(ob.el.querySelector('.inset-img').getBoundingClientRect()); });
+    Object.keys(objs).forEach(function (id) {
+      var ob = objs[id], d = ob.def;
+      if (d.type === 'mediabox' || d.reaction_card || d.type === 'sparkle' || d.type === 'splash' || !shown(ob.el)) return;
+      var rr = glyphBox(ob); if (!rr.width || offScreen(rr)) return;
+      var g2 = function (r) { return { left: r.left - gap, top: r.top - gap, right: r.right + gap, bottom: r.bottom + gap }; };
+      guides.forEach(function (g) { if (inter(rr, g2(g)) > 0) out.push('DRAWING ' + id + ' TOUCHES GUIDE'); });
+      if (box && inter(rr, box) > 0) out.push('DRAWING ' + id + ' OVER BOX');
+      if (cr0 && inter(rr, { left: cr0.left - 9, top: cr0.top - 9, right: cr0.right + 9, bottom: cr0.bottom + 9 }) > 0) out.push('DRAWING ' + id + ' UNDER CAPTION');
+      cards.forEach(function (c) { if (inter(rr, c) > 0) out.push('DRAWING ' + id + ' UNDER MEME'); });
+      safeIssues('drawing ' + id, rr, out);
+    });
     // meme reaction cards: big, beside the guide, never over the box, the guide or the captions
     Object.keys(objs).forEach(function (id) {
       var ob = objs[id]; if (!ob.def.reaction_card || !shown(ob.el)) return;

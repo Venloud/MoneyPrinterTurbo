@@ -49,6 +49,8 @@ ROLES = {
     "burst": {"q": ["magic shimmer", "shimmer", "chime sparkle"], "src": 2, "seg": (0.5, 2.0), "n": 4},
     "water_rush": {"q": ["water rush", "wave wash", "water whoosh"], "src": 2, "seg": (1.0, 3.0), "n": 4},
     "whoosh_slow": {"q": ["slow whoosh", "soft whoosh", "air whoosh"], "src": 2, "seg": (0.8, 2.5), "n": 4},
+    # the record-scratch freeze-frame
+    "record_scratch": {"q": ["record scratch", "vinyl scratch", "dj scratch"], "src": 1, "seg": (0.3, 0.9), "n": 3},
     # low ambience + a soft music bed (loops)
     "amb_hum": {"q": ["low drone ambience", "dark ambient drone", "room tone"], "src": 1, "loop": 30},
     "amb_wind": {"q": ["soft wind ambience", "gentle wind"], "src": 1, "loop": 30},

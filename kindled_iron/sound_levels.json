@@ -10,6 +10,7 @@
   "handwriting": -20,
   "eraser": -20,
   "scratch": -20,
+  "record_scratch": -18,
   "pop": -20.0,
   "chime": -20.0,
   "riser": -14,

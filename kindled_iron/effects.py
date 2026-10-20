@@ -65,7 +65,10 @@ def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, wor
         emotion = e.get("emotion")
         want = e.get("face") or EMOTION_FACE.get(emotion, emotion)
         if third_party and emotion and e.get("image", True) and data is not None:
-            got = private_media.reaction_card(emotion, e["t"], e["dur"], e.get("card") or {}, work, len(meme_used) + 1)
+            got = private_media.reaction_card(emotion, e["t"], e["dur"], e.get("card") or {}, work, len(meme_used) + 1,
+                                              file=e.get("file"))
+            if not got and e.get("file"):
+                log(f"MEDIA FAILED TO LOAD: {e['file']} (POP meme at {e['t']:.1f} s)")
             if got:
                 obj, ev, rec = got
                 data["objects"].append(obj)

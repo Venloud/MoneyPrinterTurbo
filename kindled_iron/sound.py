@@ -115,7 +115,7 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
             big = e.get("whoosh")                       # the scene marks its big changes; else every other one
             if big or (big is None and scene_changes % 2 == 1):
                 add(3, t - 0.05, "whoosh_slow", f"scene change ({e['transition']})", 0.7)
-        elif do == "draw" and o and e.get("main") and PENCIL:
+        elif do == "draw" and o and e.get("main") and scene.get("pencil", PENCIL):
             beat = next((b for b, (a, z) in enumerate(spans) if a - 0.3 <= t <= z + 0.3), None)
             if beat not in pencil_beats:
                 pencil_beats.add(beat)

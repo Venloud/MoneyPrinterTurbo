@@ -123,6 +123,9 @@ def plan(scene: dict, spans: list, beat_words: list, pauses: list, duration: flo
                     if ev[side] not in scene.get("clips", {}):
                         raise SystemExit(f"FAIL: beat {beat.get('id', b)}: clip {ev[side]!r} is not in the scene's clips")
                 reqs.append((t, {"kind": "split", "left": ev["left"], "right": ev["right"], "cue": ev.get("at"), "beat": beat.get("id", b)}))
+            elif ev["box"] == "media":         # a private file (owner upload): image, gif, mp4, mov, webp
+                reqs.append((max(0.0, t), {"kind": "media", "file": ev["file"], "fallback": ev.get("fallback"), "fit": ev.get("fit"),
+                                           "start": ev.get("start"), "crop": ev.get("crop"), "cue": ev.get("at"), "beat": beat.get("id", b)}))
             elif ev["box"] == "heart":
                 reqs.append((t, {"kind": "heart", "cue": ev.get("at"), "beat": beat.get("id", b)}))
             elif ev["box"] == "off":
@@ -149,7 +152,7 @@ def plan(scene: dict, spans: list, beat_words: list, pauses: list, duration: flo
     clips = scene["clips"]
     for s in segs:
         keys = [s["clip"]] if s["kind"] == "clip" else [s["left"], s["right"]] if s["kind"] == "split" else []
-        pins = {clips[k].get("pexels") or k for k in keys}
+        pins = {clips[k].get("pexels") or k for k in keys} | ({"file:" + s["file"]} if s["kind"] == "media" else set())
         if pins & prev:
             raise SystemExit(f"FAIL: footage {sorted(pins & prev)} twice in a row at {s['t0']:.1f} s")
         prev = pins
@@ -157,6 +160,15 @@ def plan(scene: dict, spans: list, beat_words: list, pauses: list, duration: flo
             g = clips[k].get("group")
             if g:
                 counts[g] = counts.get(g, 0) + 1
+    uses: dict[str, int] = {}
+    for s in segs:
+        keys = [s["clip"]] if s["kind"] == "clip" else [s["left"], s["right"]] if s["kind"] == "split" else []
+        for key in [clips[k].get("pexels") or k for k in keys] + (["file:" + s["file"]] if s["kind"] == "media" else []):
+            uses[key] = uses.get(key, 0) + 1
+    lim = scene.get("max_media_uses")
+    over = {k: v for k, v in uses.items() if lim is not None and v > lim}
+    if over:
+        raise SystemExit(f"FAIL: used more than {lim} times: {over}")
     for g, n in counts.items():
         lim = (scene.get("clip_limits") or {}).get(g)
         if lim is not None and n > lim:
@@ -164,12 +176,24 @@ def plan(scene: dict, spans: list, beat_words: list, pauses: list, duration: flo
     for s in segs:
         if s["kind"] == "verse" and s["t1"] < s["hold_until"] - 1e-3:
             raise SystemExit(f"FAIL: verse {s['ref']} leaves before it held 1 s")
+    for b, beat in enumerate(scene["beats"]):          # marker swipes on a verse card that is on screen
+        start, end = spans[b]
+        for ev in beat.get("events", []):
+            if "box_highlight" in ev:
+                t = resolve_at(ev.get("at"), beat_words[b], start, end, {}, [p for p in pauses if p[2] == b])
+                on = next((s for s in segs if s["kind"] == "verse" and s["t0"] <= t < s["t1"]), None)
+                if not on:
+                    raise SystemExit(f"FAIL: beat {beat.get('id', b)}: highlight {ev['box_highlight']!r} at {t:.2f} s but no verse card is on")
+                if ev["box_highlight"].lower() not in on["text"].lower():
+                    raise SystemExit(f"FAIL: highlight {ev['box_highlight']!r} is not in {on['ref']}")
+                on.setdefault("highlights", []).append({"t": round(t, 3), "text": ev["box_highlight"]})
     log("media box: " + ", ".join(f"{s['t0']:.1f}-{s['t1']:.1f} {label(s)}" for s in segs))
     return segs
 
 
 def label(s: dict) -> str:
     return {"clip": lambda: s["clip"], "verse": lambda: s["ref"], "heart": lambda: "drawn heart",
+            "media": lambda: s.get("used_file") or s["file"],
             "split": lambda: f"split {s['left']} | {s['right']}"}[s["kind"]]()
 
 
@@ -204,6 +228,61 @@ def _placeholder(key: str, dur: float, w: int, h: int, out_dir: Path) -> list[st
                     "-vf", f"eq=saturation=0.4,drawtext=fontfile='{font}':text='{key}':fontsize=90:x=40:y=40:fontcolor=white:box=1:boxcolor=black@0.5",
                     "-q:v", "5", str(out_dir / "f_%04d.jpg")], check=True)
     return [p.as_uri() for p in sorted(out_dir.glob("f_*.jpg"))]
+
+
+FAILED: list[str] = []
+
+
+def media_frames(s: dict, seconds: float, w: int, h: int, work: Path, n: int, log):
+    """Frames of a private owner file for the box. Stills: one frame; gif / video: the clip (loops when the line is
+    longer). fit "contain" keeps the whole picture (paper around it); default "cover" for landscape pictures and
+    "contain" for anything much narrower than the box. A file that fails falls back; no fallback = FAIL by name."""
+    from kindled_iron import private_media as pm
+    idx = {}
+    for name in ("movie_reference", "reactions"):
+        idx.update({f"{name}/{k}": v for k, v in pm._index(Path(os.environ.get("KI_PRIVATE_MEDIA", "/nonexistent")) / name).items()})
+    for rel in [s["file"]] + ([s["fallback"]] if s.get("fallback") else []):
+        f = pm.private_file(rel)
+        if not f:
+            FAILED.append(rel)
+            log(f"MEDIA FAILED TO LOAD: {rel} (not in the private repo)")
+            continue
+        meta = idx.get(rel, {})
+        sz = pm.image_size(f) or (w, h)
+        fit = s.get("fit") or ("contain" if sz[0] / max(1, sz[1]) < 1.15 else "cover")
+        crop = s.get("crop") or meta.get("crop")
+        still = f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
+        start = float(s.get("start") if s.get("start") is not None else meta.get("start", 0.0))
+        end = meta.get("end")
+        dur = 0.04 if still else max(0.5, min(seconds + 0.1, 12.0, (float(end) - start) if end else 12.0))
+        out_dir = work / "box" / f"media_{n}"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        for old in out_dir.glob("f_*.jpg"):
+            old.unlink()
+        vf = (f"crop=iw*{crop[2]}:ih*{crop[3]}:iw*{crop[0]}:ih*{crop[1]}," if crop else "")
+        vf += (f"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=0xFBF6E8"
+               if fit == "contain" else f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}")
+        cmd = ["ffmpeg", "-y", "-v", "error"] + ([] if still else ["-ss", f"{start:.2f}"]) + ["-i", str(f)] + \
+              (["-frames:v", "1"] if still else ["-t", f"{dur:.2f}", "-an", "-r", "30"]) + \
+              ["-vf", vf if still else "fps=30," + vf, "-q:v", "3", str(out_dir / "f_%04d.jpg")]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            FAILED.append(rel)
+            log(f"MEDIA FAILED TO LOAD: {rel} ({(e.stderr or b'').decode(errors='ignore').strip()[-120:]})")
+            continue
+        frames = [p.as_uri() for p in sorted(out_dir.glob("f_*.jpg"))]
+        if not frames:
+            FAILED.append(rel)
+            log(f"MEDIA FAILED TO LOAD: {rel} (no frames)")
+            continue
+        if rel != s["file"]:
+            log(f"media box: {s['file']} failed, using the fallback {rel}")
+        s["used_file"] = rel
+        return frames, {"clip": rel, "source": "owner upload (private)", "id": rel, "page": "", "file_url": "",
+                        "license": "owner upload", "start": 0.0 if still else start, "end": 0.04 if still else round(start + len(frames) / 30, 2),
+                        "crop": crop, "fit": fit}
+    raise SystemExit(f"FAIL: box media {s['file']} failed to load" + (f" (fallback {s['fallback']} too)" if s.get("fallback") else ""))
 
 
 def _source(spec: dict, key: str, got: dict, log):
@@ -267,6 +346,10 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
             frames, rec = take(s["clip"], seconds, W, H, n, s.get("crop"), s.get("start"))
             s.update({"frames": frames, "fps": 30})
             recs = [rec]
+        elif s["kind"] == "media":
+            frames, rec = media_frames(s, seconds, W, H, work, n, log)
+            s.update({"frames": frames, "fps": 30})
+            recs = [rec]
         elif s["kind"] == "split":
             half = W // 2 - 6
             fl, rl = take(s["left"], seconds, half, H, n, side="L")
@@ -283,6 +366,7 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
                 log(f"box {s['kind']} {rec['clip']}: Pexels {rec['id']} {rec['start']:.1f}-{rec['end']:.1f} s"
                     f"{' crop ' + str(rec['crop']) if rec.get('crop') else ''} for {s['t0']:.1f}-{s['t1']:.1f} (beat {s.get('beat')}, cue {s.get('cue')})")
     (work / "sources.json").write_text(json.dumps(sources, indent=1))
+    (work / "media_failures.json").write_text(json.dumps(FAILED, indent=1))
     contact(segs, work, log)
     return segs
 
@@ -329,6 +413,6 @@ def page_data(scene: dict, segs: list[dict]) -> tuple[dict, dict]:
            "verse_size": size, "pad_x": int(box.get("pad_x", 52)), "max_lines": max_lines, "allow_overlap": True}
     D = {"id": "box", "verse_size": size,
          "segments": [{k: v for k, v in s.items() if k in ("kind", "t0", "t1", "frames", "frames_l", "frames_r", "fps", "ref",
-                                                          "ref_t", "pages", "clip", "left", "right")}
+                                                          "ref_t", "pages", "clip", "left", "right", "highlights")}
                       for s in segs]}
     return obj, D

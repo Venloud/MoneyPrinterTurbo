@@ -192,7 +192,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                            "dur": cam.get("dur", 0.9 if b else 0.01)})
         for ev in beat.get("events", []):
             e = dict(ev)
-            if "box" in e or "box_bullet" in e or "box_bullets_clear" in e:     # media box requests: mediabox.py
+            if "box" in e or "box_bullet" in e or "box_bullets_clear" in e or "box_highlight" in e:     # media box: mediabox.py
                 continue
             if isinstance(e.get("scripture"), dict):
                 card_n = sum(1 for o in objects if o["type"] == "scripture")
@@ -664,22 +664,24 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
 
 
 def cut_pauses(raw: Path, scene: dict, texts: list[str], whisper_model: str, log) -> list[dict]:
-    """The ONLY edit an approved recording gets: a beat with "pause_before": 0.5 has the silence before its first
-    word cut to that length (the cut sits in the middle of the measured silence, 30 ms crossfade). Speech, speed and
-    every other pause stay untouched. Timings are re-aligned on the edited audio afterwards."""
+    """The ONLY edits an approved recording gets (speech, speed and every other pause stay untouched):
+    - scene "max_silence" / "silence_to" (e.g. 0.8 / 0.5): every silence BETWEEN two words longer than max_silence
+      is cut to silence_to;
+    - a beat with "pause_before": x has the silence before its first word cut to x.
+    The cut sits in the middle of the measured silence with a 30 ms crossfade; timings are re-aligned afterwards."""
     import numpy as np
     import soundfile as sf
 
     from kindled_iron import whisper_transcribe as wt
     wanted = [(b, float(beat["pause_before"])) for b, beat in enumerate(scene["beats"]) if beat.get("pause_before") is not None]
-    if not wanted:
+    max_sil = scene.get("max_silence")
+    if not wanted and max_sil is None:
         return []
     audio, sr = sf.read(raw, dtype="float32")
     heard = wt.transcribe(raw, whisper_model)
     flat = [w for txt in texts for w in words_of(txt)]
     aligned = wt.align(flat, heard, (0.0, len(audio) / sr))
-    first = []
-    k = 0
+    first, k = [], 0
     for txt in texts:
         first.append(k)
         k += len(words_of(txt))
@@ -687,12 +689,10 @@ def cut_pauses(raw: Path, scene: dict, texts: list[str], whisper_model: str, log
     n = len(audio) // hop
     rms = np.sqrt(np.mean(audio[: n * hop].reshape(n, hop) ** 2, axis=1))
     quiet = rms <= max(1e-4, 0.06 * float(np.percentile(rms, 90)))
-    edits = []
-    for b, target in sorted(wanted, reverse=True):          # from the end: earlier positions stay valid
-        i = first[b]
-        a0, a1 = aligned[i - 1]["start"], aligned[i]["end"]
+
+    def longest_quiet(t0: float, t1: float) -> tuple[int, int]:
         best, run = (0, 0), None
-        for f in range(int(a0 / 0.01), min(n, int(a1 / 0.01)) + 1):
+        for f in range(max(0, int(t0 / 0.01)), min(n, int(t1 / 0.01)) + 1):
             q = f < n and quiet[f]
             if q and run is None:
                 run = f
@@ -700,21 +700,35 @@ def cut_pauses(raw: Path, scene: dict, texts: list[str], whisper_model: str, log
                 if f - run > best[1] - best[0]:
                     best = (run, f)
                 run = None
-        silence = (best[1] - best[0]) * 0.01
-        if silence <= target + 0.02:
-            log(f"pause before beat {scene['beats'][b].get('id', b)}: {silence:.2f} s, already <= {target:.2f} s (no cut)")
+        return best
+
+    plan = {}                                   # word index i (gap before word i) -> target silence
+    if max_sil is not None:
+        for i in range(1, len(aligned)):
+            plan[i] = float(scene.get("silence_to", 0.5))
+    for b, target in wanted:
+        plan[first[b]] = target
+    edits = []
+    for i in sorted(plan, reverse=True):        # from the end: earlier positions stay valid
+        target = plan[i]
+        q0, q1 = longest_quiet(aligned[i - 1]["start"], aligned[i]["end"])
+        silence = (q1 - q0) * 0.01
+        limit = target if i in [first[b] for b, _ in wanted] else float(max_sil)
+        if silence <= limit + 0.02:
             continue
         cut = silence - target
-        mid = (best[0] + best[1]) / 2 * 0.01
+        mid = (q0 + q1) / 2 * 0.01
         c0, c1 = int((mid - cut / 2) * sr), int((mid + cut / 2) * sr)
         xf = int(0.03 * sr)
         ramp = np.linspace(0, 1, xf, dtype=np.float32)
         joined = audio[c0 - xf:c0] * (1 - ramp) + audio[c1:c1 + xf] * ramp
         audio = np.concatenate([audio[:c0 - xf], joined, audio[c1 + xf:]])
-        edits.append({"before_beat": scene["beats"][b].get("id", b), "at_s": round(mid, 3), "silence_s": round(silence, 2),
+        edits.append({"before_word": flat[i], "word_index": i, "at_s": round(mid, 3), "silence_s": round(silence, 2),
                       "now_s": target, "removed_s": round(cut, 2), "crossfade_ms": 30})
-        log(f"pause before beat {scene['beats'][b].get('id', b)} ({flat[i]!r}): {silence:.2f} s -> {target:.2f} s "
-            f"(cut {cut:.2f} s at {mid:.2f} s, 30 ms crossfade); nothing else in the recording is edited")
+        log(f"silence before {flat[i]!r} (word {i}): {silence:.2f} s -> {target:.2f} s (cut {cut:.2f} s at {mid:.2f} s, "
+            f"30 ms crossfade)")
+    edits.reverse()
+    log(f"recording edits: {len(edits)} silence cut(s), {sum(e['removed_s'] for e in edits):.2f} s removed; nothing else edited")
     sf.write(raw, audio, sr)
     return edits
 

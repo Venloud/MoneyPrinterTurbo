@@ -198,12 +198,38 @@ def resolve_scene(scene: dict, profile: dict, work: Path, log) -> list[dict]:
     return used
 
 
-def reaction_card(emotion: str, at_t: float, dur: float, pos: dict, work: Path, n: int) -> tuple[dict, dict, dict] | None:
-    """A meme image for a {"reaction": ...} request: (object, draw event, record) or None."""
-    hit = reaction_image(emotion)
+def image_size(path: Path) -> tuple[int, int] | None:
+    try:
+        out = subprocess.check_output(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                       "stream=width,height", "-of", "csv=p=0", str(path)]).decode().split(",")
+        return int(out[0]), int(out[1])
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def private_file(rel: str) -> Path | None:
+    base = root()
+    f = base / rel if base else None
+    return f if f and f.is_file() else None
+
+
+def reaction_card(emotion: str, at_t: float, dur: float, pos: dict, work: Path, n: int,
+                  file: str | None = None) -> tuple[dict, dict, dict] | None:
+    """A meme image for a {"reaction": ...} request: (object, draw event, record) or None. "file": an exact file in the
+    private repo (e.g. movie_reference/x.jpg); without it the emotion is looked up. No "h": the card takes the image's shape."""
+    if file:
+        f = private_file(file)
+        hit = {"path": f, "origin": f"private:{file}"} if f else None
+    else:
+        hit = reaction_image(emotion)
     if not hit:
         return None
-    w, h = int(pos.get("w", 400)), int(pos.get("h", 300))
+    w = int(pos.get("w", 400))
+    if pos.get("h"):
+        h = int(pos["h"])
+    else:
+        sz = image_size(hit["path"]) or (4, 3)
+        h = max(200, min(340, round(w * sz[1] / sz[0])))
     iid = f"react{n}"
     frames = _frames(hit["path"], 0.0, dur, w, h, work / "insets" / iid, still=True)
     obj = {"id": iid, "type": "inset", "x": pos.get("x", 540), "y": pos.get("y", 560), "w": w, "h": h, "rotate": pos.get("rotate", -4),

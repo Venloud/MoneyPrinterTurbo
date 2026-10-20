@@ -1,6 +1,6 @@
 # Love of Money — media expansion shortlist
 
-Status: researched and downloaded; not yet integrated or rendered. This does not replace the approved script or the existing MP4.
+Historical initial shortlist, superseded by the final merged owner brief. The revised implementation and private MP4 are verified; see the final merged-brief section of `kindled_iron/README.md` and private `previews/love-money-39350238922/shot-list.md` for the actual final sources, ranges and settings.
 
 ## Why
 The current build maps the whole script to only five source IDs. Earlier shortlisted family, treatment, transport, payment and savings footage was never wired into that mapping. Long paragraphs need word-cued shot changes within the same drawn inset, not another whole-paragraph loop.

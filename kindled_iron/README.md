@@ -474,3 +474,18 @@ After that sheet is delivered, dispatch `money_review_phase=video` for the MP4.
 Both phases save only to private `kindled-iron-voice/previews/love-money-<run-id>/`;
 new alignment caches stay in private `previews/_alignment/`. No release upload,
 public artifact or platform publishing is used by this owner review.
+
+Final merged-brief verification: code commit `016160f` passed 29 regression checks.
+Preview run `39349654801` completed first and its eight-frame sheet was delivered
+before video run `39350238922` started. Both runs passed all **3,705 frames** over
+123.5 seconds. The final file is 1080×1920 H.264/AAC; the workflow also completed a
+full FFmpeg decode. Preview and video have identical audio edits, choreography,
+shot timings and review-frame times. No voice was regenerated or sped up.
+
+Final review files are only in private
+`Venloud/kindled-iron-voice/previews/love-money-39350238922/`, immutable commit
+`bc3b0befb9d4f7ebe3ba6fc37f45adfe68532e6d`: `love-of-money.mp4`,
+`eight-frames.jpg` (2160×2000), `shot-list.md`, `shot-list.json`, and `metadata.json`.
+The shot report covers every approved paragraph with source IDs and ranges.
+No public artifact, release upload or platform publishing occurred in these two
+final runs. Earlier intermediate review runs are superseded.

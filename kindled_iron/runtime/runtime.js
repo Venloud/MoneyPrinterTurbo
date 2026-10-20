@@ -1157,7 +1157,7 @@
       lastChunk=-999;
       capEl.innerHTML=bullet.words.filter(function(w){return t>=w.start;}).map(function(w){
         var age=t-w.start,scale=age<.12?.86+.14*age/.12:1;
-        return '<span class="said" style="display:inline-block;transform:scale('+scale.toFixed(3)+');font-family:Caveat,sans-serif">'+esc(w.text)+'</span>';
+        return '<span class="said" style="display:inline-block;font-family:Caveat,sans-serif"><span style="display:inline-block;transform:scale('+scale.toFixed(3)+')">'+esc(w.text)+'</span></span>';
       }).join(' ');
       capEl.style.fontSize='60px';capEl.dataset.fit=60;capEl.style.whiteSpace='nowrap';
       capEl.style.transform='translateX(-50%)';placeCaptions();return;

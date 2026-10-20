@@ -142,6 +142,18 @@ def timed_visuals(data,scene,spans,words):
     data['events'].sort(key=lambda e:e['t'])
 
 
+def synchronize_shots(data):
+    """Report actual visibility after scripture holds, not superseded clip plans."""
+    visible={e['id'] for e in data['events'] if e['do']=='draw'}
+    for row in data['editorialShots']:
+        row['planned_start']=row['start'];row['planned_end']=row['end']
+        intervals=[{'start':n['from'],'end':n['to']} for n in data['mediaCoverage'] if n['id']==row['id']]
+        row['visible_intervals']=intervals if row['id'] in visible else []
+        row['shown']=bool(row['visible_intervals'])
+        if row['shown']:
+            row['start']=min(n['start'] for n in intervals);row['end']=max(n['end'] for n in intervals)
+
+
 def report(scene,data,voice,work):
     sources=json.loads((work/'sources.json').read_text());by={s['inset']:s for s in sources}
     reactions=json.loads((work/'reactions.json').read_text())
@@ -155,6 +167,9 @@ def report(scene,data,voice,work):
         for r in data['editorialShots']:
             if r['line']!=i+1:continue
             src=by.get(r['id']);url=src['page'] if src else 'existing hand-drawn runtime'
+            if not r.get('shown',True):
+                entries.append(f"**{r['cue']}**: previous scripture card remains for its required hold; fetched source {url} is superseded, not shown.")
+                continue
             entries.append(f"{r['start']:.2f}s, **{r['cue']}**: {r['meaning']} — {url}")
             if r['id']=='shot_27_1':entries.append('Right half: https://www.pexels.com/video/29119700/')
         if i in REACTIONS:

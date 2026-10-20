@@ -238,7 +238,9 @@ def main():
         return
     data,memes=money_preview.resolve_media(scene,spans,words,duration,a.work,require_all=not bool(a.audio))
     if a.audio:fit_continuous_visuals(data)
-    if a.audio:money_editorial.report(scene,data,voice,a.work)
+    if a.audio:
+        money_editorial.synchronize_shots(data)
+        money_editorial.report(scene,data,voice,a.work)
     if data['captions']:data['captions'][0]['start']=0.0  # visible opening, with real word highlight times
     from kindled_iron import sound
     flat_words=[w for bw in words for w in bw]

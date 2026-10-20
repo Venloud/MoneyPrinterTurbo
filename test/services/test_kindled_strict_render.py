@@ -323,3 +323,14 @@ def test_editorial_every_concrete_cue_has_a_visual_and_no_pin_over_two():
     assert {'Earn','Save','Provide','wallet','heart'}<=set(c for c,_,_ in SHOTS[24])
     assert len([e for b in beats for e in b['events'] if e.get('reaction')])==4
     assert any(e.get('do')=='shrug' for e in beats[-1]['events'])
+
+
+def test_shot_report_distinguishes_card_hold_from_unshown_fetched_clip():
+    from kindled_iron.money_editorial import synchronize_shots
+    data={'editorialShots':[dict(id='verse',start=1,end=3),dict(id='clip',start=3.2,end=3.7)],
+          'events':[dict(do='draw',id='verse')],
+          'mediaCoverage':[{'id':'verse','from':1,'to':3.7}]}
+    synchronize_shots(data)
+    assert data['editorialShots'][0]['shown'] and data['editorialShots'][0]['end']==3.7
+    assert not data['editorialShots'][1]['shown']
+    assert data['editorialShots'][1]['visible_intervals']==[]

@@ -607,6 +607,8 @@
       var text=el.textContent, left=-el.getComputedTextLength()/2;
       el.setAttribute('text-anchor','start');el.setAttribute('x',left);
       ob.typeLines.push({el:el,text:text,offset:offset,left:left,y:parseFloat(el.getAttribute('y'))});
+      var hi=text.toLowerCase().indexOf('love of money');
+      if(hi>=0){ob.typeLines[ob.typeLines.length-1].highlightX=left+el.getSubStringLength(0,hi);ob.typeLines[ob.typeLines.length-1].highlightW=el.getSubStringLength(hi,13);}
       offset+=text.length+1;
       el.textContent='';
     });
@@ -1363,7 +1365,7 @@
     (D.verseHighlights || []).forEach(function(h){var ob=objs[h.id];if(!ob)return;
       ob.typeLines.forEach(function(ln){var i=ln.text.toLowerCase().indexOf(h.text);if(i<0)return;
         if(!ln.highlight){var r=document.createElementNS(SVGNS,'rect');r.setAttribute('fill',C.accent);r.setAttribute('opacity','.28');ln.el.parentNode.insertBefore(r,ln.el);ln.highlight=r;}
-        var left=ln.left+(i && ln.el.textContent.length?ln.el.getSubStringLength(0,Math.min(i,ln.el.textContent.length)):0),width=ln.text.length?ln.el.getComputedTextLength()*h.text.length/ln.text.length:0;
+        var left=ln.highlightX,width=ln.highlightW;
         ln.highlight.setAttribute('x',left);ln.highlight.setAttribute('y',ln.y-ob.def.size*.36);ln.highlight.setAttribute('height',ob.def.size*.8);
         ln.highlight.setAttribute('width',t>=h.start&&t<h.end?width*Math.min(1,(t-h.start)/.18):0);
       });
@@ -1753,6 +1755,7 @@
 
   window.kiV3Check=function(t){
     var out=[];
+    if(chars.guide)chars.guide.strokes.forEach(function(st){if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;var r=st.getBoundingClientRect();if((r.width||r.height)&&(r.left<120||r.right>960||r.top<160||r.bottom>1440))out.push('guide stroke outside safe box '+JSON.stringify([r.left,r.top,r.right,r.bottom]));});
     function rect(el){var r=el.getBoundingClientRect();return {left:r.left-5,right:r.right+5,top:r.top-5,bottom:r.bottom+5};}
     function overlap(a,b){return a.left<b.right && a.right>b.left && a.top<b.bottom && a.bottom>b.top;}
     var top=[]; Object.keys(objs).forEach(function(id){var ob=objs[id];if(!shown(ob.el)||+getComputedStyle(ob.el).opacity<.01)return;

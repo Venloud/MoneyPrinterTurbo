@@ -46,7 +46,7 @@
   "cast": {
     "guide": {
       "panel": 0,
-      "x": 195,
+      "x": 330,
       "scale": 1.785,
       "facing": 1,
       "accent": true
@@ -127,7 +127,8 @@
           "pop": false,
           "visual": true,
           "k": 0.65,
-          "decorative": true
+          "decorative": true,
+          "instant": true
         }
       ]
     },

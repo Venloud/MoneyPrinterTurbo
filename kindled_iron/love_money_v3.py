@@ -135,18 +135,20 @@ def timeline(scene,spans,words,duration):
    if not e.get('reaction_popup'):continue
    t=cue(e,words[i],spans[i]);pops.append((t,e['id']));protected.append((t-.3,t+1.5))
  data['guideWalkSpeed']=220
- data['guideSpots']=[195,345,495,645,795,885];x=195;last=0;moves=[]
- for i in [1,3,5,7,9,11,13]:
-  target=[345,195,495,795,885,645,345][len(moves)%7];dur=abs(target-x)/220;t=max(spans[i][0]+.1,last+.3)
+ data['guideSpots']=[330,410,490,570,650,750];x=330;last=0;moves=[]
+ for move_index,i in enumerate([1,3,5,7,9,11,13]):
+  target=[410,330,330,490,750,650,570][move_index]
+  if target==x:continue
+  dur=max(.7,abs(target-x)/220);t=max(spans[i][0]+.1,last+.3)
   for _ in range(50):
    hit=next(((a,b) for a,b in sorted(protected) if t+.25+dur+.3>a and t<b),None)
    if not hit:break
    t=hit[1]+.1
   if t+dur+.55>spans[min(i+1,len(spans)-1)][1]:continue
-  events.extend([dict(t=t,do='face',who='guide',facing=1 if target>x else -1),dict(t=t+.25,do='walk',who='guide',to=target,speed=220)])
+  events.extend([dict(t=t,do='face',who='guide',facing=1 if target>x else -1),dict(t=t+.25,do='walk',who='guide',to=target,speed=220,dur=dur)])
   moves.append(dict(start=t+.25,end=t+.25+dur,to=target));last=t+.25+dur+.3;x=target
  for t,id in pops:
-  x=195
+  x=330
   for m in moves:
    if m['end']<=t:x=m['to']
   objs[id]['x']=700 if x<540 else 350;objs[id]['reaction_popup']=True

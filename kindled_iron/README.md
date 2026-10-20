@@ -439,3 +439,38 @@ cover both modes, current-position meme/body geometry, slow speed, gesture rests
 scripture protection, missing media and backwards walking. An eight-frame JPG
 and exact-line/source shot report accompany the private MP4 in the private
 `test-renders` release. No public Actions artifact or platform publishing.
+
+### Final merged owner brief — supersedes earlier review settings (2026-10-20)
+
+The final owner brief wins over the earlier 0.7-second/four-meme/band-bullet
+review. `money_preview.build(..., editorial=True)` now constructs the word-cued
+shot list, then the uploaded recording's alignment supplies every cue time.
+The final pause is **0.5 seconds**, with the same 20 ms quiet-only crossfade;
+no other pause, word, voice or speech speed changes. The original recording's
+SHA256 remains `3065df6e76bdfc452026eafe828f74f03ded0359e5530bf804602064b0d767fa`.
+
+Only dealership exterior ID **7154208** remains. Lifestyle footage contains no
+other car; gear/engine/dashboard shots are cropped component details. Requested
+pins and non-overlapping work, phone and savings ranges take priority over the
+older general two-use limit. Cash-counting is capped at three uses, and identical
+consecutive source/range/crop combinations fail. The closing split uses cash and
+an open Bible. Proverbs and Hebrews use different Bible ranges from 1 Timothy.
+
+The guide keeps the distance-driven 140 px/s stride over six bottom-band spots,
+with rests for gestures and all typing/holds. Three memes use the original
+three-second spacing limit: great, does (Everybody does it), and rich. The rich
+image replaces checked; it is 380 px wide beside the guide, and its private
+original must be at least that wide (the selected original is 652 px).
+
+Four cumulative uppercase bullets now appear **inside the inset**, with no cover
+panel. Normal caption-band text is suppressed only for that phrase. Bullets clear
+at the first word of the next sentence and have an independent every-frame
+bounds/collision/progress audit. Ordinary captions stay fixed at size 92.
+
+Dispatch `money_review_phase=preview` first with the exact script and private
+`money_audio_path`. This aligns the supplied read, fetches real sources in
+Actions, audits every frame and produces only the eight-frame sheet/report.
+After that sheet is delivered, dispatch `money_review_phase=video` for the MP4.
+Both phases save only to private `kindled-iron-voice/previews/love-money-<run-id>/`;
+new alignment caches stay in private `previews/_alignment/`. No release upload,
+public artifact or platform publishing is used by this owner review.

@@ -204,6 +204,9 @@ def reaction_card(emotion: str, at_t: float, dur: float, pos: dict, work: Path, 
     if not hit:
         return None
     w, h = int(pos.get("w", 400)), int(pos.get("h", 300))
+    if pos.get('require_original_width'):
+        from PIL import Image
+        if Image.open(hit['path']).width<w:raise SystemExit(f'FAIL: reaction {emotion} original is smaller than required {w}px')
     iid = f"react{n}"
     frames = _frames(hit["path"], 0.0, dur, w, h, work / "insets" / iid, still=True)
     obj = {"id": iid, "type": "inset", "x": pos.get("x", 540), "y": pos.get("y", 560), "w": w, "h": h, "rotate": pos.get("rotate", -4),

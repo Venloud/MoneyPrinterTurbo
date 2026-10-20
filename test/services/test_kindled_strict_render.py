@@ -293,7 +293,7 @@ def test_continuous_read_holds_card_without_covering_it_with_new_clip():
     assert data['captionSuppress']==[dict(start=1,end=4)]
 
 
-def test_crossfade_only_changes_selected_silence_and_keeps_point_seven():
+def test_crossfade_only_changes_selected_silence_and_keeps_point_five():
     import numpy as np
     from kindled_iron.money_video import shorten_final_silence
     sr=1000
@@ -301,27 +301,32 @@ def test_crossfade_only_changes_selected_silence_and_keeps_point_seven():
     silence=np.full(1552,.00001,dtype=np.float32)
     after=before[::-1].copy()
     audio=np.concatenate([before,silence,after])
-    out,meta=shorten_final_silence(audio,sr,1,2.552,.7,.02)
+    out,meta=shorten_final_silence(audio,sr,1,2.552,.5,.02)
     assert np.array_equal(out[:1000],before) and np.array_equal(out[-1000:],after)
-    assert len(out)==2700 and meta['removed_seconds']==pytest.approx(.852)
-    assert meta['crossfade_seconds']==.02 and meta['kept_seconds']==.7
-    assert np.max(np.abs(np.diff(out[1000:1700])))<.000001
+    assert len(out)==2500 and meta['removed_seconds']==pytest.approx(1.052)
+    assert meta['crossfade_seconds']==.02 and meta['kept_seconds']==.5
+    assert np.max(np.abs(np.diff(out[1000:1500])))<.000001
 
 
-def test_editorial_every_concrete_cue_has_a_visual_and_no_pin_over_two():
-    from kindled_iron.money_editorial import SHOTS,expand
+def test_final_media_contract_uses_requested_pins_ranges_and_three_private_memes():
+    from kindled_iron.money_editorial import SHOTS,RANGES,expand
     from collections import Counter
-    # Expansion operates on the already approved beat structure without touching narration.
     beats=[dict(narration=f'exact paragraph {i}',captions=True,events=[]) for i in range(27)]
     scene={'beats':beats};before=[b['narration'] for b in beats];expand(scene)
     assert before==[b['narration'] for b in beats]
     pins=Counter(e['pin']['pexels'] for b in beats for e in b['events'] if e.get('pin'))
-    pins['29119700']+=1
-    assert max(pins.values())==2 and len(pins)>=35
-    assert pins['5651780']==2
-    assert {'feed','treatment','home'}<=set(c for c,_,_ in SHOTS[11])
-    assert {'Earn','Save','Provide','wallet','heart'}<=set(c for c,_,_ in SHOTS[24])
-    assert len([e for b in beats for e in b['events'] if e.get('reaction')])==4
+    assert sum(pins[k] for k in ('5466769','7710826'))<=3
+    assert {'feed','treatment','get'}<=set(c for c,_,_ in SHOTS[11])
+    assert {'Earn','Save','Provide','wallet','running'}<=set(c for c,_,_ in SHOTS[24])
+    assert [pin for _,pin,_ in SHOTS[24]][:4]==['10374892','7535095','7710771','8421648']
+    for groups in [[(19,1),(20,1),(24,2)],[(19,2),(24,0)],[(3,0),(24,1)]]:
+        ranges=sorted(RANGES.get(k,(1,None))[0] for k in groups)
+        assert all(a+3<=b for a,b in zip(ranges,ranges[1:]))
+    assert not any(p in pins for p in ('7154207','7154212','7154215','34231504','9737916'))
+    reactions=[e for b in beats for e in b['events'] if e.get('reaction')]
+    assert len(reactions)==3 and {e['at'] for e in reactions}=={'great','does','rich'}
+    assert next(e for e in reactions if e['at']=='rich')['card']['w']>=380
+    assert scene['reaction_limits']=={'max':3,'min_gap':3.0}
     assert any(e.get('do')=='shrug' for e in beats[-1]['events'])
 
 
@@ -334,3 +339,26 @@ def test_shot_report_distinguishes_card_hold_from_unshown_fetched_clip():
     assert data['editorialShots'][0]['shown'] and data['editorialShots'][0]['end']==3.7
     assert not data['editorialShots'][1]['shown']
     assert data['editorialShots'][1]['visible_intervals']==[]
+
+
+@pytest.mark.parametrize('outside',[False,True])
+def test_inset_bullet_audit_actually_rejects_out_of_bounds_text(outside):
+    runtime=Path('kindled_iron/runtime/runtime.js').read_text()
+    start=runtime.index('  window.kiBulletCheck=function')
+    end=runtime.index('  window.kiSeek = function',start)
+    setup='''const window={}; const D={bulletOverlays:[{start:0,end:2,zone:{left:200,top:410,right:880,bottom:605},words:[{start:0}]}]};
+const capEl={textContent:''}; const chars={}; const objs={}; function headBoxes(){return [];} function capRect(){return null;}
+'''
+    left=180 if outside else 220
+    setup+=f'const bulletEl={{children:[{{getBoundingClientRect:()=>({{left:{left},top:430,right:450,bottom:490}})}}]}};'
+    issues=json.loads(subprocess.check_output(['node','-e',setup+runtime[start:end]+'console.log(JSON.stringify(window.kiBulletCheck(1)));'],text=True))
+    assert bool(issues)==outside
+
+
+def test_rich_reaction_refuses_a_thumbnail_instead_of_upscaling(tmp_path):
+    from PIL import Image
+    from kindled_iron import private_media
+    image=tmp_path/'thumb.jpg';Image.new('RGB',(150,90)).save(image)
+    with patch.object(private_media,'reaction_image',return_value={'path':image,'origin':'private:test'}):
+        with pytest.raises(SystemExit,match='original is smaller than required 380px'):
+            private_media.reaction_card('celebration',0,1,{'w':380,'h':240,'require_original_width':True},tmp_path,1)

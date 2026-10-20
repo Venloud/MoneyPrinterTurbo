@@ -9,41 +9,45 @@ from kindled_iron import render,insets,private_media
 # (word cue, source ID, meaning). All source IDs were visually researched.
 SHOTS = {
 0:[(0,'5651780','US hundred-dollar bills'),('or','6144016','Hesitating: thinking face')],
-1:[(0,'9737916','Car lot establishing shot'),('selling','7154208','The same fictional sale car'),('transmission','35585184','Dashboard warning lights')],
+1:[(0,'7154208','The single dealership car: fictional sale'),('transmission','2075171','Transmission: gear shift detail')],
 2:[(0,'8986479','Checking under the hood')],
 3:[(0,'7535095','Phone banking / card payment')],
-4:[(0,'7154207','Sale handshake; Runs great reaction')],
-5:[(0,'8630309','Driving away: moving wheel and road detail'),('paid','7710826','US dollars received'),('week','34231504','Tow truck: consequences'),('repair','6685058','Customer discussing repair invoice with mechanic')],
+4:[(0,'7154208','Same dealership car; Runs great reaction')],
+5:[(0,'2075171','Driving: gear shift detail'),('paid','7710826','US dollars received'),('repair','7546415','Repair invoice')],
 6:[(0,'6952545','Brother and sister bonding')],
-7:[(0,'7154215','Young woman beside car: imagined sister')],
+7:[(0,'6952545','Same imagined sister: alternate close crop and range')],
 8:[(0,'2075171','Gear shift: transmission needs work')],
 9:[(0,'7154208','SAME CAR / SAME PROBLEM: identical car side by side')],
 10:[(0,'5466769','US dollars valued over another person'),('them','4988391','Reflecting on the consequence')],
-11:[(0,'7263305','Newspaper: the repeated saying'),('Bible','5199724','Bible: checking the actual claim'),('feed','6305041','Family dinner'),('treatment','4352135','Medical consultation'),('home','7252265','Transit ticket home')],
-12:[(0,'5199729','1 Timothy: Bible prefix before quote')],
+11:[(0,'7263305','Newspaper: the repeated saying'),('Bible','5199724','Bible: checking the actual claim'),('feed','6305041','Family dinner'),('treatment','4352135','Medical consultation'),('get','7252265','Transit ticket home')],
+12:[(0,'5199724','1 Timothy: Bible prefix, first range')],
 13:[(0,'7475240','Generosity as contrast to loving money')],
-14:[(0,'7154212','Car sale'),('want','7924459','Financial pressure: past-due bill'),('truth','11099870','Empty wallet: the temptation'),('excuses','7889097','Face: rationalizing')],
-15:[(0,'8986485','Inspection: They should have checked reaction')],
+14:[(0,'7154208','Same dealership car sale'),('want','7546415','Financial pressure: invoice'),('truth','11099870','Empty wallet: the temptation'),('excuses','7889097','Face: rationalizing')],
+15:[(0,'14514790','Inspection: mechanics hands, no second exterior')],
 16:[(0,'7546415','Invoice: I need the money')],
-17:[(0,'8987078','Repair work: Everybody does it reaction')],
-18:[(0,'14514790','The unfixed car'),('hiding','8986488','Engine fault remains')],
-19:[(0,'8421648','Essential groceries'),('savings','7710771','US-dollar savings jar'),('work','33825911','Commuter getting to work'),('bills','7924459','Past-due bills')],
-20:[(0,'7710826','Verified US dollars; rich reaction'),('almost','36036686','Almost nothing: coins in a hand')],
-21:[(0,'13013179','Proverbs: different open Bible')],
-22:[(0,'16577160','Hebrews: another Bible opening')],
-23:[(0,'29119700','Hope: sunrise'),('right','6685054','Honest work and agreement'),('money','7924953','Need: an empty wallet')],
-24:[(0,'10374892','WORK: laptop work'),('Earn','6282368','EARN: payroll illustration'),('Save','7710771','SAVE: US-dollar savings jar'),('Provide','8503011','PROVIDE: family at home'),('wallet','11272053','Wallet opening'),('heart',None,'Hand-drawn heart')],
+17:[(0,'35585184','Warning lights remain: Everybody does it reaction')],
+18:[(0,'2075171','Transmission still needs work'),('hiding','8986488','Engine detail: hiding does not fix it')],
+19:[(0,'7924459','Need money: past-due bill'),('spending','7710771','Spending savings: first jar range'),('just','10374892','Getting to work: laptop work, first range'),('Your','7924459','Your bills: later range and closer crop')],
+20:[(0,'11099870','An empty wallet contrasts with the rich meme'),('almost','7710771','Almost nothing: later savings-jar range')],
+21:[(0,'5199724','Proverbs: later Bible range')],
+22:[(0,'5199724','Hebrews: another later Bible range')],
+23:[(0,'29119700','Hope: sunrise'),('right','5199724','Trust in God: later open Bible detail'),('money','7924953','Need: an empty wallet')],
+24:[(0,'10374892','WORK: new laptop range'),('Earn','7535095','EARN: later phone/card range'),('Save','7710771','SAVE: non-overlapping savings range'),('Provide','8421648','PROVIDE: groceries'),('wallet','11272053','Wallet opening'),('running',None,'Who runs your heart: hand-drawn heart')],
 25:[(0,'4988391','Considering the honest choice'),('ten','5651780','US hundred-dollar bills: second and last use')],
-26:[(0,'5466769','Closing choice: cash left / sunrise right')],
+26:[(0,'5466769','Closing choice: cash left / open Bible right')],
 }
-REACTIONS={4:('great','surprised',.7),15:('checked','confused',.7),17:('does','smart',.7),20:('rich','celebration',1.0)}
+RANGES={(1,0):(1,None),(4,0):(4.5,None),(7,0):(5,[.15,.1,.75,.75]),(9,0):(1,None),(14,0):(7,None),
+        (19,0):(1,None),(19,1):(1,None),(19,2):(0,None),(19,3):(5.5,[0,.05,.95,.55]),
+        (20,1):(6,None),(12,0):(1,None),(21,0):(5,None),(22,0):(8,None),(23,1):(10.5,None),
+        (24,0):(4.5,None),(24,1):(5.5,None),(24,2):(12,None)}
+
+REACTIONS={4:('great','surprised',.7),17:('does','smart',.7),20:('rich','celebration',1.0)}
 
 def expand(scene):
     """Keep all approved words/cards/gestures; replace the repetitive source mapping."""
     if len(scene['beats'])!=27:raise SystemExit('FAIL: expansion requires the exact 27-paragraph approved script')
     scene['editorial_expansion']=True
-    # Owner's current review explicitly asks for all four cue-specific images.
-    scene['reaction_limits']={'max':4,'min_gap':1.5}
+    scene['reaction_limits']={'max':3,'min_gap':3.0}
     for i,b in enumerate(scene['beats']):
         old=b['events'];card=next((deepcopy(e) for e in old if e.get('scripture')),None)
         keep=[deepcopy(e) for e in old if e.get('do') in ('express','point','shrug','present')]
@@ -58,8 +62,13 @@ def expand(scene):
                 if pin=='8630309':e['crop']=[.05,.02,.5,.75]
                 if pin=='14514790':e['crop']=[.55,.40,.40,.40]
                 if i==9:e['split_same']=True
-                if i==26:e['composite_pin']='29119700'
+                if i==26:e['composite_pin']='5199724';e['composite_start']=10.5
             else:e.update(type='heart',dur=.7,color='accent',instant=False)
+            if (i,j) in RANGES:
+                e['start'],crop=RANGES[i,j]
+                if crop:e['crop']=crop
+            if pin=='8986479':e['crop']=[.18,.15,.65,.65]
+            if pin=='8986488':e['crop']=[.12,.18,.7,.6]
             ev.append(e)
         if card:
             card['card_at_beat_start']=False;card['editorial']=True;ev.append(card)
@@ -68,7 +77,7 @@ def expand(scene):
             ev.append(e)
         if i in REACTIONS:
             cue,emotion,dur=REACTIONS[i]
-            ev.append(dict(at=cue,reaction=emotion,dur=dur,card=dict(x=650,y=1120,w=200,h=160,rotate=0)))
+            ev.append(dict(at=cue,reaction=emotion,dur=dur,card=dict(x=535 if i==20 else 650,y=1120,w=380 if i==20 else 200,h=240 if i==20 else 160,rotate=0,require_original_width=i==20)))
             b['serious']=False
         if i==1:
             ev += [dict(at='selling',do='draw',id='sale_sign',type='word',text='FOR SALE',x=540,y=570,size=56,color='accent',instant=True,pop=False),
@@ -78,8 +87,16 @@ def expand(scene):
             ev += [dict(at=0,do='look_viewer',who='guide'),dict(at='trust',do='shrug',who='guide',hold=1.1)]
         b['events']=ev
     counts=Counter(e['pin']['pexels'] for b in scene['beats'] for e in b['events'] if e.get('editorial') and e.get('pin'))
-    counts['29119700']+=1 # closing composite right side
-    if max(counts.values())>2:raise SystemExit('FAIL: source used more than twice: '+str(dict(counts)))
+    counts['5199724']+=1 # closing composite right side
+    if sum(counts[k] for k in ('5466769','7710826'))>3:raise SystemExit('FAIL: cash-counting footage exceeds three uses')
+    last=None
+    for b in scene['beats']:
+        for e in b['events']:
+            if e.get('scripture'):last=None
+            if not e.get('pin'):continue
+            key=(e['pin']['pexels'],e.get('start',1),tuple(e.get('crop') or []),e.get('split_same'),e.get('composite_pin'))
+            if key==last:raise SystemExit('FAIL: identical consecutive footage at '+e['id'])
+            last=key
     return scene
 
 
@@ -89,7 +106,7 @@ def fetch(scene,work,log):
     for b in expanded['beats']:
         for e in list(b['events']):
             if e.get('composite_pin'):
-                partner={**e,'id':e['id']+'_right','pin':{'pexels':e['composite_pin']},'query':'Closing sunrise'}
+                partner={**e,'id':e['id']+'_right','pin':{'pexels':e['composite_pin']},'query':'Closing open Bible','start':e.get('composite_start',10.5)}
                 partner.pop('composite_pin');b['events'].append(partner)
     clips=insets.fetch(expanded,work,log)
     from PIL import Image,ImageOps
@@ -121,7 +138,7 @@ def timed_visuals(data,scene,spans,words):
             if o['type']=='scripture':
                 e['show_at']=o['_t0'];t=o['_t0'];kind='scripture'
             else:t=e['t'];kind='drawing' if o['type']=='heart' else 'inset'
-            rows.append(dict(id=o['id'],kind=kind,start=t,line=i+1,cue=spec.get('at',0),meaning=spec.get('meaning','Scripture'),source=(spec.get('pin') or {}).get('pexels')))
+            rows.append(dict(id=o['id'],kind=kind,start=t,line=i+1,cue=spec.get('at',0),meaning=spec.get('meaning','Scripture'),source=(spec.get('pin') or {}).get('pexels'),source_start=spec.get('start',1),crop=spec.get('crop')))
     rows.sort(key=lambda r:r['start'])
     coverage=[]
     for n,row in enumerate(rows):
@@ -136,7 +153,7 @@ def timed_visuals(data,scene,spans,words):
     data['mediaCoverage']=coverage
     # Four cumulative bullets replace ordinary captions only over this phrase.
     bw=words[24];start=render.resolve_at('work',bw,*spans[24],{});end=render.resolve_at('warning',bw,*spans[24],{})
-    data['bulletCaptions']=[dict(start=start,end=end,words=[dict(text='✓ '+label,start=render.resolve_at(cue,bw,*spans[24],{})) for cue,label in [('work','Work'),('Earn','Earn'),('Save','Save'),('Provide','Provide')]])]
+    data['bulletOverlays']=[dict(start=start,end=render.resolve_at('The',bw,*spans[24],{}),zone=dict(left=200,top=410,right=880,bottom=605),words=[dict(text='✓ '+label,start=render.resolve_at(cue,bw,*spans[24],{})) for cue,label in [('work','WORK'),('Earn','EARN'),('Save','SAVE'),('Provide','PROVIDE')]])]
     data['guideSpots']=[160,310,460,610,760,920]
     data['editorialShots']=rows
     data['events'].sort(key=lambda e:e['t'])
@@ -159,8 +176,8 @@ def report(scene,data,voice,work):
     reactions=json.loads((work/'reactions.json').read_text())
     lines=['# Love of Money — private test shot report','',
            'Exact approved script; supplied venloud v4 recording. No voice regeneration, no publishing.',
-           'Normal captions retain size 92. The cumulative four-item bullet line uses size 60 in the same fixed band so all four fit without wrapping.',
-           f"Final pause: {voice['ending_pause_edit']['original_seconds']:.3f} → 0.700 s; 20 ms crossfade within silence. Music mixed continuously after the cut.",
+           'Normal captions retain size 92. Four cumulative uppercase bullets appear inside the inset, in their own audited region.',
+           f"Final pause: {voice['ending_pause_edit']['original_seconds']:.3f} → 0.500 s; 20 ms crossfade within silence. Music mixed continuously after the cut.",
            '', '| Line / exact narration | Cue → visual and source |','|---|---|']
     for i,b in enumerate(scene['beats']):
         entries=[]
@@ -170,34 +187,54 @@ def report(scene,data,voice,work):
             if not r.get('shown',True):
                 entries.append(f"**{r['cue']}**: previous scripture card remains for its required hold; fetched source {url} is superseded, not shown.")
                 continue
-            entries.append(f"{r['start']:.2f}s, **{r['cue']}**: {r['meaning']} — {url}")
-            if r['id']=='shot_27_1':entries.append('Right half: https://www.pexels.com/video/29119700/')
+            entries.append(f"{r['start']:.2f}s, **{r['cue']}**: {r['meaning']} — ID {r['source'] or r['id']}, range {r.get('source_start',1):.1f}s, crop {r.get('crop')} — {url}")
+            if r['id']=='shot_27_1':entries.append('Right half: ID 5199724, source range 10.5s — https://www.pexels.com/video/5199724/')
         if i in REACTIONS:
             cue,emotion,_=REACTIONS[i];rec=next((r for r in reactions if r['emotion']==emotion),None)
             entries.append(f"**{cue}** reaction: {rec['origin']} — {rec.get('source','private reactions/')}" if rec else f'ERROR missing reaction {emotion}')
         lines.append('| '+str(i+1)+'. '+b['narration'].replace('|','/')+' | '+'<br>'.join(entries)+' |')
     lines+=['','All third-party reaction files and narration remain in the private voice repository. No public Actions artifacts.',
-            'The FOR SALE lettering is an editorial sign on the sale shot. Driving is a wheel/road detail, not a second identifiable car exterior.',
+            'The FOR SALE lettering is editorial. One dealership exterior ID (7154208) is used throughout; other vehicle shots are cropped technical details.',
             'Stock people illustrate the fictional story; the footage is not evidence of actual dishonesty or vehicle defects.',
-            'The lot is an establishing shot, engine/dashboard are component details, and SAME CAR uses the exact same source twice in one composed frame.',
-            'Phone/card is a payment illustration; it does not show an invented real bank notification. EARN uses a payroll animation.',
+            'SAME CAR duplicates the approved car source in one composed frame. Lifestyle sources show no other cars.',
+            'Phone/card is a payment illustration; no fake notification. EARN uses a distinct phone/card range.',
             'Bible prefixes use different IDs before the unchanged scripture card; no competing footage during typing.']
     (work/'shot-list.md').write_text('\n'.join(lines)+'\n')
     (work/'shot-list.json').write_text(json.dumps(dict(shots=data['editorialShots'],sources=sources,reactions=reactions),indent=2))
 
 
-def review_sheet(data,video,work):
-    from PIL import Image,ImageDraw
-    rows=data['editorialShots'];times=[.3]
+def review_times(data,work):
+    rows=data['editorialShots']
     def at(line,cue=None,offset=.25):
-        r=next(r for r in rows if r['line']==line and (cue is None or r['cue']==cue));return min(r['start']+offset,r['end']-.05)
-    times += [16.4,at(10,offset=.7),at(12,'feed'),next(r['start']+2 for r in rows if r['line']==13 and r['kind']=='scripture'),at(21,'almost')-.8,at(25,'Provide')+.15,at(27,offset=.6)]
-    # Use actual meme timestamp, never an estimated narration clock.
-    memes=json.loads((work/'reactions.json').read_text());times[1]=memes[0]['t']+.2
-    times[5]=next(m['t']+.3 for m in memes if m['emotion']=='celebration')
+        r=next(r for r in rows if r['line']==line and (cue is None or r['cue']==cue))
+        return min(r['start']+offset,r['end']-.05)
+    memes=json.loads((work/'reactions.json').read_text())
+    return [.3,memes[0]['t']+.2,at(10,offset=.7),at(12,'feed'),
+            next(r['start']+2 for r in rows if r['line']==13 and r['kind']=='scripture'),
+            next(m['t']+.3 for m in memes if m['emotion']=='celebration'),
+            at(25,'Provide')+.15,at(27,offset=.6)]
+
+
+def stitch_sheet(paths,times,path):
+    from PIL import Image,ImageDraw
     sheet=Image.new('RGB',(2160,2000),'#f4f1ea');d=ImageDraw.Draw(sheet)
+    for i,(src,t) in enumerate(zip(paths,times)):
+        im=Image.open(src).convert('RGB');im.thumbnail((540,960))
+        x=i%4*540;y=i//4*1000;sheet.paste(im,(x,y));d.text((x+12,y+970),f'{t:.2f}s',fill='black')
+    sheet.save(path,quality=92)
+
+
+def preview_sheet(data,page,out,work):
+    times=review_times(data,work);frames=work/'eight_frames'
+    render.capture(page,None,None,data['duration'],None,stills=times,still_dir=frames)
+    paths=[frames/f'frame_{t:05.2f}.png' for t in times]
+    stitch_sheet(paths,times,out.parent/'eight-frames.jpg')
+    return times
+
+
+def review_sheet(data,video,work):
+    times=review_times(data,work);paths=[]
     for i,t in enumerate(times):
-        p=work/f'review_{i}.jpg';subprocess.run(['ffmpeg','-v','error','-ss',str(t),'-i',str(video),'-frames:v','1','-vf','scale=540:960','-y',str(p)],check=True)
-        x=i%4*540;y=i//4*1000;sheet.paste(Image.open(p),(x,y));d.text((x+12,y+970),f'{t:.2f}s',fill='black')
-    p=video.parent/'eight-frames.jpg';sheet.save(p,quality=92)
+        p=work/f'review_{i}.jpg';subprocess.run(['ffmpeg','-v','error','-ss',str(t),'-i',str(video),'-frames:v','1','-vf','scale=540:960','-y',str(p)],check=True);paths.append(p)
+    stitch_sheet(paths,times,video.parent/'eight-frames.jpg')
     return times

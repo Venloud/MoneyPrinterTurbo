@@ -20,7 +20,7 @@ MECHANIC = '14514790'
 BIBLE = '5199724'
 
 
-def build(script: str):
+def build(script: str, *, editorial=False):
     note = 'Bracketed references appear on screen and are not spoken.'
     lines = [p.strip() for p in script.strip().split('\n\n') if p.strip()]
     if not lines or lines[-1] != note:
@@ -90,6 +90,9 @@ def build(script: str):
         # Pause-only lane changes cannot collide with a spoken caption. Cards
         # finish typing and hold for >=1 second before the next line starts.
         t=end+(1.4 if (i+1)%3==0 else 1.3 if ref else .35)
+    if editorial:
+        from kindled_iron.money_editorial import expand
+        expand(scene)
     scripture.check_scene(scene,render.log)
     return scene,spans,words,t+1.2
 
@@ -103,8 +106,8 @@ def resolve_media(scene,spans,words,duration,work,require_all=True):
     if scene.get('editorial_expansion'):money_editorial.timed_visuals(data,scene,spans,words)
     data['inboxReactions'], memes=effects.apply_reaction_rules(data['events'],scene,spans,words,work,render.log,data,True)
     requested=[e for e in data['events'] if e['do']=='reaction']
-    if scene.get('editorial_expansion') and (len(memes)!=4 or any(not m['origin'].startswith('private:reactions/') for m in memes)):
-        raise SystemExit('FAIL: all four owner-selected reactions must resolve from private reactions/: '+str(memes))
+    if scene.get('editorial_expansion') and (len(memes)!=3 or any(not m['origin'].startswith('private:reactions/') for m in memes)):
+        raise SystemExit('FAIL: all three owner-selected reactions must resolve from private reactions/: '+str(memes))
     if require_all and (len(memes)!=3 or len(requested)!=3 or any(e.get('_drop') for e in requested)):
         missing=[e['emotion'] for e in requested if e.get('_drop') or not any(m['emotion']==e['emotion'] for m in memes)]
         raise SystemExit('FAIL: selected reaction images missing/dropped: '+', '.join(missing))
@@ -113,6 +116,7 @@ def resolve_media(scene,spans,words,duration,work,require_all=True):
         obj=next(o for o in data['objects'] if o['id']==rec['id'])
         event=next(e for e in data['events'] if e.get('id')==rec['id'] and e['do']=='draw')
         obj.update(required=True,reaction_card=True,display_dur=obj['clip_dur'])
+        rec.update(width=obj['w'],height=obj['h'])
         event.update(instant=True,pop=False)
     data['events'].sort(key=lambda e:e['t'])
     (work/'reactions.json').write_text(json.dumps(memes,indent=2))

@@ -491,7 +491,7 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
         samples.mkdir(exist_ok=True)
         for frame in range(max(1, int(math.ceil(duration * FPS)))):
             t = frame / FPS
-            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t), window.kiWalkCheck(t), window.kiStrictReactionCheck(t)); }", t)
+            issues = page.evaluate("async t => { await window.kiSeek(t); return window.kiStrictCaptionCheck().concat(window.kiStrictMediaCheck(t), window.kiWalkCheck(t), window.kiStrictReactionCheck(t), window.kiBulletCheck(t)); }", t)
             if issues:
                 (work / "strict_layout.json").write_text(json.dumps({"passed": False, "frame": frame, "time": t, "issues": issues}, indent=2))
                 raise SystemExit(f"FAIL: layout frame {frame} ({t:.3f}s): {'; '.join(issues)}")

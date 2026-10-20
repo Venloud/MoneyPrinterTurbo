@@ -13,6 +13,11 @@ on:
         description: "Optional owner-supplied MP3 path inside the private voice repo; use as-is, shorten final pause only"
         required: false
         default: ""
+      money_review_phase:
+        description: "Love of Money: send audited eight-frame preview first, then encode the approved private video"
+        type: choice
+        options: [preview, video]
+        default: preview
       money_video_script:
         description: "Exact approved Love of Money script: full PRIVATE review with original voice, never publish"
         required: false
@@ -406,12 +411,13 @@ jobs:
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = true ] || { echo 'FAIL: review media must stay private'; exit 1; }
           d="$RUNNER_TEMP/private_media"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
-          git -C "$d" sparse-checkout set reactions music review-inputs
+          git -C "$d" sparse-checkout set reactions music review-inputs previews/_alignment
           echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
           mkdir -p "$KI_TTS_CACHE" "$RUNNER_TEMP/music_themes"
           if gh release download test-renders --repo "$VOICE_REPO" --pattern money-voice-cache.zip --dir "$RUNNER_TEMP" --clobber; then
             unzip -q -o "$RUNNER_TEMP/money-voice-cache.zip" -d "$KI_TTS_CACHE"
           fi
+          if [ -d "$d/previews/_alignment" ]; then cp "$d"/previews/_alignment/*.words.json "$KI_TTS_CACHE/" 2>/dev/null || true; fi
           gh release download music-themes --repo "$VOICE_REPO" --pattern theme_1.mp3 --dir "$RUNNER_TEMP/music_themes" --clobber || true
           echo "KI_MUSIC_DIR=$RUNNER_TEMP/music_themes" >> "$GITHUB_ENV"
       - name: Save the exact approved script
@@ -427,21 +433,24 @@ jobs:
           ELEVENLABS_API_KEY: ${{ inputs.money_audio_path == '' && secrets.ELEVENLABS_API_KEY || '' }}
           REVIEW_AUDIO_PATH: ${{ inputs.money_audio_path }}
         run: |
-          args=()
-          if [ -n "$REVIEW_AUDIO_PATH" ]; then args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH"); fi
+          [ -n "$REVIEW_AUDIO_PATH" ] || { echo 'FAIL: this owner review requires the supplied recording'; exit 1; }
+          args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH")
           python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work "${args[@]}" --prepare-only
       - name: Fetch approved clips, audit every frame, mix and encode full video
         env:
           ELEVENLABS_API_KEY: ${{ inputs.money_audio_path == '' && secrets.ELEVENLABS_API_KEY || '' }}
+          REVIEW_PHASE: ${{ inputs.money_review_phase }}
           REVIEW_AUDIO_PATH: ${{ inputs.money_audio_path }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
         run: |
           args=()
-          if [ -n "$REVIEW_AUDIO_PATH" ]; then args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH"); fi
+          [ -n "$REVIEW_AUDIO_PATH" ] || exit 1
+          args=(--audio "$KI_PRIVATE_MEDIA/$REVIEW_AUDIO_PATH")
+          if [ "$REVIEW_PHASE" = preview ]; then args+=(--stills-only); fi
           python -m kindled_iron.money_video approved-v2.txt --out storage/money-video/love-of-money.mp4 --work storage/money-video/work "${args[@]}"
       - name: Preserve voice cache privately even if a later check fails
-        if: always()
+        if: ${{ always() && inputs.money_audio_path == '' }}
         env:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
         run: |
@@ -450,47 +459,58 @@ jobs:
             (cd "$KI_TTS_CACHE" && zip -q -r "$RUNNER_TEMP/money-voice-cache.zip" .)
             gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/money-voice-cache.zip" --clobber
           fi
-      - name: Verify MP4, original voice and passed frame audit
+      - name: Verify private review artifacts and every-frame audit
         env:
           REVIEW_AUDIO_PATH: ${{ inputs.money_audio_path }}
+          REVIEW_PHASE: ${{ inputs.money_review_phase }}
         run: |
-          python - <<'PY'
+          python - <<'PYREVIEW'
           import hashlib,json,os,pathlib,subprocess
+          from PIL import Image
           p=pathlib.Path('storage/money-video/love-of-money.mp4')
-          info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(p)]))
           meta=json.loads(p.with_suffix('.json').read_text())
-          video=next(s for s in info['streams'] if s['codec_type']=='video')
-          assert (video['width'],video['height'])==(1080,1920)
-          assert video['codec_name']=='h264'
-          assert any(s['codec_type']=='audio' for s in info['streams'])
-          assert 30<float(info['format']['duration'])<600  # script determines length; no two-minute truncation
-          assert meta['voice']['provider_used'] in ('elevenlabs','user_upload') and not meta['voice'].get('fallback')
-          if os.environ.get('REVIEW_AUDIO_PATH'):
-              assert meta['voice']['provider_used']=='user_upload', 'Supplied narration was not used'
-              source=pathlib.Path(os.environ['KI_PRIVATE_MEDIA'])/os.environ['REVIEW_AUDIO_PATH']
-              assert meta['voice']['source_sha256']==hashlib.sha256(source.read_bytes()).hexdigest()
-          if meta['voice']['provider_used']=='user_upload':
-              assert not meta['voice']['regenerated'] and not meta['voice']['speed_changed']
-              assert meta['voice']['ending_pause_edit']['kept_seconds']==.7
-              assert 120<=meta['voice']['walking_speed']<=160
-              assert len(meta['reactions'])==4 and all(r['origin'].startswith('private:reactions/') for r in meta['reactions'])
-          assert meta['audit']['passed'] and 1<=len(meta['reactions'])<=4
+          assert meta['voice']['provider_used']=='user_upload'
+          source=pathlib.Path(os.environ['KI_PRIVATE_MEDIA'])/os.environ['REVIEW_AUDIO_PATH']
+          assert meta['voice']['source_sha256']==hashlib.sha256(source.read_bytes()).hexdigest()=='3065df6e76bdfc452026eafe828f74f03ded0359e5530bf804602064b0d767fa'
+          assert not meta['voice']['regenerated'] and not meta['voice']['speed_changed']
+          assert meta['voice']['ending_pause_edit']['kept_seconds']==.5
+          assert meta['voice']['walking_speed']==140
+          assert len(meta['reactions'])==3 and all(r['origin'].startswith('private:reactions/') for r in meta['reactions'])
+          assert next(r for r in meta['reactions'] if r['emotion']=='celebration')['width']>=380
+          assert all(b['t']-a['t']>=3 for a,b in zip(meta['reactions'],meta['reactions'][1:]))
+          assert meta['audit']['passed']
           assert meta['script_sha256']==hashlib.sha256(pathlib.Path('approved-v2.txt').read_bytes()).hexdigest()
-          print('PASS: 1080x1920 H.264 + audio; original voice; exact script; every-frame audit passed; duration',info['format']['duration'])
-          PY
-          ffmpeg -v error -i storage/money-video/love-of-money.mp4 -f null -
-      - name: Store full video privately for Venloud (no platform publishing)
+          assert Image.open(p.parent/'eight-frames.jpg').size==(2160,2000)
+          if os.environ['REVIEW_PHASE']=='preview':
+              assert not p.exists() and not meta['full_render']
+          else:
+              info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',str(p)]))
+              video=next(s for s in info['streams'] if s['codec_type']=='video')
+              assert (video['width'],video['height'])==(1080,1920) and video['codec_name']=='h264'
+              assert any(s['codec_type']=='audio' for s in info['streams']) and 30<float(info['format']['duration'])<600
+          print('PASS: exact uploaded recording, 0.5s pause, three private memes, 380px rich image, 2160x2000 sheet, every-frame audit')
+          PYREVIEW
+          if [ "$REVIEW_PHASE" = video ]; then ffmpeg -v error -i storage/money-video/love-of-money.mp4 -f null -; fi
+      - name: Save only under private previews (no release, artifact or platform publishing)
         env:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+          REVIEW_PHASE: ${{ inputs.money_review_phase }}
         run: |
           set -euo pipefail
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = true ]
-          cp storage/money-video/love-of-money.mp4 "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.mp4"
-          cp storage/money-video/love-of-money.json "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.json"
-          gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.mp4" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.json"
-          cp storage/money-video/eight-frames.jpg "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-eight-frames.jpg"
-          cp storage/money-video/work/shot-list.md "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.md"
-          cp storage/money-video/work/shot-list.json "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.json"
-          gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-eight-frames.jpg" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.md" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.json"
-          gh release upload test-renders --repo "$VOICE_REPO" storage/money-video/love-of-money.mp4 --clobber
-          echo "Private video: https://github.com/$VOICE_REPO/releases/download/test-renders/love-of-money.mp4" >> "$GITHUB_STEP_SUMMARY"
+          d="$KI_PRIVATE_MEDIA"
+          rel="previews/love-money-${GITHUB_RUN_ID}"
+          mkdir -p "$d/$rel" "$d/previews/_alignment"
+          cp storage/money-video/eight-frames.jpg "$d/$rel/eight-frames.jpg"
+          cp storage/money-video/love-of-money.json "$d/$rel/metadata.json"
+          cp storage/money-video/work/shot-list.md "$d/$rel/shot-list.md"
+          cp storage/money-video/work/shot-list.json "$d/$rel/shot-list.json"
+          if [ "$REVIEW_PHASE" = video ]; then cp storage/money-video/love-of-money.mp4 "$d/$rel/love-of-money.mp4"; fi
+          for f in "$KI_TTS_CACHE"/uploaded-*.words.json; do [ ! -f "$f" ] || cp "$f" "$d/previews/_alignment/"; done
+          git -C "$d" add --sparse -f "$rel" previews/_alignment
+          git -C "$d" config user.name 'github-actions[bot]'
+          git -C "$d" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$d" commit -m "Private Love of Money ${REVIEW_PHASE} review ${GITHUB_RUN_ID}"
+          git -C "$d" pull --rebase origin main
+          git -C "$d" push origin HEAD:main
+          echo "Private review: https://github.com/$VOICE_REPO/tree/main/$rel" >> "$GITHUB_STEP_SUMMARY"

@@ -73,7 +73,7 @@ def retime_moves(scene, spans):
                 e['at']=spans[i-1][1]+(.30 if e['do']=='face' else .55)-spans[i][0]
 
 
-def shorten_final_silence(audio,sr,start,end,target=.7,crossfade=0):
+def shorten_final_silence(audio,sr,start,end,target=.5,crossfade=0):
     """Crossfade only inside the specified silence; all other samples remain intact."""
     if end-start<=target:return audio,dict(removed_seconds=0)
     n=round(crossfade*sr)
@@ -88,7 +88,7 @@ def shorten_final_silence(audio,sr,start,end,target=.7,crossfade=0):
         removed_seconds=(b-a+n)/sr)
 
 
-def uploaded_read(source,work,target=.7):
+def uploaded_read(source,work,target=.5):
     import soundfile as sf
     raw=work/'uploaded_raw.wav'
     subprocess.run(['ffmpeg','-y','-v','error','-i',str(source),'-ac','1','-ar','44100','-c:a','pcm_f32le',str(raw)],check=True)
@@ -134,7 +134,7 @@ def slow_moves(scene,spans,words,speed=140):
                 t=render.resolve_at(e.get('at'),words[i],*spans[i],{})
                 protected.append((t-.35,t+e.get('dur',e.get('hold',1.5))+.65))
                 if e.get('reaction'):reactions.append((i,e,t))
-    moves=[];current=160;end=0;spots=[310,460,610,760,920,760,610,460,310,160,310,460]
+    moves=[];current=160;end=0;spots=[310,460,610,760,920,760,610,160,310,160,310,460]
     scene['beats'][0]['events'].insert(0,dict(at=0,do='place',who='guide',x=160,facing=1))
     for k,i in enumerate([1,3,6,9,11,14,16,18,20,23,25]):
         if i>=len(spans)-1:continue
@@ -152,7 +152,8 @@ def slow_moves(scene,spans,words,speed=140):
         x=160
         for a,b,target in moves:
             if b<=t:x=target
-        e['card']['x']=x+270 if x<=540 else x-270
+        distance=375 if e['card'].get('w',200)>=380 else 270
+        e['card']['x']=x+distance if x<=540 else x-distance
     return moves
 
 
@@ -189,16 +190,15 @@ def fit_continuous_visuals(data):
             if touched:e['t']=max(touched)
     data['events'].sort(key=lambda e:e['t'])
     data['mediaCoverage']=coverage
-    data['captionSuppress']=[dict(start=o['_t0'],end=o['_t1']) for o in cards]
+    data['captionSuppress']=[dict(start=o['_t0'],end=o['_t1']) for o in cards]+[dict(start=b['start'],end=b['end']) for b in data.get('bulletOverlays',[])]
 
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('script',type=Path);ap.add_argument('--out',type=Path,required=True)
-    ap.add_argument('--work',type=Path,required=True);ap.add_argument('--prepare-only',action='store_true');ap.add_argument('--audio',type=Path);a=ap.parse_args()
+    ap.add_argument('--work',type=Path,required=True);ap.add_argument('--prepare-only',action='store_true');ap.add_argument('--audio',type=Path);ap.add_argument('--stills-only',action='store_true');a=ap.parse_args()
     a.work=a.work.resolve();a.work.mkdir(parents=True,exist_ok=True);a.out=a.out.resolve();a.out.parent.mkdir(parents=True,exist_ok=True)
-    text=a.script.read_text();scene,_,_,_=money_preview.build(text)
+    text=a.script.read_text();scene,_,_,_=money_preview.build(text,editorial=bool(a.audio))
     from kindled_iron import money_editorial
-    if a.audio:money_editorial.expand(scene)
     flat=[w for b in scene['beats'] for w in words_of(b['narration'])]
     spoken='\n\n'.join(' '.join(words_of(b['narration'])) for b in scene['beats'])
     profile=tts.load_profile('kindled_iron')
@@ -242,6 +242,17 @@ def main():
         money_editorial.synchronize_shots(data)
         money_editorial.report(scene,data,voice,a.work)
     if data['captions']:data['captions'][0]['start']=0.0  # visible opening, with real word highlight times
+    if a.stills_only:
+        page=render.write_page(data,a.work)
+        times=money_editorial.preview_sheet(data,page,a.out,a.work)
+        audit=json.loads((a.work/'strict_layout.json').read_text())
+        if not audit['passed']:raise SystemExit('FAIL: preview every-frame audit failed')
+        meta=dict(scene=scene['id'],duration=duration,words=len(flat),script_sha256=hashlib.sha256(text.encode()).hexdigest(),
+                  voice=voice,reactions=memes,audit=audit,full_render=False,preview_only=True,published=False,
+                  review_frame_times=times,editorial_shots=data['editorialShots'])
+        a.out.with_suffix('.json').write_text(json.dumps(meta,indent=2))
+        render.log('Private eight-frame preview ready; no full video encoded')
+        return
     from kindled_iron import sound
     flat_words=[w for bw in words for w in bw]
     cues=sound.plan(data['events'],data['objects'],scene,spans,words=flat_words)

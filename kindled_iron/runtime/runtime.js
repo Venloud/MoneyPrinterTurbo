@@ -1142,6 +1142,26 @@
   }
 
 
+  // Cumulative bullets belong INSIDE the inset, with their own geometry audit.
+  var bulletEl=document.createElement('div');bulletEl.id='ki-inset-bullets';
+  bulletEl.style.cssText='position:absolute;pointer-events:none;z-index:2;font-family:Caveat,sans-serif;font-weight:700;font-size:64px;line-height:1;color:#fff8e8;-webkit-text-stroke:5px #24211d;paint-order:stroke fill;';
+  document.getElementById('stage').appendChild(bulletEl);
+  function renderBullets(t){
+    var b=(D.bulletOverlays || []).find(function(b){return t>=b.start && t<b.end;});
+    bulletEl.innerHTML='';bulletEl.style.visibility=b?'visible':'hidden';
+    if(!b)return;
+    bulletEl.style.left=(b.zone.left+8)+'px';bulletEl.style.top=(b.zone.top+8)+'px';
+    bulletEl.style.width=(b.zone.right-b.zone.left)+'px';bulletEl.style.height=(b.zone.bottom-b.zone.top)+'px';
+    b.words.forEach(function(w,i){
+      if(t<w.start)return;
+      var box=document.createElement('div');box.className='ki-bullet';
+      box.style.cssText='position:absolute;white-space:nowrap;left:'+(i%2*340)+'px;top:'+(Math.floor(i/2)*86)+'px;';
+      var ink=document.createElement('span'),age=t-w.start,scale=age<.12?.86+.14*age/.12:1;
+      ink.style.cssText='display:inline-block;transform-origin:left center;transform:scale('+scale.toFixed(3)+');';
+      ink.textContent=w.text;box.appendChild(ink);bulletEl.appendChild(box);
+    });
+  }
+
   // captions
   var capEl = document.getElementById('captions');
   var lastChunk = -1;
@@ -1151,17 +1171,6 @@
     captionLanes.forEach(function(e){if(e.t<=t){cx=e.x;if(e.y!=null)cy=e.y;}});
     capEl.style.left=cx+'px';
     if(captionLanes.length)CAP_TOP=cy;
-    var bullet=(D.bulletCaptions || []).find(function(b){return t>=b.start && t<b.end;});
-    capEl.dataset.bullets=bullet?'1':'';
-    if(bullet){
-      lastChunk=-999;
-      capEl.innerHTML=bullet.words.filter(function(w){return t>=w.start;}).map(function(w){
-        var age=t-w.start,scale=age<.12?.86+.14*age/.12:1;
-        return '<span class="said" style="display:inline-block;font-family:Caveat,sans-serif"><span style="display:inline-block;transform:scale('+scale.toFixed(3)+')">'+esc(w.text)+'</span></span>';
-      }).join(' ');
-      capEl.style.fontSize='60px';capEl.dataset.fit=60;capEl.style.whiteSpace='nowrap';
-      capEl.style.transform='translateX(-50%)';placeCaptions();return;
-    }
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
     if((D.captionSuppress || []).some(function(r){return t>=r.start && t<r.end;}))idx=-1;
@@ -1399,6 +1408,7 @@
     var z = cam.z;
     world.setAttribute('transform', 'translate(' + (W / 2) + ',' + (H / 2) + ') rotate(' + cam.r.toFixed(3) + ') scale(' + z.toFixed(4) + ') translate(' + (-cam.x).toFixed(2) + ',' + (-cam.y).toFixed(2) + ')');
     renderCaptions(t);
+    renderBullets(t);
     renderObjects(t);
     renderLight(t);
     var fz = freezeState.v > 0.5;
@@ -1617,7 +1627,7 @@
       if(chars.guide){
         var distance=Math.abs(charX('guide',t)-ob.def.x);
         if(D.guideSpots){
-          if(distance<220 || distance>330)failures.push('reaction is not beside guide at current spot: '+id);
+          if(distance<ob.def.w/2+100 || distance>ob.def.w/2+240)failures.push('reaction is not beside guide at current spot: '+id);
           chars.guide.strokes.forEach(function(st){
             if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
             var body=st.getBoundingClientRect();
@@ -1687,6 +1697,27 @@
       });
       if(bodyTouch) failures.push('caption touches guide body');
     }
+    return failures;
+  };
+
+  window.kiBulletCheck=function(t){
+    var failures=[],spec=(D.bulletOverlays || []).find(function(b){return t>=b.start && t<b.end;});
+    if(!spec){if(bulletEl.children.length)failures.push('bullets remain after sentence');return failures;}
+    function touches(a,b){return a.left<=b.right && a.right>=b.left && a.top<=b.bottom && a.bottom>=b.top;}
+    function inside(a,b){return a.left>=b.left && a.right<=b.right && a.top>=b.top && a.bottom<=b.bottom;}
+    var expected=spec.words.filter(function(w){return t>=w.start;}).length;
+    if(bulletEl.children.length!==expected)failures.push('bullet count differs from spoken cue progress');
+    var boxes=[];
+    Array.prototype.forEach.call(bulletEl.children,function(el){
+      var r=el.getBoundingClientRect(),b={left:r.left-5,right:r.right+5,top:r.top-5,bottom:r.bottom+5};
+      if(!inside(b,spec.zone))failures.push('bullet outside its fixed inset region');
+      if(!inside(b,{left:150,top:185,right:930,bottom:625}))failures.push('bullet touches inset frame');
+      boxes.forEach(function(other){if(touches(b,other))failures.push('bullet boxes overlap');});boxes.push(b);
+      headBoxes().forEach(function(h){if(touches(b,h))failures.push('bullet touches guide head');});
+      if(chars.guide)chars.guide.strokes.forEach(function(st){if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;var r=st.getBoundingClientRect();if((r.width||r.height)&&touches(b,r))failures.push('bullet touches guide body');});
+      Object.keys(objs).forEach(function(id){var o=objs[id];if(o.def.type==='scripture' && shown(o.el) && +getComputedStyle(o.el).opacity>.01)failures.push('bullets during scripture');});
+      var c=capRect();if(c && capEl.textContent.trim() && touches(b,c))failures.push('bullet touches caption band');
+    });
     return failures;
   };
 

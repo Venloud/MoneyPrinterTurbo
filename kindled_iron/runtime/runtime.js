@@ -254,6 +254,34 @@
         '<path d="' + rr + '" transform="translate(-4,3) rotate(-0.6)" stroke="' + C.ink + '" stroke-width="3" fill="none" opacity="0.6"/>' +
         '<path d="M-50,' + (-h / 2 - 16) + ' L50,' + (-h / 2 - 10) + ' L46,' + (-h / 2 + 18) + ' L-54,' + (-h / 2 + 12) + ' Z" fill="' + C.marker + '" fill-opacity="0.85" stroke="none"/>';
     },
+    mediabox: function (o) {  // ONE framed box for the whole video: real clips, or a verse typed on in it
+      var w = o.w || 820, h = o.h || 500, cid = 'mb-clip-' + o.id, r = 26;
+      var rr = 'M' + (-w / 2 + r) + ',' + (-h / 2) + ' L' + (w / 2 - r) + ',' + (-h / 2) + ' Q' + (w / 2) + ',' + (-h / 2) + ' ' + (w / 2) + ',' + (-h / 2 + r) +
+        ' L' + (w / 2) + ',' + (h / 2 - r) + ' Q' + (w / 2) + ',' + (h / 2) + ' ' + (w / 2 - r) + ',' + (h / 2) + ' L' + (-w / 2 + r) + ',' + (h / 2) +
+        ' Q' + (-w / 2) + ',' + (h / 2) + ' ' + (-w / 2) + ',' + (h / 2 - r) + ' L' + (-w / 2) + ',' + (-h / 2 + r) + ' Q' + (-w / 2) + ',' + (-h / 2) + ' ' + (-w / 2 + r) + ',' + (-h / 2) + ' Z';
+      var n = o.max_lines || 6, vs = o.verse_size || 62, lh = vs * 1.12, s = '';
+      for (var i = 0; i < n; i++) s += '<text class="mb-line" x="' + (-w / 2 + o.pad_x) + '" y="0" font-family="Caveat" font-weight="700" font-size="' + vs + '" fill="' + C.ink + '"></text>';
+      return '<clipPath id="' + cid + '"><path d="' + rr + '"/></clipPath>' +
+        '<path d="' + rr + '" transform="translate(12,12)" fill="' + C.shadow + '" stroke="none"/>' +
+        '<path class="mb-page" d="' + rr + '" fill="' + C.page + '" stroke="none"/>' +
+        '<image class="mb-img" href="" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
+        '<g class="mb-split" visibility="hidden">' +
+          '<image class="mb-img-l" href="" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + (w / 2 - 6) + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
+          '<image class="mb-img-r" href="" x="6" y="' + (-h / 2) + '" width="' + (w / 2 - 6) + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
+          '<path d="M0,' + (-h / 2 + 6) + ' L0,' + (h / 2 - 6) + '" stroke="' + C.ink + '" stroke-width="10" stroke-linecap="round"/></g>' +
+        '<g class="mb-heart" visibility="hidden"><path class="mb-heart-p" pathLength="1" d="M0,150 C-300,-40 -190,-250 0,-110 C190,-250 300,-40 0,150 Z" ' +
+          'stroke="' + C.accent + '" stroke-width="16" stroke-linejoin="round" fill="' + C.accent + '" fill-opacity="0" stroke-dasharray="1" stroke-dashoffset="1"/></g>' +
+        '<g class="mb-bullets" visibility="hidden">' + [0, 1, 2, 3].map(function (i) {
+          return '<g class="mb-bullet" opacity="0"><rect class="mb-bullet-bg" rx="16" fill="' + C.page + '" fill-opacity="0.93" stroke="' + C.ink + '" stroke-width="4"/>' +
+            '<text class="mb-bullet-t" x="0" y="0" font-family="Caveat" font-weight="700" font-size="66" fill="' + C.ink + '"></text></g>';
+        }).join('') + '</g>' +
+        '<g class="mb-verse" visibility="hidden">' + s +
+          '<rect class="mb-caret" x="0" y="0" width="7" height="' + Math.round(vs * 0.82) + '" rx="2" fill="' + C.accent + '"/>' +
+          '<text class="mb-ref" x="' + (w / 2 - o.pad_x) + '" y="' + (h / 2 - 40) + '" text-anchor="end" font-family="Caveat" font-weight="700" font-size="' + Math.round(vs * 0.85) + '" fill="' + C.accent + '" opacity="0"></text></g>' +
+        '<path d="' + rr + '" stroke="' + C.ink + '" stroke-width="8" fill="none" stroke-linejoin="round"/>' +
+        '<path d="' + rr + '" transform="translate(-4,3) rotate(-0.6)" stroke="' + C.ink + '" stroke-width="3" fill="none" opacity="0.6"/>' +
+        '<path d="M-50,' + (-h / 2 - 16) + ' L50,' + (-h / 2 - 10) + ' L46,' + (-h / 2 + 18) + ' L-54,' + (-h / 2 + 12) + ' Z" fill="' + C.marker + '" fill-opacity="0.85" stroke="none"/>';
+    },
     scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
       var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
       var refSize = Math.min(64, Math.round(size * 0.62)), h = pad * 2 + lines.length * lh + refSize * 1.5, top = -h / 2;
@@ -676,6 +704,8 @@
         facing[e.who] = e.face || dir;
       } else if (e.do === 'face') {
         facing[e.who] = e.facing;
+      } else if (e.do === 'look_viewer') {
+        facing[e.who] = 1;
       } else if ((e.do === 'point' || e.do === 'reach') && e.toward) {
         var tx = D.objects.filter(function (o) { return o.id === e.toward; })[0];
         var x = tx ? tx.x : (D.cast[e.toward] ? pos[e.toward] : null);
@@ -773,8 +803,13 @@
     }
     if (ob.def.type === 'inset') {
       ob.t0 = e.t; ob.t1 = e.t + (ob.def.clip_dur || 2.2);
+      if (ob.def.reaction_card) {     // a meme card pops in WITHOUT overshoot: it never grows past its own box
+        tl.fromTo(ob.inner, { scale: 0.55, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.22, ease: 'power3.out', immediateRender: false }, e.t);
+        tl.to(ob.inner, { scale: 0.6, duration: 0.18, ease: 'power2.in' }, ob.t1 - 0.18);
+      } else {
       tl.fromTo(ob.inner, { scale: 0.3, rotation: -8, transformOrigin: '50% 50%' }, { scale: 1, rotation: 0, duration: 0.4, ease: 'back.out(2.2)', immediateRender: false }, e.t);
       tl.to(ob.inner, { scale: 0.4, rotation: 6, duration: 0.25, ease: 'back.in(2)' }, ob.t1 - 0.25);
+      }
       tl.set(ob.el, { attr: { visibility: 'hidden' } }, ob.t1);
     }
   }
@@ -1132,7 +1167,9 @@
   // captions
   var capEl = document.getElementById('captions');
   var lastChunk = -1;
+  var T_NOW = 0;
   function renderCaptions(t) {
+    T_NOW = t;
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
     if (idx !== lastChunk) {
@@ -1189,6 +1226,10 @@
     var fit = parseFloat(capEl.dataset.fit || D.captionSize);
     capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; capEl.style.visibility = 'visible';
     if (!capEl.children.length) return;
+    if (D.captionFixed) {          // fixed caption band (the per-frame audit proves it never touches the guide / box)
+      if (window.kiVerseOn && window.kiVerseOn(T_NOW)) capEl.style.visibility = 'hidden';
+      return;
+    }
     // the same words already written big on screen: no caption on top of it (never "NOBODY. NOBODY.")
     var norm = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); };
     var said = norm(capEl.textContent), tbs = titleBoxes();
@@ -1275,6 +1316,127 @@
       }
     });
   }
+  // ---------------------------------------------------------------- media box (opt-in: D.mediabox)
+  var MB = D.mediabox ? objs[D.mediabox.id] : null;
+  if (MB) {
+    MB.img = MB.el.querySelector('.mb-img'); MB.verse = MB.el.querySelector('.mb-verse'); MB.page = MB.el.querySelector('.mb-page');
+    MB.lines = MB.el.querySelectorAll('.mb-line'); MB.caret = MB.el.querySelector('.mb-caret'); MB.ref = MB.el.querySelector('.mb-ref');
+    MB.split = MB.el.querySelector('.mb-split'); MB.imgL = MB.el.querySelector('.mb-img-l'); MB.imgR = MB.el.querySelector('.mb-img-r');
+    MB.heart = MB.el.querySelector('.mb-heart'); MB.heartP = MB.el.querySelector('.mb-heart-p');
+    MB.bulletsG = MB.el.querySelector('.mb-bullets'); MB.bullets = MB.el.querySelectorAll('.mb-bullet');
+    var BL = D.mediabox.bullets;
+    if (BL) BL.items.forEach(function (it, i) {       // lay the bullets out once: left column inside the box
+      var g = MB.bullets[i], tx = g.querySelector('.mb-bullet-t'), bg = g.querySelector('.mb-bullet-bg');
+      tx.textContent = '\u2713 ' + it.text;
+      var x0 = -MB.def.w / 2 + 34, y0 = -MB.def.h / 2 + 38 + i * 108, bw = tx.getComputedTextLength() + 44;
+      tx.setAttribute('x', x0 + 22); tx.setAttribute('y', y0 + 70);
+      bg.setAttribute('x', x0); bg.setAttribute('y', y0); bg.setAttribute('width', bw); bg.setAttribute('height', 94);
+      g.setAttribute('data-cx', x0 + bw / 2); g.setAttribute('data-cy', y0 + 47);
+    });
+    MB.el.setAttribute('visibility', 'visible');
+    // wrap every verse page with the real font; each letter keeps the time Python gave it (typed with the voice)
+    var vsz = D.mediabox.verse_size, lh = vsz * 1.12, maxW = MB.def.w - 2 * MB.def.pad_x - 20, meas = MB.lines[0];
+    MB.overflow = [];
+    D.mediabox.segments.forEach(function (sg) {
+      if (sg.kind !== 'verse') return;
+      sg.pages.forEach(function (pg) {
+        var words = [], pos = 0;
+        pg.text.split(' ').forEach(function (wd) { words.push([wd, pos]); pos += wd.length + 1; });
+        var lines = [], cur = null;
+        words.forEach(function (w) {
+          var trial = cur ? cur.text + ' ' + w[0] : w[0];
+          meas.textContent = trial;
+          if (cur && meas.getComputedTextLength() > maxW) { lines.push(cur); cur = { text: w[0], from: w[1] }; }
+          else cur = cur ? { text: trial, from: cur.from } : { text: w[0], from: w[1] };
+        });
+        if (cur) lines.push(cur);
+        meas.textContent = '';
+        pg.lines = lines.map(function (ln, i) {
+          var to = ln.from + ln.text.length + (i < lines.length - 1 ? 1 : 0);
+          return { text: ln.text, times: pg.times.slice(ln.from, ln.from + ln.text.length) };
+        });
+        pg.lh = lh; pg.y0 = -lines.length * lh / 2 + vsz * 0.75 - 30;
+        if (lines.length > MB.lines.length) MB.overflow.push(sg.ref);
+      });
+    });
+  }
+  function mbSegment(t) {
+    var segs = D.mediabox.segments;
+    for (var i = 0; i < segs.length; i++) if (t >= segs[i].t0 && t < segs[i].t1) return segs[i];
+    return null;
+  }
+  window.kiVerseOn = function (t) { if (!MB) return false; var sg = mbSegment(t); return !!(sg && sg.kind === 'verse'); };
+  function swapFrame(img, fr, t0, fps, t) {
+    var idx = Math.floor((t - t0) * (fps || 30)) % fr.length;      // a long line loops its clip
+    if (img.getAttribute('href') !== fr[idx]) {
+      pending.push(new Promise(function (res) {
+        var done = function () { img.removeEventListener('load', done); img.removeEventListener('error', done); res(); };
+        img.addEventListener('load', done); img.addEventListener('error', done); setTimeout(res, 3000);
+      }));
+      img.setAttribute('href', fr[idx]);
+    }
+  }
+  function renderBullets(t) {
+    var BL = D.mediabox.bullets;
+    if (!BL) return;
+    var on = t >= BL.items[0].t && t < BL.clear;
+    MB.bulletsG.setAttribute('visibility', on ? 'visible' : 'hidden');
+    BL.items.forEach(function (it, i) {
+      var g = MB.bullets[i], age = t - it.t, k = age < 0 ? 0 : Math.min(1, 0.6 + 0.4 * age / 0.15);
+      g.setAttribute('opacity', age < 0 ? '0' : '1');
+      var cx = parseFloat(g.getAttribute('data-cx')), cy = parseFloat(g.getAttribute('data-cy'));
+      g.setAttribute('transform', 'translate(' + cx + ',' + cy + ') scale(' + k.toFixed(3) + ') translate(' + (-cx) + ',' + (-cy) + ')');
+    });
+  }
+  window.kiBulletsOn = function (t) { var BL = MB && D.mediabox.bullets; return !!(BL && t >= BL.items[0].t && t < BL.clear); };
+  function renderMediabox(t) {
+    if (!MB) return;
+    var sg = mbSegment(t);
+    MB.el.setAttribute('visibility', sg ? 'visible' : 'hidden');
+    if (!sg) return;
+    renderBullets(t);
+    MB.split.setAttribute('visibility', sg.kind === 'split' ? 'visible' : 'hidden');
+    MB.heart.setAttribute('visibility', sg.kind === 'heart' ? 'visible' : 'hidden');
+    if (sg.kind === 'clip') {
+      MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'visible');
+      swapFrame(MB.img, sg.frames, sg.t0, sg.fps, t);
+      return;
+    }
+    if (sg.kind === 'split') {
+      MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'hidden');
+      swapFrame(MB.imgL, sg.frames_l, sg.t0, sg.fps, t); swapFrame(MB.imgR, sg.frames_r, sg.t0, sg.fps, t);
+      return;
+    }
+    if (sg.kind === 'heart') {      // drawn on the page: the outline draws itself, then a soft fill
+      MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'hidden');
+      var p = Math.max(0, Math.min(1, (t - sg.t0) / 0.7));
+      MB.heartP.setAttribute('stroke-dashoffset', (1 - p).toFixed(3));
+      MB.heartP.setAttribute('fill-opacity', (0.22 * Math.max(0, Math.min(1, (t - sg.t0 - 0.7) / 0.3))).toFixed(3));
+      return;
+    }
+    // verse: the paper page, the quote typed letter by letter with the voice, an orange caret, the reference after the quote
+    MB.img.setAttribute('visibility', 'hidden'); MB.verse.setAttribute('visibility', 'visible');
+    var pg = sg.pages[0];
+    sg.pages.forEach(function (p) { if (t >= p.t) pg = p; });
+    var last = null, typing = false;
+    for (var i = 0; i < MB.lines.length; i++) {
+      var el = MB.lines[i], ln = pg.lines[i];
+      if (!ln) { el.textContent = ''; continue; }
+      var k = 0; while (k < ln.times.length && ln.times[k] <= t) k++;
+      el.textContent = ln.text.slice(0, k);
+      el.setAttribute('y', (pg.y0 + i * pg.lh).toFixed(1));
+      if (k > 0) last = [el, i];
+      if (k < ln.times.length) typing = true;
+    }
+    var vs = D.mediabox.verse_size, cx, cy;
+    if (last) { cx = parseFloat(last[0].getAttribute('x')) + last[0].getComputedTextLength() + 6; cy = pg.y0 + last[1] * pg.lh; }
+    else { cx = parseFloat(MB.lines[0].getAttribute('x')); cy = pg.y0; }
+    MB.caret.setAttribute('x', cx.toFixed(1)); MB.caret.setAttribute('y', (cy - vs * 0.62).toFixed(1));
+    var blinkOn = typing || (Math.floor((t - sg.t0) * 2.2) % 2 === 0);
+    MB.caret.setAttribute('opacity', (blinkOn && t < sg.ref_t) ? '1' : '0');
+    MB.ref.textContent = '— ' + sg.ref;
+    MB.ref.setAttribute('opacity', t >= sg.ref_t ? Math.min(1, (t - sg.ref_t) / 0.2).toFixed(2) : '0');
+  }
   var hud = document.getElementById('hud'), hudIn = document.getElementById('hud-in'), hudText = document.getElementById('hud-text');
   var hudDots = hud.querySelectorAll('.hud-dot');
   function renderHud() {
@@ -1314,6 +1476,7 @@
     }
     var z = cam.z;
     world.setAttribute('transform', 'translate(' + (W / 2) + ',' + (H / 2) + ') rotate(' + cam.r.toFixed(3) + ') scale(' + z.toFixed(4) + ') translate(' + (-cam.x).toFixed(2) + ',' + (-cam.y).toFixed(2) + ')');
+    renderMediabox(t);
     renderCaptions(t);
     renderObjects(t);
     renderLight(t);
@@ -1325,7 +1488,7 @@
 
   var SAFE = D.safe;
   // backdrops / marks meant to sit on or under other drawings
-  var NO_OVERLAP_CHECK = { strike: 1, cross: 1, rays: 1, darkness: 1, frame: 1, line: 1, inset: 1, sparkle: 1, splash: 1, circle: 1, light: 1 };
+  var NO_OVERLAP_CHECK = { mediabox: 1, strike: 1, cross: 1, rays: 1, darkness: 1, frame: 1, line: 1, inset: 1, sparkle: 1, splash: 1, circle: 1, light: 1 };
   // camera moves (and the record-scratch punch-in, a deliberate crop) are not checked for the safe box
   var transitions = D.events.filter(function (e) { return (e.do === 'walk' && e.camera) || e.transition || e.do === 'wipe' || e.do === 'freeze'; })
     .map(function (e) { return [e.t - 0.1, e.t + (e.dur || 0.6) + (e.turn || 0) + 0.4]; });
@@ -1458,6 +1621,68 @@
     people.forEach(function (pp) {
       words.forEach(function (w) { if (inter(pp[1], w[1]) > 0.04 * w[1].width * w[1].height) out.push(pp[0] + ' covers "' + w[0] + '"'); });
       if (pp[2]) people.forEach(function (q) { if (q !== pp && inter(pp[1], q[1]) > 0.15 * q[1].width * q[1].height) out.push(pp[0] + ' walks through ' + q[0]); });
+    });
+    return out;
+  };
+  // Strict per-frame audit (opt-in scenes with a media box): every output frame is checked; any issue fails the render.
+  function charRect(id) {
+    var c = chars[id]; if (!c || c.s.draw < 0.05 || !shown(c.el)) return null;
+    var r = null;
+    c.strokes.forEach(function (el) {
+      if (el.closest('.expr') || el.closest('.react')) return;
+      var prop = el.closest('.chute') || el.closest('.snorkel');
+      if (prop && parseFloat(prop.getAttribute('opacity') || '1') < 0.1) return;
+      for (var q = el; q && q !== c.el; q = q.parentNode) if (q.getAttribute && (q.getAttribute('opacity') === '0' || q.getAttribute('visibility') === 'hidden')) return;
+      var b = el.getBoundingClientRect(); if (!b.width && !b.height) return;
+      r = r ? { left: Math.min(r.left, b.left), top: Math.min(r.top, b.top), right: Math.max(r.right, b.right), bottom: Math.max(r.bottom, b.bottom) } : { left: b.left, top: b.top, right: b.right, bottom: b.bottom };
+    });
+    return r;
+  }
+  window.kiRects = function () { var box = MB ? MB.el.querySelector('.mb-page').getBoundingClientRect() : null; return { box: box && [box.left, box.top, box.right, box.bottom], guide: charRect('guide'), cap: capRect() }; };
+  window.kiAudit = function (t) {
+    var out = [], gap = (D.audit && D.audit.gap) || 6;
+    var box = MB && MB.el.getAttribute('visibility') !== 'hidden' ? MB.el.querySelector('.mb-page').getBoundingClientRect() : null;
+    var guides = Object.keys(chars).map(charRect).filter(Boolean);
+    if (!box && !guides.length) out.push('NOTHING ON SCREEN');
+    if (MB && MB.overflow.length) out.push('VERSE DOES NOT FIT: ' + MB.overflow.join(', '));
+    if (box) guides.forEach(function (g) { if (inter(box, g) > 0) out.push('GUIDE TOUCHES BOX'); });
+    var capOn = capEl.textContent.trim() && capEl.style.visibility !== 'hidden';
+    if (capOn && window.kiVerseOn(t)) out.push('CAPTION DURING VERSE');
+    if (capOn) {
+      var cr = capRect();
+      if (cr) {
+        var pad = 9;   // the text outline
+        cr = { left: cr.left - pad, top: cr.top - pad, right: cr.right + pad, bottom: cr.bottom + pad };
+        var grow = function (r) { return { left: r.left - gap, top: r.top - gap, right: r.right + gap, bottom: r.bottom + gap }; };
+        if (box && inter(cr, grow(box)) > 0) out.push('CAPTION TOUCHES BOX');
+        guides.forEach(function (g) { if (inter(cr, grow(g)) > 0) out.push('CAPTION TOUCHES GUIDE'); });
+        safeIssues('captions', cr, out);
+        var n = capEl.textContent.trim().split(/\s+/).length, maxW = (D.audit && D.audit.max_words) || 5;
+        if (n > maxW) out.push('CAPTION OVER ' + maxW + ' WORDS');
+        if (D.audit && D.audit.one_line && capEl.getBoundingClientRect().height > parseFloat(capEl.style.fontSize || D.captionSize) * 1.45)
+          out.push('CAPTION WRAPS TO 2 LINES');
+      }
+    }
+    // check bullets: fully inside the box (12 px margin), never on each other
+    if (box && window.kiBulletsOn(t)) {
+      var bbs = [];
+      Array.prototype.forEach.call(MB.bullets, function (g) {
+        if (g.getAttribute('opacity') !== '1') return;
+        var rb = g.querySelector('.mb-bullet-bg').getBoundingClientRect();
+        if (rb.left < box.left + 12 || rb.right > box.right - 12 || rb.top < box.top + 12 || rb.bottom > box.bottom - 12) out.push('BULLET OUTSIDE BOX');
+        bbs.forEach(function (o) { if (inter(o, rb) > 0) out.push('BULLETS OVERLAP'); });
+        bbs.push(rb);
+      });
+    }
+    // meme reaction cards: big, beside the guide, never over the box, the guide or the captions
+    Object.keys(objs).forEach(function (id) {
+      var ob = objs[id]; if (!ob.def.reaction_card || !shown(ob.el)) return;
+      var img = ob.el.querySelector('.inset-img'), r = (img || ob.el).getBoundingClientRect();
+      if (box && inter(r, box) > 0) out.push('REACTION OVER BOX');
+      guides.forEach(function (g) { if (inter(r, g) > 0) out.push('REACTION OVER GUIDE'); });
+      if (capOn) { var c2 = capRect(); if (c2 && inter(r, c2) > 0) out.push('REACTION OVER CAPTION'); }
+      if ((ob.def.w || 0) < 380) out.push('REACTION UNDER 380 PX');
+      safeIssues('reaction ' + id, r, out);
     });
     return out;
   };

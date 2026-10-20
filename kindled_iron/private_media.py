@@ -98,7 +98,7 @@ def _cache() -> Path:
 
 def reaction_image(emotion: str) -> dict | None:
     hit = find(emotion.replace("_", " "), "image", ("reactions",))
-    if hit:
+    if hit or os.environ.get("KI_REACTIONS_PRIVATE_ONLY") == "1":     # private reactions/ only: no outside fallback
         return hit
     for name in REACTIONPICS_TAGS.get(emotion, []):
         f = _cache() / f"reactionpics_{name}"

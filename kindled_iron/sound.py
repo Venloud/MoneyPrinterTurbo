@@ -231,7 +231,8 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     # compressed hard only above its own loud level, so P/B bursts are tamed and the body stays), light de-esser,
     # gentle compression, then gain + limiter to VOICE_LUFS with true peak <= TRUE_PEAK. Effects follow by the
     # same factor (they keep their offsets from sound_levels.json). Every provider goes through this.
-    vc = clean_voice(v)
+    # an approved recording used as-is ("voice_as_is"): no cleaning chain, only the level + limiter for the mix
+    vc = v if scene.get("voice_as_is") else clean_voice(v)
     vn, voice_lufs = _to_target(vc)
     k = _speech_rms(vn) / (_speech_rms(v) or 1e-6)
     # a clip's own audio ("God did") is matched to the voice loudness, never louder (1 dB under)

@@ -186,6 +186,23 @@ def sheet(page,work,times):
   out.paste(im,(x,y));d.text((x+15,y+970),f'{t:.2f}s',fill='white')
  out.save(work/'eight-frames.jpg',quality=95)
 
+def review_sounds(data,scene,spans,words):
+ """V3 explicitly requests a few drawing sounds even when the legacy pencil switch is off."""
+ cues=sound.plan(data['events'],data['objects'],scene,spans,words=words)
+ cues=[c for c in cues if c['role']=='chime']
+ picker=sound.Picker();wanted={'myth_book','house','open_hand'}
+ for e in data['events']:
+  role=None;file=None;dur=.45
+  if e.get('do')=='freeze':role='scratch';file='../scratch.ogg';dur=.25
+  elif e.get('do')=='draw' and e.get('id') in wanted:
+   role='pencil_long';f,_=picker.pick(role);file=f.name if f else None
+  if role and file:
+   if not (sound.LIB/file).is_file():raise SystemExit('FAIL: required quiet effect '+file)
+   cues.append(dict(t=e['t'],role=role,file=file,pitch=1.0,dur=dur,why='owner V3 drawing / freeze cue',weight='small',group=None))
+ cues.sort(key=lambda c:c['t'])
+ if len(cues)>sound.MAX_EFFECTS:raise SystemExit('FAIL: V3 effects cap exceeded')
+ return cues
+
 def main(scene_path,audio,work,phase='preview'):
  work=Path(work).resolve();work.mkdir(parents=True,exist_ok=True);os.environ['KI_V3_WORK']=str(work)
  scene=json.loads(Path(scene_path).read_text());verse=scripture.check_scene(scene,render.log)
@@ -198,7 +215,9 @@ def main(scene_path,audio,work,phase='preview'):
  if phase=='preview':sheet(page,work,times)
  else:
   chan=tts.load_profile('kindled_iron');music=dict(level_db=-22,duck_db=3.5,dip_db=3.5,lift_db=2,file=str(private_media.root()/'music'/'theme_1.mp3'),start=0,label='theme_1',lift_at=None)
-  mixed=sound.mix(wav,sound.plan(data['events'],data['objects'],scene,spans,words=[w for b in words for w in b]),scene,spans,[w for b in words for w in b],data['duration'],work/'mix.wav',work/'mix_novoice.wav',music,render.log)
+  cues=review_sounds(data,scene,spans,[w for b in words for w in b])
+  (work/'sound-cues.json').write_text(json.dumps(cues,indent=2))
+  mixed=sound.mix(wav,cues,scene,spans,[w for b in words for w in b],data['duration'],work/'mix.wav',work/'mix_novoice.wav',music,render.log)
   render.capture(page,work/'love-of-money-v3.mp4',work/'mix.wav',data['duration'],None)
   subprocess.run(['ffmpeg','-v','error','-i',str(work/'love-of-money-v3.mp4'),'-f','null','-'],check=True)
  audit=json.loads((work/'strict_layout.json').read_text());meta=dict(scene=scene['id'],duration=data['duration'],voice=voice,verse_check=verse,audit=audit,moves=data['moves'],cue_files=records,failed_files=[])

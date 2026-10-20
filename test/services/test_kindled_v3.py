@@ -40,3 +40,8 @@ def test_word_cued_timeline_keeps_pop_clear_of_gestures(tmp_path,monkeypatch):
  assert all(abs(a['to']-b['from'])<.001 for a,b in zip(windows,windows[1:]))
  for w in windows:
   if w['kind']=='scripture':assert dict(start=w['from'],end=w['to']) in data['captionSuppress']
+def test_requested_sounds_survive_legacy_pencil_off():
+ data=dict(objects=[dict(id='house',type='hammer_house')],events=[dict(t=1,do='freeze',who='guide'),dict(t=3,do='draw',id='house',main=True)])
+ cues=v.review_sounds(data,dict(beats=[]),[],[dict(word='spoken',start=0,end=5)])
+ assert [(c['role'],c['t']) for c in cues]==[('scratch',1),('pencil_long',3)]
+ assert all(c['weight']=='small' and c['dur']<=.45 for c in cues)

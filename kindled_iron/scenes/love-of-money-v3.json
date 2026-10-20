@@ -13,9 +13,9 @@
  "max_silence": 0.8,
  "silence_to": 0.5,
  "preview": {
-  "folder": "love-of-money-v3",
+  "folder": "love-of-money-v3-alt",
   "public_artifacts": false,
-  "stage": "sheet",
+  "stage": "full",
   "frames": [
    {
     "beat": "hook",

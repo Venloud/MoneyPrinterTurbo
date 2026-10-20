@@ -276,8 +276,9 @@ def test_slow_guide_walks_during_speech_without_moving_verse_timings():
     before=json.dumps([spans,words])
     moves=slow_moves(scene,spans,words)
     assert json.dumps([spans,words])==before and len(moves)>=5
-    assert all(e['speed']==280 for b in scene['beats'] for e in b['events'] if e.get('do')=='walk')
-    assert all(end-start>2.7 for start,end,lane in moves)
+    assert all(120<=e['speed']<=160 for b in scene['beats'] for e in b['events'] if e.get('do')=='walk')
+    assert len({target for _,_,target in moves})>=4
+    assert all(end-start>1 for start,end,lane in moves)
     assert all(not (a<spans[i][1]+1.1 and b>spans[i][0]-.3) for a,b,_ in moves for i in (12,21,22))
 
 
@@ -290,3 +291,35 @@ def test_continuous_read_holds_card_without_covering_it_with_new_clip():
     assert not any(e['do']=='draw' and e['id']=='clip' for e in data['events'])
     assert data['mediaCoverage'][-1]=={'id':'verse','kind':'scripture','from':3.2,'to':3.7}
     assert data['captionSuppress']==[dict(start=1,end=4)]
+
+
+def test_crossfade_only_changes_selected_silence_and_keeps_point_seven():
+    import numpy as np
+    from kindled_iron.money_video import shorten_final_silence
+    sr=1000
+    before=np.linspace(-.6,.6,1000,dtype=np.float32)
+    silence=np.full(1552,.00001,dtype=np.float32)
+    after=before[::-1].copy()
+    audio=np.concatenate([before,silence,after])
+    out,meta=shorten_final_silence(audio,sr,1,2.552,.7,.02)
+    assert np.array_equal(out[:1000],before) and np.array_equal(out[-1000:],after)
+    assert len(out)==2700 and meta['removed_seconds']==pytest.approx(.852)
+    assert meta['crossfade_seconds']==.02 and meta['kept_seconds']==.7
+    assert np.max(np.abs(np.diff(out[1000:1700])))<.000001
+
+
+def test_editorial_every_concrete_cue_has_a_visual_and_no_pin_over_two():
+    from kindled_iron.money_editorial import SHOTS,expand
+    from collections import Counter
+    # Expansion operates on the already approved beat structure without touching narration.
+    beats=[dict(narration=f'exact paragraph {i}',captions=True,events=[]) for i in range(27)]
+    scene={'beats':beats};before=[b['narration'] for b in beats];expand(scene)
+    assert before==[b['narration'] for b in beats]
+    pins=Counter(e['pin']['pexels'] for b in beats for e in b['events'] if e.get('pin'))
+    pins['29119700']+=1
+    assert max(pins.values())==2 and len(pins)>=35
+    assert pins['5651780']==2
+    assert {'feed','treatment','home'}<=set(c for c,_,_ in SHOTS[11])
+    assert {'Earn','Save','Provide','wallet','heart'}<=set(c for c,_,_ in SHOTS[24])
+    assert len([e for b in beats for e in b['events'] if e.get('reaction')])==4
+    assert any(e.get('do')=='shrug' for e in beats[-1]['events'])

@@ -42,15 +42,17 @@ def apply_reaction_rules(events: list[dict], scene: dict, spans, beat_words, wor
     serious = [spans[i] for i, b in enumerate(scene["beats"]) if b.get("serious")]
     god_times = [w["start"] for bw in beat_words for w in bw if re.sub(r"[^a-z]", "", w["word"].lower()) == "god"]
     inbox, inbox_used = _inbox(), []
+    limits=scene.get("reaction_limits", {})
+    max_reactions=int(limits.get("max", MAX_REACTIONS));min_gap=float(limits.get("min_gap", MIN_GAP))
     kept, last = [], None
     for e in sorted(events, key=lambda x: x["t"]):
         if e["do"] != "reaction":
             continue
         why = None
-        if len(kept) >= MAX_REACTIONS:
-            why = f"more than {MAX_REACTIONS} reactions"
-        elif last is not None and e["t"] - last < MIN_GAP:
-            why = f"within {MIN_GAP:.0f} s of the previous one"
+        if len(kept) >= max_reactions:
+            why = f"more than {max_reactions} reactions"
+        elif last is not None and e["t"] - last < min_gap:
+            why = f"within {min_gap:g} s of the previous one"
         elif any(a - 0.3 <= e["t"] <= b + 0.3 for a, b in serious):
             why = "on a serious/holy beat"
         elif not e.get("allow_god") and any(abs(e["t"] - g) < 0.4 for g in god_times):

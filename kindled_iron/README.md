@@ -410,3 +410,32 @@ stay off during those holds. The existing reaction rules remain authoritative:
 reactions that do not fit the recorded cadence are omitted instead of adding
 silence. Use this supplied read for revisions of this script, not the earlier
 synthesized delivery. A changed script needs its corresponding new recording.
+
+### Owner review: expanded footage and slower guide (2026-10-20)
+
+The uploaded venloud v4 recording remains the source; do not regenerate speech.
+`money_editorial.py` adds word-cued shots to the exact 27 approved paragraphs.
+Sources resolve inside Actions using the existing provider secrets. Every source
+has at most two uses, including the closing composite. Bible prefixes use
+separate sources, then the existing scripture card replaces the footage.
+
+The final detected silence alone becomes 0.7 seconds, with a 20 ms crossfade
+inside that silence. Other audio samples stay unchanged. Word timings are
+realigned to this edited recording; the continuous music bed is mixed afterward.
+The guide walks at 140 px/s over six positions, turning first and resting during
+all points/gestures and scripture holds. Existing distance-driven stride pacing
+is retained. The final viewer-facing shrug is preserved.
+
+This owner review specifically requests four images: Runs great, They should've
+checked, Everybody does it, and rich/making-it-rain. Scene-local limits allow
+those four with at least 1.5 seconds between starts; other scenes retain their
+three-reaction/three-second defaults. All four must resolve from private
+`kindled-iron-voice/reactions/`, otherwise this review fails. No third-party image
+or uploaded voice is committed to this public repository.
+
+The cumulative Work/Earn/Save/Provide caption uses size 60 so all four fit on one
+line in the same fixed band. Ordinary captions remain size 92. Every-frame checks
+cover both modes, current-position meme/body geometry, slow speed, gesture rests,
+scripture protection, missing media and backwards walking. An eight-frame JPG
+and exact-line/source shot report accompany the private MP4 in the private
+`test-renders` release. No public Actions artifact or platform publishing.

@@ -73,15 +73,22 @@ def retime_moves(scene, spans):
                 e['at']=spans[i-1][1]+(.30 if e['do']=='face' else .55)-spans[i][0]
 
 
-def shorten_final_silence(audio,sr,start,end,target=.4):
-    """Remove only the middle of one detected silent interval; never retime speech."""
+def shorten_final_silence(audio,sr,start,end,target=.7,crossfade=0):
+    """Crossfade only inside the specified silence; all other samples remain intact."""
     if end-start<=target:return audio,dict(removed_seconds=0)
-    a=round((start+target/2)*sr);b=round((end-target/2)*sr)
-    return np.concatenate([audio[:a],audio[b:]]),dict(silence_start=start,silence_end=end,
-        original_seconds=end-start,kept_seconds=target,cut_start=a/sr,cut_end=b/sr,removed_seconds=(b-a)/sr)
+    n=round(crossfade*sr)
+    a=round((start+(target+crossfade)/2)*sr);b=round((end-(target+crossfade)/2)*sr)
+    if n:
+        ramp=np.linspace(0,1,n,dtype=np.float32)
+        middle=audio[a-n:a]*(1-ramp)+audio[b:b+n]*ramp
+        edited=np.concatenate([audio[:a-n],middle,audio[b+n:]])
+    else:edited=np.concatenate([audio[:a],audio[b:]])
+    return edited,dict(silence_start=start,silence_end=end,original_seconds=end-start,
+        kept_seconds=target,cut_start=a/sr,cut_end=b/sr,crossfade_seconds=n/sr,
+        removed_seconds=(b-a+n)/sr)
 
 
-def uploaded_read(source,work,target=.4):
+def uploaded_read(source,work,target=.7):
     import soundfile as sf
     raw=work/'uploaded_raw.wav'
     subprocess.run(['ffmpeg','-y','-v','error','-i',str(source),'-ac','1','-ar','44100','-c:a','pcm_f32le',str(raw)],check=True)
@@ -94,12 +101,12 @@ def uploaded_read(source,work,target=.4):
     candidates=[(a,b) for a,b in gaps if a>len(audio)/sr-20 and b<len(audio)/sr-.3 and b-a>target]
     if not candidates:raise SystemExit('FAIL: could not identify the long final pause without changing speech')
     start,end=max(candidates,key=lambda x:x[1]-x[0])
-    audio,edit=shorten_final_silence(audio,sr,start,end,target)
+    audio,edit=shorten_final_silence(audio,sr,start,end,target,crossfade=.02)
     sf.write(raw,audio,sr,subtype='FLOAT')
     digest=hashlib.sha256(source.read_bytes()).hexdigest()
     voice=dict(provider_used='user_upload',source_filename=source.name,source_sha256=digest,
                regenerated=False,speed_changed=False,ending_pause_edit=edit,
-               cache_key='uploaded-'+digest[:24]+'-ending-'+str(round(target*1000)))
+               cache_key='uploaded-'+digest[:24]+'-ending-'+str(round(target*1000))+'-xf20')
     render.log(f'Using uploaded narration unchanged except final silence: {end-start:.3f}s -> {target:.3f}s')
     return raw,audio,sr,voice
 
@@ -113,41 +120,39 @@ def continuous_timings(scene,aligned):
     return spans,words
 
 
-def slow_moves(scene,spans,words,speed=280):
-    """Walk during narration at fixed walking speed; never add audio gaps."""
-    for b in scene['beats']:
-        b['events']=[e for e in b['events'] if e.get('do') not in ('walk','face','place')]
-    protected=[]
-    reactions=[]
+def slow_moves(scene,spans,words,speed=140):
+    """Distance-driven gait over six spots; stop for every gesture and scripture hold."""
+    for i,b in enumerate(scene['beats']):
+        b['events']=[e for e in b['events'] if e.get('do') not in ('walk','place') and
+                     (e.get('do')!='face' or i==len(scene['beats'])-1)]
+    protected=[];reactions=[]
+    gestures={'point','reach','touch','present','shrug','wave','react'}
     for i,b in enumerate(scene['beats']):
         if not b['captions']:protected.append((spans[i][0]-.3,spans[i][1]+1.1))
         for e in b['events']:
-            if e.get('reaction'):
-                t=render.resolve_at(e['at'],words[i],*spans[i],{})
-                protected.append((t-.35,t+e['dur']+.35));reactions.append((i,e,t))
-    moves=[];lane=920;end=.05+(920+150)/speed+.25
-    scene['beats'][0]['events'][:0]=[dict(at=0,do='place',who='guide',x=-150,facing=1),dict(at=.05,do='walk',who='guide',to=920,speed=speed)]
-    for i in [3,6,9,14,18,20,23,25]:
-        if i>=len(spans):continue
-        t=max(spans[i][0]+.15,end+2);dur=abs(920-160)/speed
-        for _ in range(20):
-            hit=next(((a,b) for a,b in protected if t<b and t+.25+dur+.25>a),None)
+            if e.get('reaction') or e.get('do') in gestures:
+                t=render.resolve_at(e.get('at'),words[i],*spans[i],{})
+                protected.append((t-.35,t+e.get('dur',e.get('hold',1.5))+.65))
+                if e.get('reaction'):reactions.append((i,e,t))
+    moves=[];current=160;end=0;spots=[310,460,610,760,920,760,610,460,310,160,310,460]
+    scene['beats'][0]['events'].insert(0,dict(at=0,do='place',who='guide',x=160,facing=1))
+    for k,i in enumerate([1,3,6,9,11,14,16,18,20,23,25]):
+        if i>=len(spans)-1:continue
+        target=spots[len(moves)%len(spots)];dur=abs(target-current)/speed
+        t=max(spans[i][0]+.15,end+1.0)
+        for _ in range(30):
+            hit=next(((a,b) for a,b in sorted(protected) if t<b and t+.25+dur+.25>a),None)
             if not hit:break
-            t=hit[1]+.15
-        if t+.25+dur+.25>spans[min(i+2,len(spans)-1)][1]:continue
-        lane=160 if lane==920 else 920
-        scene['beats'][i]['events'] += [dict(at=t-spans[i][0],do='face',who='guide',facing=1 if lane==920 else -1),
-                                      dict(at=t+.25-spans[i][0],do='walk',who='guide',to=lane,speed=speed)]
-        end=t+.25+dur+.25;moves.append((t,end,lane))
+            t=hit[1]+.1
+        if t+.25+dur+.25>spans[min(i+2,len(spans)-2)][1]:continue
+        scene['beats'][i]['events'] += [dict(at=t-spans[i][0],do='face',who='guide',facing=1 if target>current else -1),
+            dict(at=t+.25-spans[i][0],do='walk',who='guide',to=target,speed=speed)]
+        end=t+.25+dur+.25;moves.append((t,end,target));current=target
     for i,e,t in reactions:
-        current=920
-        for a,b,l in moves:
-            if b<=t:current=l
-        e['card']['x']=650 if current==920 else 430
-    # A point must never turn him backwards while he is walking.
-    for i,b in enumerate(scene['beats']):
-        b['events']=[e for e in b['events'] if not (e.get('do')=='point' and
-            any(a-.2<=render.resolve_at(e.get('at'),words[i],*spans[i],{})<=z+.5 for a,z,_ in moves))]
+        x=160
+        for a,b,target in moves:
+            if b<=t:x=target
+        e['card']['x']=x+270 if x<=540 else x-270
     return moves
 
 
@@ -192,6 +197,8 @@ def main():
     ap.add_argument('--work',type=Path,required=True);ap.add_argument('--prepare-only',action='store_true');ap.add_argument('--audio',type=Path);a=ap.parse_args()
     a.work=a.work.resolve();a.work.mkdir(parents=True,exist_ok=True);a.out=a.out.resolve();a.out.parent.mkdir(parents=True,exist_ok=True)
     text=a.script.read_text();scene,_,_,_=money_preview.build(text)
+    from kindled_iron import money_editorial
+    if a.audio:money_editorial.expand(scene)
     flat=[w for b in scene['beats'] for w in words_of(b['narration'])]
     spoken='\n\n'.join(' '.join(words_of(b['narration'])) for b in scene['beats'])
     profile=tts.load_profile('kindled_iron')
@@ -218,7 +225,7 @@ def main():
     if a.audio:
         spans,words=continuous_timings(scene,aligned)
         moves=slow_moves(scene,spans,words)
-        voice['walking_speed']=280;voice['walks']=moves
+        voice['walking_speed']=140;voice['walks']=moves
     else:
         audio,spans,words=assemble_read(scene,audio,sr,aligned)
         retime_moves(scene,spans)
@@ -231,6 +238,7 @@ def main():
         return
     data,memes=money_preview.resolve_media(scene,spans,words,duration,a.work,require_all=not bool(a.audio))
     if a.audio:fit_continuous_visuals(data)
+    if a.audio:money_editorial.report(scene,data,voice,a.work)
     if data['captions']:data['captions'][0]['start']=0.0  # visible opening, with real word highlight times
     from kindled_iron import sound
     flat_words=[w for bw in words for w in bw]
@@ -241,9 +249,10 @@ def main():
     render.capture(page,a.out,a.work/'mix.wav',duration,None)
     audit=json.loads((a.work/'strict_layout.json').read_text())
     if not audit['passed']:raise SystemExit('FAIL: strict frame audit did not pass')
+    sheet_times=money_editorial.review_sheet(data,a.out,a.work) if a.audio else []
     meta=dict(scene=scene['id'],duration=duration,words=len(flat),script_sha256=hashlib.sha256(text.encode()).hexdigest(),
               voice=voice,music=music_meta,reactions=memes,audit=audit,audio={k:mixed.get(k) for k in ('lufs','voice_lufs','true_peak')},
-              full_render=True,published=False)
+              full_render=True,published=False,review_frame_times=sheet_times,editorial_shots=data.get('editorialShots',[]))
     a.out.with_suffix('.json').write_text(json.dumps(meta,indent=2))
     render.log(f'Private review ready: {a.out.name}, {duration:.2f}s, source narration, {len(memes)} reaction images')
 

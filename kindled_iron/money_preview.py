@@ -97,10 +97,14 @@ def build(script: str):
 def resolve_media(scene,spans,words,duration,work,require_all=True):
     # Always resolve approved pins using repository provider credentials in the
     # Actions runtime. No external local clip cache is smuggled into the run.
-    clips=insets.fetch(scene,work,render.log)
+    from kindled_iron import money_editorial
+    clips=money_editorial.fetch(scene,work,render.log) if scene.get("editorial_expansion") else insets.fetch(scene,work,render.log)
     data=render.build_data(scene,spans,words,duration,clips)
+    if scene.get('editorial_expansion'):money_editorial.timed_visuals(data,scene,spans,words)
     data['inboxReactions'], memes=effects.apply_reaction_rules(data['events'],scene,spans,words,work,render.log,data,True)
     requested=[e for e in data['events'] if e['do']=='reaction']
+    if scene.get('editorial_expansion') and (len(memes)!=4 or any(not m['origin'].startswith('private:reactions/') for m in memes)):
+        raise SystemExit('FAIL: all four owner-selected reactions must resolve from private reactions/: '+str(memes))
     if require_all and (len(memes)!=3 or len(requested)!=3 or any(e.get('_drop') for e in requested)):
         missing=[e['emotion'] for e in requested if e.get('_drop') or not any(m['emotion']==e['emotion'] for m in memes)]
         raise SystemExit('FAIL: selected reaction images missing/dropped: '+', '.join(missing))

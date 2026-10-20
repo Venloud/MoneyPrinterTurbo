@@ -471,7 +471,10 @@ jobs:
               assert meta['voice']['source_sha256']==hashlib.sha256(source.read_bytes()).hexdigest()
           if meta['voice']['provider_used']=='user_upload':
               assert not meta['voice']['regenerated'] and not meta['voice']['speed_changed']
-          assert meta['audit']['passed'] and 1<=len(meta['reactions'])<=3
+              assert meta['voice']['ending_pause_edit']['kept_seconds']==.7
+              assert 120<=meta['voice']['walking_speed']<=160
+              assert len(meta['reactions'])==4 and all(r['origin'].startswith('private:reactions/') for r in meta['reactions'])
+          assert meta['audit']['passed'] and 1<=len(meta['reactions'])<=4
           assert meta['script_sha256']==hashlib.sha256(pathlib.Path('approved-v2.txt').read_bytes()).hexdigest()
           print('PASS: 1080x1920 H.264 + audio; original voice; exact script; every-frame audit passed; duration',info['format']['duration'])
           PY
@@ -485,5 +488,9 @@ jobs:
           cp storage/money-video/love-of-money.mp4 "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.mp4"
           cp storage/money-video/love-of-money.json "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.json"
           gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.mp4" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}.json"
+          cp storage/money-video/eight-frames.jpg "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-eight-frames.jpg"
+          cp storage/money-video/work/shot-list.md "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.md"
+          cp storage/money-video/work/shot-list.json "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.json"
+          gh release upload test-renders --repo "$VOICE_REPO" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-eight-frames.jpg" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.md" "$RUNNER_TEMP/love-money-${GITHUB_RUN_ID}-shot-list.json"
           gh release upload test-renders --repo "$VOICE_REPO" storage/money-video/love-of-money.mp4 --clobber
           echo "Private video: https://github.com/$VOICE_REPO/releases/download/test-renders/love-of-money.mp4" >> "$GITHUB_STEP_SUMMARY"

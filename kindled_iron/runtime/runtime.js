@@ -70,6 +70,9 @@
   // Each returns SVG markup centred on (0,0). Stroked paths draw themselves;
   // [data-fill] shapes fade their fill in after the stroke.
   var OBJ = {
+    heart: function(o) {
+      return p('M0,112 C-42,75 -150,8 -150,-65 C-150,-148 -43,-160 0,-83 C43,-160 150,-148 150,-65 C150,8 42,75 0,112 Z', {c:'accent',w:10,fill:'accent',fo:.18});
+    },
     word: function (o) {
       var size = o.size || 120;
       return '<text class="ki-text" x="0" y="0" text-anchor="middle" dominant-baseline="central" ' +
@@ -1148,6 +1151,17 @@
     captionLanes.forEach(function(e){if(e.t<=t){cx=e.x;if(e.y!=null)cy=e.y;}});
     capEl.style.left=cx+'px';
     if(captionLanes.length)CAP_TOP=cy;
+    var bullet=(D.bulletCaptions || []).find(function(b){return t>=b.start && t<b.end;});
+    capEl.dataset.bullets=bullet?'1':'';
+    if(bullet){
+      lastChunk=-999;
+      capEl.innerHTML=bullet.words.filter(function(w){return t>=w.start;}).map(function(w){
+        var age=t-w.start,scale=age<.12?.86+.14*age/.12:1;
+        return '<span class="said" style="display:inline-block;transform:scale('+scale.toFixed(3)+');font-family:Caveat,sans-serif">'+esc(w.text)+'</span>';
+      }).join(' ');
+      capEl.style.fontSize='60px';capEl.dataset.fit=60;capEl.style.whiteSpace='nowrap';
+      capEl.style.transform='translateX(-50%)';placeCaptions();return;
+    }
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
     if((D.captionSuppress || []).some(function(r){return t>=r.start && t<r.end;}))idx=-1;
@@ -1550,6 +1564,12 @@
     Object.keys(chars).forEach(function(id){
       var c=chars[id],vx=charX(id,t+.05)-charX(id,t-.05);
       if(c.s.walk>.3 && Math.abs(vx)>1 && Math.abs(c.s.flipX)>.3 && Math.sign(vx)!==Math.sign(c.s.flipX))out.push('WALK-FACING: '+id+' walks backwards');
+      if(D.guideSpots && c.s.walk>.05){
+        if(Math.abs(vx)/.1>160.5)out.push('GUIDE SPEED: '+id+' exceeds slow walking pace');
+        D.events.forEach(function(e){
+          if(e.who===id && ['point','reach','touch','present','shrug','wave'].indexOf(e.do)>=0 && t>=e.t && t<e.t+(e.hold || 1.5)+.45)out.push('GUIDE GESTURE: '+id+' walks during '+e.do);
+        });
+      }
     });return out;
   };
   window.kiStrictMediaCheck = function (t) {
@@ -1557,6 +1577,10 @@
     (D.mediaCoverage || []).forEach(function (need) {
       if (t < need.from || t >= need.to) return;
       var ob = objs[need.id];
+      if(need.kind==='drawing'){
+        if(!ob || ob.el.getAttribute('visibility')==='hidden' || parseFloat(getComputedStyle(ob.el).opacity)<.99)failures.push('required drawing not visible: '+need.id);
+        return;
+      }
       if (need.kind === 'scripture') {
         if(!ob || ob.el.getAttribute('visibility')==='hidden' || parseFloat(getComputedStyle(ob.el).opacity)<.99) failures.push('required scripture card not visible: '+need.id);
         if(chars.guide && chars.guide.s.walk>.05) failures.push('guide walks while verse is being written: '+need.id);
@@ -1590,7 +1614,17 @@
         }
       });
       headBoxes().forEach(function(h){if(touches(b,h))failures.push('reaction touches guide head: '+id);});
-      if(chars.guide && (charX('guide',t)<540)!==(ob.def.x<540))failures.push('reaction is outside guide lane: '+id);
+      if(chars.guide){
+        var distance=Math.abs(charX('guide',t)-ob.def.x);
+        if(D.guideSpots){
+          if(distance<220 || distance>330)failures.push('reaction is not beside guide at current spot: '+id);
+          chars.guide.strokes.forEach(function(st){
+            if(st.closest('.chute,.snorkel,.expr,.react,defs'))return;
+            var body=st.getBoundingClientRect();
+            if((body.width || body.height) && touches(b,body))failures.push('reaction touches guide body: '+id);
+          });
+        }else if((charX('guide',t)<540)!==(ob.def.x<540))failures.push('reaction is outside guide lane: '+id);
+      }
     });
     var guide=chars.guide,band=D.layoutZones && D.layoutZones.captions;
     if(guide && band && (D.captionBox || {}).single_line && guide.s.draw>.05){
@@ -1610,7 +1644,7 @@
     if((D.captionBox || {}).single_line){
       var first=capEl.children[0].getBoundingClientRect();
       Array.prototype.forEach.call(capEl.children,function(sp){if(Math.abs(sp.getBoundingClientRect().top-first.top)>1)failures.push('caption wraps onto another line');});
-      if(parseFloat(capEl.style.fontSize)!==D.captionSize)failures.push('fixed caption font size changed');
+      if(parseFloat(capEl.style.fontSize)!==(capEl.dataset.bullets==='1'?60:D.captionSize))failures.push('fixed caption font size changed');
       if(Math.abs(parseFloat(capEl.style.left)-D.captionBox.x)>.1 || Math.abs(parseFloat(capEl.style.top)-D.captionBox.y)>.1)failures.push('fixed caption band moved');
     }
     var c = {left:r.left-8, top:r.top-8, right:r.right+8, bottom:r.bottom+8};

@@ -192,7 +192,7 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                            "dur": cam.get("dur", 0.9 if b else 0.01)})
         for ev in beat.get("events", []):
             e = dict(ev)
-            if "box" in e:                        # media box requests: handled by mediabox.plan()
+            if "box" in e or "box_bullet" in e or "box_bullets_clear" in e:     # media box requests: mediabox.py
                 continue
             if isinstance(e.get("scripture"), dict):
                 card_n = sum(1 for o in objects if o["type"] == "scripture")
@@ -450,6 +450,95 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
     return out
 
 
+GESTURES = {"point", "reach", "touch", "shrug", "look_viewer", "present", "wave", "cheer", "look", "react", "shake", "kneel"}
+
+
+def preview_times(data: dict, segs: list[dict] | None) -> list[float]:
+    """8 review frames: the opening, a lifestyle shot, a verse typing, the second Hebrews page, the rich meme,
+    all four bullets, the drawn heart, the split ending."""
+    segs = segs or []
+    t = [0.6]
+    life = [s for s in segs if s["kind"] == "clip" and s.get("clip") in ("meal", "doctor", "ticket", "commute", "saving")]
+    if life:
+        t.append(round((life[0]["t0"] + life[0]["t1"]) / 2, 2))
+    verses = [s for s in segs if s["kind"] == "verse"]
+    if verses:
+        v = verses[0]
+        t.append(round((v["pages"][0]["t"] + v["ref_t"]) / 2, 2))
+        two = [s for s in verses if len(s["pages"]) > 1]
+        if two:
+            t.append(round(min(two[0]["pages"][1]["t"] + 1.6, two[0]["ref_t"] + 0.4), 2))
+    memes = [e for e in data["events"] if e["do"] == "reaction" and not e.get("_drop")]
+    if memes:
+        t.append(round(memes[-1]["t"] + 0.5, 2))
+    bl = (data.get("mediabox") or {}).get("bullets")
+    if bl:
+        t.append(round(min(bl["items"][-1]["t"] + 0.35, bl["clear"] - 0.1), 2))
+    for kind, off in (("heart", 0.9), ("split", 1.2)):
+        hit = [s for s in segs if s["kind"] == kind]
+        if hit:
+            t.append(round(min(hit[0]["t0"] + off, hit[0]["t1"] - 0.1), 2))
+    while len(t) < 8:
+        t.append(round(data["duration"] * len(t) / 8, 2))
+    return sorted(t[:8])
+
+
+def guide_rules(scene: dict, events: list[dict], box_segs: list[dict] | None, log) -> list[dict]:
+    """The guide walks SLOWLY (scene walk_speed, ~140 px/s, never faster), turns first (never backwards), never walks
+    while a verse is being typed or a meme card is up, and stops for every gesture: a gesture that would land
+    during a walk waits until the walk has ended. Returns the walk windows (for the report)."""
+    speed = float(scene.get("walk_speed", 140))
+    walks = []
+    for _ in range(3):
+        events.sort(key=lambda e: e["t"])
+        pos, facing = {}, {}
+        for cid, c in scene["cast"].items():
+            pos[cid], facing[cid] = c["x"] + PANEL_W * c.get("panel", 0), c.get("facing", 1)
+        walks = []
+        for e in events:
+            who = e.get("who")
+            if who not in pos:
+                continue
+            if e["do"] == "place" and isinstance(e.get("x"), (int, float)):
+                pos[who] = e["x"]
+                facing[who] = e.get("facing", facing[who])
+            elif e["do"] == "walk":
+                e["speed"] = speed
+                e.pop("dur", None)
+                dist, d = abs(e["to"] - pos[who]), (1 if e["to"] >= pos[who] else -1)
+                dur = max(0.6, dist / speed)
+                turn = 0.25 if d != facing[who] else 0.0
+                walks.append({"who": who, "t0": e["t"], "t1": round(e["t"] + turn + dur + 0.15, 3), "from": pos[who], "to": e["to"],
+                              "turn": bool(turn), "ev": e})
+                pos[who], facing[who] = e["to"], d
+            elif e["do"] == "look_viewer":
+                facing[who] = 1
+            elif e["do"] in ("point", "reach") and e.get("toward"):
+                facing[who] = 1 if 540 >= pos[who] else -1
+        moved = 0
+        busy = [(sg["pages"][0]["t"] - 0.25, sg["ref_t"] + 0.05, f"verse {sg['ref']}") for sg in (box_segs or []) if sg["kind"] == "verse"]
+        busy += [(e["t"], e["t"] + float(e.get("dur", 1.2)), "meme card") for e in events if e["do"] == "reaction"]
+        for w in walks:
+            for a0, a1, why in busy:
+                if w["t0"] < a1 and a0 < w["t1"]:
+                    raise SystemExit(f"FAIL: the guide walks {w['t0']:.2f}-{w['t1']:.2f} s during the {why} ({a0:.2f}-{a1:.2f} s)")
+        for e in events:
+            if e.get("who") == "guide" and e["do"] in GESTURES:
+                hit = next((w for w in walks if w["t0"] - 0.05 <= e["t"] < w["t1"]), None)
+                if hit:
+                    log(f"guide: {e['do']} at {e['t']:.2f} s waits for the walk to end ({hit['t1']:.2f} s)")
+                    e["t"] = round(hit["t1"] + 0.02, 3)
+                    moved += 1
+        if not moved:
+            break
+    else:
+        raise SystemExit("FAIL: guide gestures keep landing inside walks")
+    for w in walks:
+        log(f"guide walk {w['t0']:.2f}-{w['t1']:.2f} s: x {w['from']:.0f} -> {w['to']:.0f} at {speed:.0f} px/s"
+            f"{' (turns first)' if w['turn'] else ''}")
+    return [{k: v for k, v in w.items() if k != "ev"} for w in walks]
+
+
 def strict_audit(page, duration: float, work: Path) -> dict:
     """EVERY output frame (30 fps): captions never touch the guide or the media box (6 px gap, outline included),
     never show while a verse is typed, max 5 words, inside the safe box; the guide never touches the box; something
@@ -574,6 +663,62 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         browser.close()
 
 
+def cut_pauses(raw: Path, scene: dict, texts: list[str], whisper_model: str, log) -> list[dict]:
+    """The ONLY edit an approved recording gets: a beat with "pause_before": 0.5 has the silence before its first
+    word cut to that length (the cut sits in the middle of the measured silence, 30 ms crossfade). Speech, speed and
+    every other pause stay untouched. Timings are re-aligned on the edited audio afterwards."""
+    import numpy as np
+    import soundfile as sf
+
+    from kindled_iron import whisper_transcribe as wt
+    wanted = [(b, float(beat["pause_before"])) for b, beat in enumerate(scene["beats"]) if beat.get("pause_before") is not None]
+    if not wanted:
+        return []
+    audio, sr = sf.read(raw, dtype="float32")
+    heard = wt.transcribe(raw, whisper_model)
+    flat = [w for txt in texts for w in words_of(txt)]
+    aligned = wt.align(flat, heard, (0.0, len(audio) / sr))
+    first = []
+    k = 0
+    for txt in texts:
+        first.append(k)
+        k += len(words_of(txt))
+    hop = int(0.01 * sr)
+    n = len(audio) // hop
+    rms = np.sqrt(np.mean(audio[: n * hop].reshape(n, hop) ** 2, axis=1))
+    quiet = rms <= max(1e-4, 0.06 * float(np.percentile(rms, 90)))
+    edits = []
+    for b, target in sorted(wanted, reverse=True):          # from the end: earlier positions stay valid
+        i = first[b]
+        a0, a1 = aligned[i - 1]["start"], aligned[i]["end"]
+        best, run = (0, 0), None
+        for f in range(int(a0 / 0.01), min(n, int(a1 / 0.01)) + 1):
+            q = f < n and quiet[f]
+            if q and run is None:
+                run = f
+            elif not q and run is not None:
+                if f - run > best[1] - best[0]:
+                    best = (run, f)
+                run = None
+        silence = (best[1] - best[0]) * 0.01
+        if silence <= target + 0.02:
+            log(f"pause before beat {scene['beats'][b].get('id', b)}: {silence:.2f} s, already <= {target:.2f} s (no cut)")
+            continue
+        cut = silence - target
+        mid = (best[0] + best[1]) / 2 * 0.01
+        c0, c1 = int((mid - cut / 2) * sr), int((mid + cut / 2) * sr)
+        xf = int(0.03 * sr)
+        ramp = np.linspace(0, 1, xf, dtype=np.float32)
+        joined = audio[c0 - xf:c0] * (1 - ramp) + audio[c1:c1 + xf] * ramp
+        audio = np.concatenate([audio[:c0 - xf], joined, audio[c1 + xf:]])
+        edits.append({"before_beat": scene["beats"][b].get("id", b), "at_s": round(mid, 3), "silence_s": round(silence, 2),
+                      "now_s": target, "removed_s": round(cut, 2), "crossfade_ms": 30})
+        log(f"pause before beat {scene['beats'][b].get('id', b)} ({flat[i]!r}): {silence:.2f} s -> {target:.2f} s "
+            f"(cut {cut:.2f} s at {mid:.2f} s, 30 ms crossfade); nothing else in the recording is edited")
+    sf.write(raw, audio, sr)
+    return edits
+
+
 def approved_voice_file(scene: dict) -> Path | None:
     """scene "voice_file": {"path": "<path inside the private repo>", ...}: the file is read from KI_PRIVATE_MEDIA (the
     private repo checkout) or KI_VOICE_FILE (local tests). A missing file stops the render (never a silent TTS fallback)."""
@@ -681,11 +826,17 @@ def main() -> None:
         tts_text = scene.get("tts_text")
         given = approved_voice_file(scene)
         if given:        # the owner's approved recording, used as it is: nothing is generated, 0 credits
-            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(given), "-ac", "1", "-ar", "44100", str(raw)], check=True)
+            import hashlib
             vf = scene["voice_file"]
+            sha = hashlib.sha256(given.read_bytes()).hexdigest()
+            if vf.get("sha256") and sha != vf["sha256"]:
+                raise SystemExit(f"FAIL: {given.name} is not the approved recording (sha256 {sha[:12]}..., expected {vf['sha256'][:12]}...)")
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(given), "-ac", "1", "-ar", "44100", str(raw)], check=True)
+            cuts = cut_pauses(raw, scene, texts, a.whisper_model, log)
             voice_meta = {"provider_used": vf.get("provider", "elevenlabs"), "provider_requested": vf.get("provider", "elevenlabs"),
                           "fallback": False, "cached": False, "model": vf.get("model"), "voice": vf.get("voice"),
-                          "source_file": given.name, "regenerated": False, "credits": 0, "chars_billed": 0}
+                          "source_file": given.name, "source_sha256": sha, "regenerated": False, "credits": 0, "chars_billed": 0,
+                          "edits": cuts}
             log(f"voice: approved recording {given.name} used as-is ({vf.get('voice')}, {vf.get('model')}): not regenerated, 0 credits")
             tts_text = tts_text or " ".join(t for t in (pacing.strip_tags(x) for x in texts))
         elif tts_text:     # voice-only punctuation (one request); must be the script's words exactly
@@ -740,6 +891,7 @@ def main() -> None:
     if scene.get("mediabox"):           # one framed box: pinned clips, verses typed in it (mediabox.py)
         from kindled_iron import mediabox
         box_segs = mediabox.plan(scene, spans, beat_words, pauses, duration, resolve_at, log)
+        box_bullets = mediabox.bullets(scene, spans, beat_words, pauses, resolve_at, box_segs)
         duration = max(duration, round(box_segs[-1]["t1"], 3))
         box_segs = mediabox.fetch(scene, box_segs, work, log)     # network step, BEFORE the render
         clips = {}
@@ -761,6 +913,7 @@ def main() -> None:
     data = build_data(scene, spans, beat_words, duration, clips, pauses)
     if box_segs is not None:
         box_obj, data["mediabox"] = mediabox.page_data(scene, box_segs)
+        data["mediabox"]["bullets"] = box_bullets
         data["objects"].insert(0, box_obj)
         data["captionFixed"] = True
         for sg in box_segs:          # few, quiet effects: a soft chime as each verse reference appears
@@ -770,14 +923,26 @@ def main() -> None:
         data["audit"] = {"gap": 6, **(scene.get("audit") or {})}
         with open(work / "box_segments.json", "w") as fh:
             json.dump([{k: v for k, v in sg.items() if k != "frames"} for sg in box_segs], fh, indent=1)
+    if scene.get("walk_speed"):
+        data["walks"] = guide_rules(scene, data["events"], box_segs, log)
+        (work / "walks.json").write_text(json.dumps(data["walks"], indent=1))
     data["captionColor"] = scene.get("caption_color")
     data["captionOn"] = scene.get("caption_on")
+    if scene.get("reactions_private_only"):
+        os.environ["KI_REACTIONS_PRIVATE_ONLY"] = "1"
     data["inboxReactions"], meme_images = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log,
                                                                        data, third_party)
     data["events"].sort(key=lambda e: e["t"])
     for o in data["objects"]:
         if any(o["id"] == m["id"] for m in meme_images):
             o["reaction_card"] = True
+    need = scene.get("require_memes")
+    if need is not None and len(meme_images) != int(need):
+        raise SystemExit(f"FAIL: {len(meme_images)} of {need} meme images placed: "
+                         + ", ".join(f"{m['emotion']} ({m['origin']})" for m in meme_images))
+    for m in meme_images:
+        if scene.get("reactions_private_only") and not m["origin"].startswith("private:"):
+            raise SystemExit(f"FAIL: meme {m['emotion']} came from {m['origin']}, not the private reactions/")
     # a meme clip with its own audio may play after the last word: the video runs until it ends
     by_id = {o["id"]: o for o in data["objects"]}
     overlays = [(e["t"], by_id[e["id"]]["audio_file"], by_id[e["id"]]["clip_dur"]) for e in data["events"]
@@ -795,8 +960,10 @@ def main() -> None:
     page = write_page(data, work)
     log(f"{len(data['objects'])} objects, {len(data['events'])} events, {len(data['captions'])} caption chunks, {duration:.2f} s")
 
+    (work / "preview_times.json").write_text(json.dumps(preview_times(data, box_segs)))
     if a.frames_only:
-        stills = [float(x) for x in a.frames_only.split(",")]
+        stills = preview_times(data, box_segs) if a.frames_only == "auto" else [float(x) for x in a.frames_only.split(",")]
+        (work / "stills_times.json").write_text(json.dumps(stills))
         capture(page, None, None, duration, a.chrome, stills, work / "stills", strict=bool(a.audit and box_segs is not None))
         log(f"stills in {work / 'stills'}")
         return

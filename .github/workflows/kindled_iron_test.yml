@@ -58,6 +58,7 @@ jobs:
           print("folder=" + pv.get("folder", s["id"] + "-from-scratch"))
           print("public=" + ("false" if pv.get("public_artifacts") is False or s.get("voice_file") else "true"))
           print("max_dur=" + str(s.get("max_duration", 150 if s.get("voice_file") else 120)))
+          print("stage=" + pv.get("stage", "full"))
           PY
           cat "$GITHUB_OUTPUT"
 
@@ -177,8 +178,14 @@ jobs:
           KI_THIRD_PARTY: ${{ inputs.third_party_clips && '1' || '0' }}
           KI_MUSIC_SOURCE: ${{ inputs.music_source }}
           KI_YTDLP: "1"
+          STAGE: ${{ steps.scene.outputs.stage }}
         run: |
           set -euo pipefail
+          if [ "$STAGE" = sheet ]; then      # review stage: 8 stills with real footage + the every-frame audit, no MP4
+            python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
+              --work storage/kindled_iron/work --tts "$TTS" --whisper-model small.en --frames-only auto --audit
+            exit 0
+          fi
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
             --work storage/kindled_iron/work --tts "$TTS" --debug-copy --whisper-model small.en
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
@@ -196,8 +203,34 @@ jobs:
           path: .ki-cache
           key: ki-media-${{ github.run_id }}
 
+      - name: "Sheet stage: 8-frame sheet + box contact sheet -> private previews/"
+        id: sheetstage
+        if: ${{ steps.scene.outputs.stage == 'sheet' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          id=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['id'])" "${{ inputs.scene }}")
+          w=storage/kindled_iron/work
+          mkdir -p preview
+          python3 kindled_iron/tools/frame_sheet.py --stills $w/stills --out "preview/$id-8-frames.jpg"
+          cp $w/box_contact.jpg "preview/$id-box-contact.jpg"
+          cp $w/audit.json "preview/$id-audit.json"; cp $w/box_segments.json "preview/$id-box-segments.json"
+          cp $w/sources.json "preview/$id-sources.json"; cp $w/walks.json "preview/$id-walks.json" 2>/dev/null || true
+          cp $w/stills_times.json "preview/$id-sheet-times.json"; cp $w/timings.json "preview/$id-timings.json"
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
+          d="$RUNNER_TEMP/voice_previews"; rm -rf "$d"
+          git clone -q --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+          dest="$d/previews/${{ steps.scene.outputs.folder }}"; mkdir -p "$dest"; cp preview/* "$dest/"
+          git -C "$d" config user.name "kindled-iron-bot"; git -C "$d" config user.email "kindled-iron-bot@users.noreply.github.com"
+          git -C "$d" add "previews/${{ steps.scene.outputs.folder }}"
+          git -C "$d" commit -q -m "Sheet: $id -> previews/${{ steps.scene.outputs.folder }} (run ${{ github.run_id }})" || echo "nothing new"
+          for i in 1 2 3; do git -C "$d" push -q origin HEAD && break; sleep 5; git -C "$d" pull -q --rebase origin HEAD || true; done
+          echo "committed sheet to $VOICE_REPO previews/${{ steps.scene.outputs.folder }}/ ($(git -C "$d" rev-parse --short HEAD))"
+
       - name: Check the MP4 with ffprobe
         id: check
+        if: ${{ steps.scene.outputs.stage != 'sheet' }}
         env:
           MAX_DUR: ${{ steps.scene.outputs.max_dur }}
         run: |
@@ -249,6 +282,9 @@ jobs:
           cp storage/kindled_iron/test_meta.json "preview/$id-meta.json"
           cp storage/kindled_iron/test.srt "preview/$id.srt"
           cp storage/kindled_iron/work/sources.json "preview/$id-sources.json"
+          cp storage/kindled_iron/work/box_contact.jpg "preview/$id-box-contact.jpg" 2>/dev/null || true
+          cp storage/kindled_iron/work/walks.json "preview/$id-walks.json" 2>/dev/null || true
+          cp storage/kindled_iron/work/timings.json "preview/$id-timings.json"
           echo "id=$id" >> "$GITHUB_OUTPUT"
           if [ "$HAS_VOICE_REPO" = true ]; then
             [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }

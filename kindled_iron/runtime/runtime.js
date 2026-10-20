@@ -265,6 +265,16 @@
         '<path d="' + rr + '" transform="translate(12,12)" fill="' + C.shadow + '" stroke="none"/>' +
         '<path class="mb-page" d="' + rr + '" fill="' + C.page + '" stroke="none"/>' +
         '<image class="mb-img" href="" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
+        '<g class="mb-split" visibility="hidden">' +
+          '<image class="mb-img-l" href="" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + (w / 2 - 6) + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
+          '<image class="mb-img-r" href="" x="6" y="' + (-h / 2) + '" width="' + (w / 2 - 6) + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
+          '<path d="M0,' + (-h / 2 + 6) + ' L0,' + (h / 2 - 6) + '" stroke="' + C.ink + '" stroke-width="10" stroke-linecap="round"/></g>' +
+        '<g class="mb-heart" visibility="hidden"><path class="mb-heart-p" pathLength="1" d="M0,150 C-300,-40 -190,-250 0,-110 C190,-250 300,-40 0,150 Z" ' +
+          'stroke="' + C.accent + '" stroke-width="16" stroke-linejoin="round" fill="' + C.accent + '" fill-opacity="0" stroke-dasharray="1" stroke-dashoffset="1"/></g>' +
+        '<g class="mb-bullets" visibility="hidden">' + [0, 1, 2, 3].map(function (i) {
+          return '<g class="mb-bullet" opacity="0"><rect class="mb-bullet-bg" rx="16" fill="' + C.page + '" fill-opacity="0.93" stroke="' + C.ink + '" stroke-width="4"/>' +
+            '<text class="mb-bullet-t" x="0" y="0" font-family="Caveat" font-weight="700" font-size="66" fill="' + C.ink + '"></text></g>';
+        }).join('') + '</g>' +
         '<g class="mb-verse" visibility="hidden">' + s +
           '<rect class="mb-caret" x="0" y="0" width="7" height="' + Math.round(vs * 0.82) + '" rx="2" fill="' + C.accent + '"/>' +
           '<text class="mb-ref" x="' + (w / 2 - o.pad_x) + '" y="' + (h / 2 - 40) + '" text-anchor="end" font-family="Caveat" font-weight="700" font-size="' + Math.round(vs * 0.85) + '" fill="' + C.accent + '" opacity="0"></text></g>' +
@@ -694,6 +704,8 @@
         facing[e.who] = e.face || dir;
       } else if (e.do === 'face') {
         facing[e.who] = e.facing;
+      } else if (e.do === 'look_viewer') {
+        facing[e.who] = 1;
       } else if ((e.do === 'point' || e.do === 'reach') && e.toward) {
         var tx = D.objects.filter(function (o) { return o.id === e.toward; })[0];
         var x = tx ? tx.x : (D.cast[e.toward] ? pos[e.toward] : null);
@@ -1309,6 +1321,18 @@
   if (MB) {
     MB.img = MB.el.querySelector('.mb-img'); MB.verse = MB.el.querySelector('.mb-verse'); MB.page = MB.el.querySelector('.mb-page');
     MB.lines = MB.el.querySelectorAll('.mb-line'); MB.caret = MB.el.querySelector('.mb-caret'); MB.ref = MB.el.querySelector('.mb-ref');
+    MB.split = MB.el.querySelector('.mb-split'); MB.imgL = MB.el.querySelector('.mb-img-l'); MB.imgR = MB.el.querySelector('.mb-img-r');
+    MB.heart = MB.el.querySelector('.mb-heart'); MB.heartP = MB.el.querySelector('.mb-heart-p');
+    MB.bulletsG = MB.el.querySelector('.mb-bullets'); MB.bullets = MB.el.querySelectorAll('.mb-bullet');
+    var BL = D.mediabox.bullets;
+    if (BL) BL.items.forEach(function (it, i) {       // lay the bullets out once: left column inside the box
+      var g = MB.bullets[i], tx = g.querySelector('.mb-bullet-t'), bg = g.querySelector('.mb-bullet-bg');
+      tx.textContent = '\u2713 ' + it.text;
+      var x0 = -MB.def.w / 2 + 34, y0 = -MB.def.h / 2 + 38 + i * 108, bw = tx.getComputedTextLength() + 44;
+      tx.setAttribute('x', x0 + 22); tx.setAttribute('y', y0 + 70);
+      bg.setAttribute('x', x0); bg.setAttribute('y', y0); bg.setAttribute('width', bw); bg.setAttribute('height', 94);
+      g.setAttribute('data-cx', x0 + bw / 2); g.setAttribute('data-cy', y0 + 47);
+    });
     MB.el.setAttribute('visibility', 'visible');
     // wrap every verse page with the real font; each letter keeps the time Python gave it (typed with the voice)
     var vsz = D.mediabox.verse_size, lh = vsz * 1.12, maxW = MB.def.w - 2 * MB.def.pad_x - 20, meas = MB.lines[0];
@@ -1342,21 +1366,52 @@
     return null;
   }
   window.kiVerseOn = function (t) { if (!MB) return false; var sg = mbSegment(t); return !!(sg && sg.kind === 'verse'); };
+  function swapFrame(img, fr, t0, fps, t) {
+    var idx = Math.floor((t - t0) * (fps || 30)) % fr.length;      // a long line loops its clip
+    if (img.getAttribute('href') !== fr[idx]) {
+      pending.push(new Promise(function (res) {
+        var done = function () { img.removeEventListener('load', done); img.removeEventListener('error', done); res(); };
+        img.addEventListener('load', done); img.addEventListener('error', done); setTimeout(res, 3000);
+      }));
+      img.setAttribute('href', fr[idx]);
+    }
+  }
+  function renderBullets(t) {
+    var BL = D.mediabox.bullets;
+    if (!BL) return;
+    var on = t >= BL.items[0].t && t < BL.clear;
+    MB.bulletsG.setAttribute('visibility', on ? 'visible' : 'hidden');
+    BL.items.forEach(function (it, i) {
+      var g = MB.bullets[i], age = t - it.t, k = age < 0 ? 0 : Math.min(1, 0.6 + 0.4 * age / 0.15);
+      g.setAttribute('opacity', age < 0 ? '0' : '1');
+      var cx = parseFloat(g.getAttribute('data-cx')), cy = parseFloat(g.getAttribute('data-cy'));
+      g.setAttribute('transform', 'translate(' + cx + ',' + cy + ') scale(' + k.toFixed(3) + ') translate(' + (-cx) + ',' + (-cy) + ')');
+    });
+  }
+  window.kiBulletsOn = function (t) { var BL = MB && D.mediabox.bullets; return !!(BL && t >= BL.items[0].t && t < BL.clear); };
   function renderMediabox(t) {
     if (!MB) return;
     var sg = mbSegment(t);
     MB.el.setAttribute('visibility', sg ? 'visible' : 'hidden');
     if (!sg) return;
+    renderBullets(t);
+    MB.split.setAttribute('visibility', sg.kind === 'split' ? 'visible' : 'hidden');
+    MB.heart.setAttribute('visibility', sg.kind === 'heart' ? 'visible' : 'hidden');
     if (sg.kind === 'clip') {
       MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'visible');
-      var fr = sg.frames, idx = Math.floor((t - sg.t0) * (sg.fps || 30)) % fr.length;   // a long line loops its clip
-      if (MB.img.getAttribute('href') !== fr[idx]) {
-        pending.push(new Promise(function (res) {
-          var done = function () { MB.img.removeEventListener('load', done); MB.img.removeEventListener('error', done); res(); };
-          MB.img.addEventListener('load', done); MB.img.addEventListener('error', done); setTimeout(res, 3000);
-        }));
-        MB.img.setAttribute('href', fr[idx]);
-      }
+      swapFrame(MB.img, sg.frames, sg.t0, sg.fps, t);
+      return;
+    }
+    if (sg.kind === 'split') {
+      MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'hidden');
+      swapFrame(MB.imgL, sg.frames_l, sg.t0, sg.fps, t); swapFrame(MB.imgR, sg.frames_r, sg.t0, sg.fps, t);
+      return;
+    }
+    if (sg.kind === 'heart') {      // drawn on the page: the outline draws itself, then a soft fill
+      MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'hidden');
+      var p = Math.max(0, Math.min(1, (t - sg.t0) / 0.7));
+      MB.heartP.setAttribute('stroke-dashoffset', (1 - p).toFixed(3));
+      MB.heartP.setAttribute('fill-opacity', (0.22 * Math.max(0, Math.min(1, (t - sg.t0 - 0.7) / 0.3))).toFixed(3));
       return;
     }
     // verse: the paper page, the quote typed letter by letter with the voice, an orange caret, the reference after the quote
@@ -1607,6 +1662,17 @@
         if (D.audit && D.audit.one_line && capEl.getBoundingClientRect().height > parseFloat(capEl.style.fontSize || D.captionSize) * 1.45)
           out.push('CAPTION WRAPS TO 2 LINES');
       }
+    }
+    // check bullets: fully inside the box (12 px margin), never on each other
+    if (box && window.kiBulletsOn(t)) {
+      var bbs = [];
+      Array.prototype.forEach.call(MB.bullets, function (g) {
+        if (g.getAttribute('opacity') !== '1') return;
+        var rb = g.querySelector('.mb-bullet-bg').getBoundingClientRect();
+        if (rb.left < box.left + 12 || rb.right > box.right - 12 || rb.top < box.top + 12 || rb.bottom > box.bottom - 12) out.push('BULLET OUTSIDE BOX');
+        bbs.forEach(function (o) { if (inter(o, rb) > 0) out.push('BULLETS OVERLAP'); });
+        bbs.push(rb);
+      });
     }
     // meme reaction cards: big, beside the guide, never over the box, the guide or the captions
     Object.keys(objs).forEach(function (id) {

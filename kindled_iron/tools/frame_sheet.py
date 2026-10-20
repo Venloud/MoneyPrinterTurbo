@@ -14,6 +14,8 @@ from pathlib import Path
 
 
 def pick_times(duration: float, work: Path | None, n: int = 8) -> list[float]:
+    if work and (work / "preview_times.json").exists():         # the render's own choice (verses, memes, bullets...)
+        return json.loads((work / "preview_times.json").read_text())[:n]
     times = [0.5]
     segs = []
     if work and (work / "box_segments.json").exists():
@@ -32,12 +34,32 @@ def pick_times(duration: float, work: Path | None, n: int = 8) -> list[float]:
     return sorted(times[:n])
 
 
+def tile_stills(d: Path, out: str) -> None:
+    files = sorted(d.glob("frame_*.png"), key=lambda f: float(f.stem.split("_")[-1]))[:8]
+    font = (Path(__file__).resolve().parents[1] / "vendor" / "fonts" / "Caveat.ttf").as_posix()
+    inputs, chains = [], []
+    for i, f in enumerate(files):
+        t = float(f.stem.split("_")[-1])
+        inputs += ["-i", str(f)]
+        chains.append(f"[{i}:v]scale=360:640,drawtext=fontfile='{font}':text='{t:.1f} s':fontsize=44:x=12:y=8:"
+                      f"fontcolor=white:box=1:boxcolor=black@0.55[v{i}]")
+    grid = "".join(f"[v{i}]" for i in range(len(files))) + f"xstack=inputs={len(files)}:layout=" + \
+        "|".join(f"{(i % 4) * 360}_{(i // 4) * 640}" for i in range(len(files)))
+    subprocess.run(["ffmpeg", "-y", "-v", "error", *inputs, "-filter_complex", ";".join(chains) + ";" + grid,
+                    "-frames:v", "1", "-q:v", "3", out], check=True)
+    print(f"sheet: {out} ({len(files)} stills)")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("video")
+    ap.add_argument("video", nargs="?", default=None)
     ap.add_argument("--work", default=None)
+    ap.add_argument("--stills", default=None, help="dir of frame_<t>.png stills (render --frames-only): tile those instead")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
+    if a.stills:
+        tile_stills(Path(a.stills), a.out)
+        return
     dur = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
                                          a.video]).decode().strip())
     times = pick_times(dur, Path(a.work) if a.work else None)

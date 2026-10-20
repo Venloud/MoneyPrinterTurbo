@@ -44,6 +44,8 @@ jobs:
           PHASE: ${{ inputs.phase }}
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/v3"
+          if [ -f "$KI_PRIVATE_MEDIA/previews/love-of-money-v3/alignment.json" ]; then cp "$KI_PRIVATE_MEDIA/previews/love-of-money-v3/alignment.json" "$RUNNER_TEMP/v3/"; fi
           python -m kindled_iron.render kindled_iron/scenes/love-of-money-v3.json --audio "$KI_PRIVATE_MEDIA/approved_audio/love-of-money-v3/goodone.mp3" --work "$RUNNER_TEMP/v3" --review-phase "$PHASE"
       - name: Save review only in private previews folder
         env:
@@ -53,7 +55,7 @@ jobs:
           set -euo pipefail
           d="$KI_PRIVATE_MEDIA/previews/love-of-money-v3"
           mkdir -p "$d"
-          cp "$RUNNER_TEMP/v3/metadata.json" "$RUNNER_TEMP/v3/shot-list.md" "$d/"
+          cp "$RUNNER_TEMP/v3/metadata.json" "$RUNNER_TEMP/v3/shot-list.md" "$RUNNER_TEMP/v3/alignment.json" "$d/"
           if [ "$PHASE" = preview ]; then cp "$RUNNER_TEMP/v3/eight-frames.jpg" "$d/"; fi
           if [ "$PHASE" = video ]; then cp "$RUNNER_TEMP/v3/love-of-money-v3.mp4" "$d/"; fi
           git -C "$KI_PRIVATE_MEDIA" add movie_reference/index.json

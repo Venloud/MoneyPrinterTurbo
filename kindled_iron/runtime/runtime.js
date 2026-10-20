@@ -70,7 +70,7 @@
   // Each returns SVG markup centred on (0,0). Stroked paths draw themselves;
   // [data-fill] shapes fade their fill in after the stroke.
   var OBJ = {
-    benefits: function(o){return '<g class="benefit-part" transform="translate(-240,0) scale(.72)">'+OBJ.sketch_house({})+'</g><g class="benefit-part" transform="scale(.72)">'+OBJ.sketch_grocery({})+'</g><g class="benefit-part" transform="translate(245,0) scale(.72)">'+OBJ.sketch_plane({})+'</g>';},
+    benefits: function(o){return '<text x="0" y="-155" text-anchor="middle" font-family="Caveat" font-size="64" fill="'+C.accent+'">A TOOL</text><g class="benefit-part" transform="translate(-240,0) scale(.72)">'+OBJ.sketch_house({})+'</g><g class="benefit-part" transform="scale(.72)">'+OBJ.sketch_grocery({})+'</g><g class="benefit-part" transform="translate(245,0) scale(.72)">'+OBJ.sketch_plane({})+'</g>';},
     clown_card: function(o){return '<g transform="scale(.8)">'+p('M-90,-150 Q0,-165 90,-150 L90,150 Q0,162 -90,150 Z',{fill:'board'})+p('M-55,-25 Q0,-115 55,-25 L30,-95 0,-65 -35,-100 Z',{c:'accent',fill:'accent',fo:.3})+p(circlePath(0,10,54),{fill:'board'})+p('M-32,-2 L-12,5 M12,5 L32,-2 M-34,32 Q0,70 36,24 M-15,41 L-12,51 M8,40 L10,50',{c:'ink'})+p(circlePath(0,20,10),{c:'accent',fill:'accent'})+'</g>';},
     myth_bible: function(o){return p('M-340,-155 Q-170,-185 0,-130 Q170,-185 340,-155 L340,150 Q170,115 0,170 Q-170,115 -340,150 Z',{fill:'water',fo:.4})+p('M0,-130 L0,170 M-320,-135 L-320,125 M320,-135 L320,125')+'<text x="0" y="-55" text-anchor="middle" font-family="Caveat" font-size="60" fill="'+C.ink+'">Money is the root</text><text x="0" y="25" text-anchor="middle" font-family="Caveat" font-size="60" fill="'+C.ink+'">of all evil</text><text x="0" y="112" text-anchor="middle" font-family="Caveat" font-size="42" fill="'+C.accent+'">IS THAT WHAT IT SAYS?</text>';},
     myth_cross: function(o){return p('M-285,-78 L270,45 M-275,40 L275,-85',{c:'accent',w:14});},
@@ -82,7 +82,7 @@
     cents: function(o){return '<text x="225" y="145" text-anchor="middle" font-family="Caveat" font-weight="700" font-size="100" fill="'+C.accent+'" stroke="'+C.board+'" stroke-width="10" paint-order="stroke fill">62¢</text>';},
     money_heart: function(o){return p('M0,130 C-230,-5 -140,-190 0,-70 C140,-190 230,-5 0,130 Z',{c:'accent',fill:'accent',fo:.12})+'<text x="0" y="45" text-anchor="middle" font-family="Caveat" font-size="130" fill="'+C.ink+'">$</text>';},
     chain: function(o){return p('M-150,-95 Q-150,-170 -65,-165 L70,-165 Q150,-165 150,-95 L150,75 Q150,145 70,145 L-65,145 Q-150,145 -150,75 Z',{c:'waterLine'})+p('M-75,-30 L75,-30 75,95 -75,95 Z M-40,-30 L-40,-70 Q0,-125 40,-70 L40,-30',{c:'accent'})+'<text x="0" y="65" text-anchor="middle" font-family="Caveat" font-size="90" fill="'+C.ink+'">$</text>';},
-    open_hand: function(o){return p('M-160,110 L-155,30 Q-175,-25 -140,-25 L-80,30 -75,-95 Q-70,-145 -45,-100 L-30,-20 -20,-130 Q-5,-165 10,-125 L20,-20 40,-105 Q65,-145 75,-95 L65,5 95,-65 Q130,-95 140,-50 L110,80 Q60,160 -70,150 Z',{c:'waterLine',fill:'water',fo:.2})+p(circlePath(-10,-160,23),{c:'accent'})+p(circlePath(75,-190,24),{c:'accent'})+p('M-10,-120 L-10,-90 M75,-150 L75,-120',{c:'accent'});},
+    open_hand: function(o){return '<g class="closed-fist" opacity="0">'+p('M-100,95 L-110,-10 Q-110,-70 -60,-60 L-40,-75 Q-5,-85 15,-65 Q60,-80 80,-40 L90,90 Q0,150 -100,95 Z',{c:'waterLine',fill:'water',fo:.2})+p('M-60,-60 L-50,20 M-10,-65 L-5,15 M40,-60 L40,20',{c:'waterLine'})+'</g><g class="opening-hand">'+p('M-160,110 L-155,30 Q-175,-25 -140,-25 L-80,30 -75,-95 Q-70,-145 -45,-100 L-30,-20 -20,-130 Q-5,-165 10,-125 L20,-20 40,-105 Q65,-145 75,-95 L65,5 95,-65 Q130,-95 140,-50 L110,80 Q60,160 -70,150 Z',{c:'waterLine',fill:'water',fo:.2})+'</g><g class="falling-coins">'+p(circlePath(-10,-160,23),{c:'accent'})+p(circlePath(75,-190,24),{c:'accent'})+p('M-10,-120 L-10,-90 M75,-150 L75,-120',{c:'accent'})+'</g>';},
     hand_heart: function(o){return '<g transform="translate(-190,10) scale(.65)">'+OBJ.open_hand({})+'</g><g transform="translate(190,0) scale(.7)">'+OBJ.money_heart({})+'</g>'+p('M-255,160 L-220,185 -160,120',{c:'greenLine',w:12})+p('M140,130 L220,195 M220,130 L140,195',{c:'accent',w:12});},
 
     heart: function(o) {
@@ -1358,6 +1358,7 @@
     }
   }
   function renderObjects(t) {
+    if(objs.open_hand && D.handOpenAt!=null){var hand=objs.open_hand.el,p=Math.max(0,Math.min(1,(t-D.handOpenAt)/.4));hand.querySelector('.closed-fist').setAttribute('opacity',1-p);hand.querySelector('.opening-hand').setAttribute('opacity',p);var coins=hand.querySelector('.falling-coins');coins.setAttribute('opacity',p);coins.setAttribute('transform','translate(0,'+(p*85)+')');}
     (D.sketchActions || []).forEach(function(a){var ob=objs[a.id];if(!ob)return;var el=ob.el.querySelector('.draw-hammer');if(el){var p=Math.min(1,Math.max(0,(t-a.start)/.22));el.setAttribute('transform','translate(180,-70) rotate('+(30-85*p)+')');}});
     (D.verseHighlights || []).forEach(function(h){var ob=objs[h.id];if(!ob)return;
       ob.typeLines.forEach(function(ln){var i=ln.text.toLowerCase().indexOf(h.text);if(i<0)return;

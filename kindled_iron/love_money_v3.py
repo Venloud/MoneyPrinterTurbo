@@ -31,9 +31,11 @@ def cue(e,bw,span):return render.resolve_at(e.get('at'),bw,*span,{})
 def prepare(scene,source,work,heard_path=None):
  wav,duration,voice=trim_silences(source,work)
  cache=work/'alignment.json'
- if cache.exists():heard=json.loads(cache.read_text())
+ cached=json.loads(cache.read_text()) if cache.exists() else None
+ if isinstance(cached,dict) and cached.get('source_sha256')==voice['source_sha256']:heard=cached['heard']
+ elif isinstance(cached,list) and os.environ.get('KI_ALIGN_MODEL'):heard=cached # local geometry preflight only
  else:
-  heard=wt.transcribe(wav,os.environ.get('KI_ALIGN_MODEL','small.en'));cache.write_text(json.dumps(heard))
+  heard=wt.transcribe(wav,os.environ.get('KI_ALIGN_MODEL','small.en'));cache.write_text(json.dumps(dict(source_sha256=voice['source_sha256'],heard=heard)))
  texts=[b['narration'] for b in scene['beats']];flat=[w for t in texts for w in render.words_of(t)]
  aligned=wt.align(flat,heard,(0,duration));spans=[];words=[];k=0
  for i,t in enumerate(texts):
@@ -76,6 +78,11 @@ def timeline(scene,spans,words,duration):
  # Build cards with established checked typewriter and fixed-page layout.
  data=render.build_data(scene,spans,words,duration)
  objs={o['id']:o for o in data['objects']};events=data['events'];visuals=[]
+ for e in events:
+  o=objs.get(e.get('id'),{})
+  if e.get('do')=='freeze':e.update(sound='scratch',sound_dur=.25)
+  elif e.get('do')=='draw' and o.get('type') not in ('inset','scripture') and not o.get('overlay'):e.update(main=True)
+
  for i,b in enumerate(scene['beats']):
   for e in b['events']:
    if e.get('visual') and not e.get('decorative') and not e.get('overlay'):
@@ -150,6 +157,7 @@ def timeline(scene,spans,words,duration):
  data['captionSuppress'].append(dict(start=ws[0]['start'],end=spans[14][0]))
  data['captions'][0]['start']=0
  data['sketchActions']=[dict(id='house',start=cue(dict(at='break'),words[6],spans[6]))]
+ data['handOpenAt']=cue(dict(at='loosen'),words[12],spans[12])
  data['sketchCues']={'benefits':[cue(dict(at=w),words[5],spans[5]) for w in ['rent','groceries','plane']]}
  data['paper']=effects.paper_texture(Path(os.environ['KI_V3_WORK']),render.PALETTE['board'])
  data['events']=sorted(events,key=lambda e:e['t'])
@@ -175,7 +183,7 @@ def main(scene_path,audio,work,phase='preview'):
  times=[.05,at(2,'Nope',.3),spans[4][0]+.12,at(6,'break',.4),spans[8][0]+.2,at(0,'lie',.3),at(13,'Provide',.12),at(15,'Mr',.25)]
  if phase=='preview':sheet(page,work,times)
  else:
-  chan=tts.load_profile('kindled_iron');music=dict(file=str(private_media.root()/'music'/'theme_1.mp3'),start=0,label='theme_1',lift_at=None)
+  chan=tts.load_profile('kindled_iron');music=dict(level_db=-22,duck_db=3.5,dip_db=3.5,lift_db=2,file=str(private_media.root()/'music'/'theme_1.mp3'),start=0,label='theme_1',lift_at=None)
   mixed=sound.mix(wav,sound.plan(data['events'],data['objects'],scene,spans,words=[w for b in words for w in b]),scene,spans,[w for b in words for w in b],data['duration'],work/'mix.wav',work/'mix_novoice.wav',music,render.log)
   render.capture(page,work/'love-of-money-v3.mp4',work/'mix.wav',data['duration'],None)
   subprocess.run(['ffmpeg','-v','error','-i',str(work/'love-of-money-v3.mp4'),'-f','null','-'],check=True)

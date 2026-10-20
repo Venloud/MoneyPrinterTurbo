@@ -14,7 +14,7 @@
  "preview": {
   "folder": "love-of-money-media-pass",
   "public_artifacts": false,
-  "stage": "sheet"
+  "stage": "full"
  },
  "format": "one question, a car-sale story, three verses typed in the box, closing question",
  "exact_narration": true,

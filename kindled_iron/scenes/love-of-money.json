@@ -933,7 +933,7 @@
      "hold": 0.8
     },
     {
-     "at": "right-0.15",
+     "at": "promise-0.15",
      "box": "clip",
      "clip": "donation"
     },

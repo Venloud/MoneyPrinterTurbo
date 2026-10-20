@@ -125,6 +125,16 @@ def timeline(scene,spans,words,duration):
  for i in range(0,len(spans),2):
   target=next((w['id'] for w in windows if w['from']<=spans[i][0]+.1<w['to']),None)
   if target:events.append(dict(t=spans[i][0]+.1,do='point',who='guide',toward=target,hold=.5,respond=False))
+ pop_intervals=[]
+ for i,b in enumerate(scene['beats']):
+  for e in b['events']:
+   if e.get('reaction_popup'):pop_intervals.append(cue(e,words[i],spans[i]))
+ # A new drawing can begin while the previous POP finishes; delay the pointing arm,
+ # rather than letting that arm sweep through the still-visible reaction card.
+ for e in events:
+  if e.get('who')=='guide' and e.get('do') in ('point','shrug','present','wave'):
+   for t in pop_intervals:
+    if e['t']<t+1.45 and e['t']+e.get('hold',.5)+.8>t-.25:e['t']=t+1.45
  protected=[(o['_t0']-.35,o['quote_end']+1.2) for o in cards]
  for e in events:
   if e.get('do') in ('point','shrug','freeze'):protected.append((e['t']-.3,e['t']+e.get('hold',e.get('dur',.6))+1.0))

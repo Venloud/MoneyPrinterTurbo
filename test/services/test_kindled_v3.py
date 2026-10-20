@@ -20,3 +20,23 @@ def test_hebrews_pages_and_word_timing():
  o,event=render.scripture_card(e,words,0,0,'hebrews');assert o['size']==64;assert o['page_break']['word']==14
  assert o['lines'][o['page_break']['line']-1].endswith('have,');assert max(p['height'] for p in o['page_layouts'])<=500
  assert len(o['word_times'])==len(scripture.words(e['scripture']['text']))
+def test_word_cued_timeline_keeps_pop_clear_of_gestures(tmp_path,monkeypatch):
+ s=json.loads(SCENE.read_text());words=[];spans=[];t=0
+ for b in s['beats']:
+  bw=[]
+  for word in render.words_of(b['narration']):
+   bw.append(dict(word=word,start=t,end=t+.18));t+=.2
+  spans.append((bw[0]['start'],bw[-1]['end']));words.append(bw)
+  for e in b['events']:
+   if e.get('file') or e.get('pin'):e.update(frames=['file:///fixture.jpg'],fps=30,clip_dur=3)
+ monkeypatch.setenv('KI_V3_WORK',str(tmp_path))
+ data=v.timeline(s,spans,words,t+.8)
+ pops=[(e['t'],e['t']+1.2) for e in data['events'] if e.get('id','').startswith('pop_') and e['do']=='draw']
+ for e in data['events']:
+  if e.get('do') not in ('point','shrug','present','wave'):continue
+  assert not any(e['t']<end and e['t']+e.get('hold',.5)+.7>start for start,end in pops)
+ windows=data['mediaCoverage']
+ assert windows[0]['from']==0
+ assert all(abs(a['to']-b['from'])<.001 for a,b in zip(windows,windows[1:]))
+ for w in windows:
+  if w['kind']=='scripture':assert dict(start=w['from'],end=w['to']) in data['captionSuppress']

@@ -1424,7 +1424,7 @@
   var lastOrder = '';
   function render(t) {
     var ids = Object.keys(chars);
-    ids.forEach(function (id) { renderChar(chars[id], t); });
+    ids.forEach(function (id) {var freeze=D.events.find(function(e){return e.do==='freeze' && e.local && (e.who||'guide')===id && t>=e.t && t<e.t+(e.dur||1);});renderChar(chars[id],freeze?freeze.t:t); });
     // z-order: a walking character is always in front of everyone else
     var order = ids.slice().sort(function (a, b) { return (chars[a].s.walk > 0.01) - (chars[b].s.walk > 0.01); });
     var key = order.join() + '|' + ids.map(function (id) { return chars[id].s.behind; }).join();
@@ -1605,7 +1605,7 @@
       var c=chars[id],vx=charX(id,t+.05)-charX(id,t-.05);
       if(c.s.walk>.3 && Math.abs(vx)>1 && Math.abs(c.s.flipX)>.3 && Math.sign(vx)!==Math.sign(c.s.flipX))out.push('WALK-FACING: '+id+' walks backwards');
       if(D.guideSpots && c.s.walk>.05){
-        if(Math.abs(vx)/.1>160.5)out.push('GUIDE SPEED: '+id+' exceeds slow walking pace');
+        if(Math.abs(vx)/.1>(D.guideWalkSpeed || 160)+.5)out.push('GUIDE SPEED: '+id+' exceeds planned walking pace');
         D.events.forEach(function(e){
           if(e.who===id && ['point','reach','touch','present','shrug','wave'].indexOf(e.do)>=0 && t>=e.t && t<e.t+(e.hold || 1.5)+.45)out.push('GUIDE GESTURE: '+id+' walks during '+e.do);
         });

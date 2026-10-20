@@ -87,6 +87,7 @@ def timeline(scene,spans,words,duration):
   for e in b['events']:
    if e.get('visual') and not e.get('decorative') and not e.get('overlay'):
     t=cue(e,words[i],spans[i]) if not e.get('scripture') else objs[e['id']]['_t0']
+    if e['id']=='kakuzu':t+=.45 # let the marker land on 'love' before the anime cut
     visuals.append((t,e['id'],i))
  visuals.sort();cards=[o for o in objs.values() if o['type']=='scripture']
  # The verse holds for one second. Later content waits visually while narration remains untouched.
@@ -117,9 +118,9 @@ def timeline(scene,spans,words,duration):
  data['mediaCoverage']=windows
  # Hide every superseded visual deterministically, including drawings and cards.
  data['v3Windows']=windows
- data['captionSuppress']=[dict(start=o['_t0'],end=o['quote_end']+1) for o in cards]
+ data['captionSuppress']=[dict(start=w['from'],end=w['to']) for w in windows if w['kind']=='scripture']
  # Verse highlights retain the actual card until the requested response, then footage resumes.
- t_love=cue(dict(at='love'),words[4],spans[4]);data['verseHighlights']=[dict(id='timothy_card',start=spans[4][0],end=t_love,text='love of money')]
+ t_love=cue(dict(at='love'),words[4],spans[4]);data['verseHighlights']=[dict(id='timothy_card',start=t_love,end=t_love+.45,text='love of money')]
  # Continuous speaking expressions and gestures every other line.
  for i in range(0,len(spans),2):
   target=next((w['id'] for w in windows if w['from']<=spans[i][0]+.1<w['to']),None)
@@ -133,15 +134,16 @@ def timeline(scene,spans,words,duration):
   for e in b['events']:
    if not e.get('reaction_popup'):continue
    t=cue(e,words[i],spans[i]);pops.append((t,e['id']));protected.append((t-.3,t+1.5))
+ data['guideWalkSpeed']=220
  data['guideSpots']=[195,345,495,645,795,885];x=195;last=0;moves=[]
  for i in [1,3,5,7,9,11,13]:
-  target=[345,195,495,795,885,645,345][len(moves)%7];dur=abs(target-x)/155;t=max(spans[i][0]+.1,last+.3)
+  target=[345,195,495,795,885,645,345][len(moves)%7];dur=abs(target-x)/220;t=max(spans[i][0]+.1,last+.3)
   for _ in range(50):
    hit=next(((a,b) for a,b in sorted(protected) if t+.25+dur+.3>a and t<b),None)
    if not hit:break
    t=hit[1]+.1
   if t+dur+.55>spans[min(i+1,len(spans)-1)][1]:continue
-  events.extend([dict(t=t,do='face',who='guide',facing=1 if target>x else -1),dict(t=t+.25,do='walk',who='guide',to=target,speed=155)])
+  events.extend([dict(t=t,do='face',who='guide',facing=1 if target>x else -1),dict(t=t+.25,do='walk',who='guide',to=target,speed=220)])
   moves.append(dict(start=t+.25,end=t+.25+dur,to=target));last=t+.25+dur+.3;x=target
  for t,id in pops:
   x=195
@@ -180,7 +182,7 @@ def main(scene_path,audio,work,phase='preview'):
  page=render.write_page(data,work)
  # Eight requested story beats, word-aligned rather than arbitrary timestamps.
  def at(i,w,delta=0):return cue(dict(at=w),words[i],spans[i])+delta
- times=[.05,at(2,'Nope',.3),spans[4][0]+.12,at(6,'break',.4),spans[8][0]+.2,at(0,'lie',.3),at(13,'Provide',.12),at(15,'Mr',.25)]
+ times=[.05,at(2,'Nope',.3),at(4,'love',.25),at(6,'break',.4),spans[8][0]+.2,at(0,'lie',.3),at(13,'Provide',.12),at(15,'Mr',.25)]
  if phase=='preview':sheet(page,work,times)
  else:
   chan=tts.load_profile('kindled_iron');music=dict(level_db=-22,duck_db=3.5,dip_db=3.5,lift_db=2,file=str(private_media.root()/'music'/'theme_1.mp3'),start=0,label='theme_1',lift_at=None)

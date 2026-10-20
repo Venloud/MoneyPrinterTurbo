@@ -1019,9 +1019,16 @@ def main() -> None:
     page = write_page(data, work)
     log(f"{len(data['objects'])} objects, {len(data['events'])} events, {len(data['captions'])} caption chunks, {duration:.2f} s")
 
-    (work / "preview_times.json").write_text(json.dumps(preview_times(data, box_segs)))
+    picks = (scene.get("preview") or {}).get("frames")     # [{"beat": id, "at": "word+0.3"}]: the scene names its sheet frames
+    if picks:
+        ids = [bt.get("id") for bt in scene["beats"]]
+        ptimes = sorted(round(resolve_at(f["at"], beat_words[ids.index(f["beat"])], *spans[ids.index(f["beat"])], {}), 2)
+                        for f in picks)
+    else:
+        ptimes = preview_times(data, box_segs)
+    (work / "preview_times.json").write_text(json.dumps(ptimes))
     if a.frames_only:
-        stills = preview_times(data, box_segs) if a.frames_only == "auto" else [float(x) for x in a.frames_only.split(",")]
+        stills = ptimes if a.frames_only == "auto" else [float(x) for x in a.frames_only.split(",")]
         (work / "stills_times.json").write_text(json.dumps(stills))
         capture(page, None, None, duration, a.chrome, stills, work / "stills", strict=bool(a.audit and box_segs is not None))
         log(f"stills in {work / 'stills'}")

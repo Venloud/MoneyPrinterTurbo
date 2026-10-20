@@ -78,7 +78,7 @@
         (o.underline ? '<path class="ki-underline" d="" stroke="' + col(o.underline === true ? 'accent' : o.underline) +
           '" stroke-width="' + Math.max(6, size * 0.07) + '" fill="none" stroke-linecap="round"/>' : '');
     },
-    strike: function () { return '<path class="ki-strike" d="" stroke="' + C.accent + '" stroke-width="16" fill="none" stroke-linecap="round"/>'; },
+    strike: function (o) { return '<path class="ki-strike" d="" stroke="' + C.accent + '" stroke-width="' + (o.sw || 16) + '" fill="none" stroke-linecap="round"/>'; },
     circle: function () { return '<path class="ki-ring" d="" stroke="' + C.accent + '" stroke-width="9" fill="none" stroke-linecap="round"/>'; },
     rays: function (o) {
       var n = o.n || 12, r1 = o.r1 || 150, r2 = o.r2 || 210, s = '';
@@ -94,7 +94,7 @@
         p('M0,-60 C-60,-80 -140,-78 -190,-55 L-190,70 C-140,48 -60,48 0,70 Z', { fill: 'page', fo: 1 }) +
         p('M0,-60 C60,-80 140,-78 190,-55 L190,70 C140,48 60,48 0,70 Z', { fill: 'page', fo: 1 }) +
         p('M0,-60 L0,70', { w: 6 });
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < (o.blank ? 0 : 4); i++) {      // blank: no printed lines (text is written on the pages)
         var y = -38 + i * 24;
         s += p('M-165,' + (y + 2) + ' C-120,' + (y - 8) + ' -60,' + (y - 8) + ' -25,' + (y + 4), { w: 4, c: 'inkSoft' });
         s += p('M25,' + (y + 4) + ' C60,' + (y - 8) + ' 120,' + (y - 8) + ' 165,' + (y + 2), { w: 4, c: 'inkSoft' });
@@ -745,6 +745,7 @@
   var tl = gsap.timeline({ paused: true });
   var hudState = { day: 0, pop: 0 };
   var freezeState = { v: 0 };
+  var freezeOn = (D.events || []).some(function (e) { return e.do === 'freeze'; });   // its zoom-out also hides captions
   var lightState = { dark: 0, wash: 0, glow: 0, rays: 0, spread: 0.2, x: W / 2, y: H * 0.3 };
   var REST = { armR: 8, armRf: 12, armL: 8, armLf: 12, busyR: 0, busyL: 0, lean: 0, headTilt: 0, legSpread: 0, y: 0,
                lR: 0, lRs: 0, lL: 0, lLs: 0, rotB: 0, floatAmt: 0, swim: 0 };
@@ -1315,7 +1316,7 @@
     capEl.style.top = CAP_TOP + 'px'; capEl.style.fontSize = fit + 'px'; capEl.style.visibility = 'visible';
     if (!capEl.children.length) return;
     if (D.captionFixed) {          // fixed caption band (the per-frame audit proves it never touches the guide / box)
-      if ((window.kiVerseOn && window.kiVerseOn(T_NOW)) || freezeState.v > 0.5) capEl.style.visibility = 'hidden';
+      if ((window.kiVerseOn && window.kiVerseOn(T_NOW)) || freezeState.v > 0.001 || (freezeOn && cam.z > 1.01)) capEl.style.visibility = 'hidden';
       return;
     }
     // the same words already written big on screen: no caption on top of it (never "NOBODY. NOBODY.")

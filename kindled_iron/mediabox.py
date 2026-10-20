@@ -288,14 +288,16 @@ def media_frames(s: dict, seconds: float, w: int, h: int, work: Path, n: int, lo
 def _source(spec: dict, key: str, got: dict, log):
     if key in got:
         return got[key]
-    pin = spec["pexels"]
+    pin = spec.get("pexels")                # a pinned Pexels ID, or "query": the first Pexels search hit (logged by ID)
     try:
-        cands = insets_mod._pexels("", pin)
+        cands = insets_mod._pexels(spec.get("query", ""), pin)
     except Exception as e:  # noqa: BLE001
         raise SystemExit(f"FAIL: required clip {key} (Pexels {pin}) could not be fetched: {type(e).__name__}: {e}")
     if not cands:
-        raise SystemExit(f"FAIL: required clip {key} (Pexels {pin}): no file (is PEXELS_API_KEY set?)")
+        raise SystemExit(f"FAIL: required clip {key} (Pexels {pin or spec.get('query')}): no file (is PEXELS_API_KEY set?)")
     c = cands[0]
+    if not pin:
+        log(f"media box: clip {key} = Pexels {c['id']} (search {spec.get('query')!r})")
     f = insets_mod._download(c["file_url"])
     length = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                             "-of", "csv=p=0", str(f)]).decode().strip() or 0)
@@ -318,7 +320,7 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
             out_dir = work / "box" / f"{key}_{n}{side}"
             return _placeholder(key, max(1.0, want), w, h, out_dir), {}
         c, f, length = _source(spec, key, got, log)
-        pin = spec["pexels"]
+        pin = spec.get("pexels") or c["id"]
         st = float(start) if start is not None else cursor.get(pin, float(spec.get("start", 0.3)))
         dur = min(want, length - 0.1)
         if st + dur > length - 0.05:

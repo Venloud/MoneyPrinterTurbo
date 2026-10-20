@@ -173,6 +173,13 @@ jobs:
           if [ -f "$d/theme_1.mp3" ]; then echo "KI_MUSIC_DIR=$d" >> "$GITHUB_ENV"; echo "music themes: $(ls "$d" | grep -c '^theme_') in the private music/"; \
           else echo "::warning::no theme_1.mp3 in the private music/ folder"; fi
 
+      - name: Record-scratch sound (Freesound CC0) if the library has none
+        if: ${{ hashFiles('kindled_iron/vendor/sfx/lib/record_scratch_0.ogg') == '' }}
+        continue-on-error: true
+        env:
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+        run: python -m kindled_iron.sfx_library --roles record_scratch
+
       - name: Render (+ safe-box debug copy and stills)
         env:
           ELEVENLABS_API_KEY: ${{ inputs.my_voice && secrets.ELEVENLABS_API_KEY || '' }}

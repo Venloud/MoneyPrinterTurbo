@@ -50,8 +50,10 @@ Files: `kindled_iron/director/` (`direct.py` runs it all, `plan.py`, `compile.py
 | Drawing area | everything from under the caption to the bottom of the safe box (y 702-1432, 38% of the frame) | the band above the guide's head (650 x 318) + the side beside him (285 wide, up to full height) |
 | Guide lane | bottom: 4 spots (230, 340, 560, 650), ground 1570 | the guide walks; a meme pop-up sits beside him on its word |
 
-Each line's two drawings are arranged by the compiler for the most frame: a wide or square illustration in the
-band and a tall one in the side below it, or a full-height drawing beside him and a second one over his head.
+Each line gets up to three drawings, arranged by the compiler for the most frame: the band whole or in two halves,
+the side beside the guide (lower part or full height), or the band over his own side. A drawing that cannot fit
+readably is dropped with a note; a thin strip diagram is swapped for the library illustration of the same idea.
+On a meme pop-up line the side drawing makes way for the card and comes back the moment it is gone.
 Zones never overlap, so text never lands on text or on the guide; a new drawing that covers an old one of the
 other slot clears it first. The compiler keeps the guide's arms clear: he points only where his hand cannot reach a
 drawing, shrugs only where there is room, and a drawing is cleared before he walks through it.

@@ -22,7 +22,7 @@ You give it two files. It makes the whole video by itself and puts a private pre
 ```
 script.txt + narration.mp3
  1 align    faster-whisper hears the MP3; every script word gets its time (the renderer's own alignment)
- 2 plan     the AI (Gemini Flash -> GitHub Models -> Cloudflare Workers AI, see "AI providers") writes a SHOT
+ 2 plan     the AI (Gemini -> GitHub Models -> Hugging Face -> Groq -> OpenRouter -> Cloudflare, see "AI providers") writes a SHOT
             PLAN per line: 2 drawings (a library doodle picked by tag, or a built-in diagram, + labels), clip-box
             media (stock search words or a meme from your library), a typed verse card, an optional meme
             pop-up, the guide's expression and gesture, and ONE record-scratch freeze. Meaning only, no
@@ -74,29 +74,35 @@ eyes as symbols, God is never drawn as a figure.
 
 ### AI providers, budget and quota waits
 
-One interface (`kindled_iron/director/llm.py`) for the plan and the vision review; the first provider that answers
-wins and every call is logged with its provider (`ai_calls.json`, `review.json` -> `ai`, status.json):
+One interface (`kindled_iron/director/llm.py`) for the shot plan and the vision review. The providers and their
+models are in `kindled_iron/director/providers.json` (free tiers only), tried in this order:
 
-1. Gemini Flash models of `GEMINI_API_KEY` (strongest first, lite last).
-2. GitHub Models through the workflow's own token (`permissions: models: read`): the best chat model of the
-   catalog that also reads images. Its free requests are small, so it gets a compact prompt.
-3. Cloudflare Workers AI (`CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN`), last resort: only when Cloudflare's own
-   analytics show room in the account's daily neurons, which Night Files shares (this bot at most 1,500 a day, and
-   always at least 20 images' worth left for Night Files). Without readable analytics it is not used.
+| # | Provider | Secret (repo settings -> Secrets -> Actions) | Notes |
+|---|---|---|---|
+| 1 | Gemini Flash | `GEMINI_API_KEY` | the key's own Flash models, strongest first |
+| 2 | GitHub Models | none: the workflow's own token (`permissions: models: read`) | small requests (8k tokens): gets the compact prompt |
+| 3 | Hugging Face | `HF_TOKEN` | free inference credits; chat + vision models |
+| 4 | Groq | `GROQ_API_KEY` | chat + vision models |
+| 5 | OpenRouter | `OPENROUTER_API_KEY` | only models ending in `:free` are ever called |
+| 6 | Cloudflare Workers AI | `KINDLED_CF_ACCOUNT_ID` + `KINDLED_CF_API_TOKEN` | Kindled's own account only; Night Files' Cloudflare secrets are never read |
+| 7 | Claude | `CLAUDE_CODE_OAUTH_TOKEN` | OFF unless `"allow_claude_fallback": true` in providers.json; at most 1 plan call per video, never the review |
 
-Budget per video: at most 3 plan calls and 1 vision call. When every provider is out of quota, the video is not
-failed: status.json says `waiting_quota`, `checkpoint.json` keeps the alignment, the calls used, the last errors
-and any plan that already passed, and the run exits 75 (a notice, not a red run). The workflow's schedule (07:17
-UTC, after the Gemini reset) resumes only waiting videos; you get an ntfy alert only if one is still stuck after
-24 h. (GitHub runs schedules from the default branch's copy of the workflow.)
+To add a key: create the secret with exactly that name in the MoneyPrinterTurbo repository settings; nothing else
+changes (a provider whose secret is missing is skipped). To change a model: edit providers.json (`chat` / `vision`).
+Pay-per-use keys are never used, and a test fails if the director code references them or Night Files'
+Cloudflare secrets.
 
-### The catalog
+How a call goes: a provider that answers 429 / quota / 5xx / a timeout is marked exhausted for the rest of the run
+and the next one is asked; the vision review only asks providers with a vision model; every answer goes through
+the same plan checks, whoever sent it. Each call is logged with its provider and model (`ai_calls.json`,
+`review.json` -> `ai` and `calls`, `status.json`).
 
-`catalog.json` is generated from the renderer (`python -m kindled_iron.director.catalog`, run in every workflow
-run): every drawing primitive in `runtime.js` with its comment, its fields and its size measured in Chrome, every
-event type with its fields, the media-box kinds, the guide's expressions and his measured reach. A unit test fails
-when it is stale. To give the director a new kind of drawing, add a primitive to `OBJ` in `runtime.js` (with a
-`// comment` saying what it shows; labels via `lbl()`), regenerate the catalog, commit both.
+Budget per video: at most 3 plan calls and 1 vision call; plain mistakes are repaired in code first. When every
+provider is exhausted the video is not failed: status.json says `waiting_quota`, `checkpoint.json` keeps the
+alignment, the calls used, the last errors and any plan that already passed, and the run exits 75 (a notice, not a
+red run). The workflow's daily schedule (07:17 UTC, after the Gemini reset) resumes only waiting videos; `NTFY_TOPIC`
+gets an alert only if one is still stuck after 24 h. (GitHub runs schedules from the default branch's copy of the
+workflow, so the automatic retry starts once this is merged to main.)
 
 ## Adding memes and clips
 
@@ -151,9 +157,8 @@ verdict per still + the AI calls by provider), `ai_calls.json` (every AI call: p
 ## Secrets (MoneyPrinterTurbo repo settings, names only)
 
 `GEMINI_API_KEY` (free tier), `VOICE_REPO_TOKEN`, `PEXELS_API_KEY`, `PIXABAY_API_KEY` (optional), `FREESOUND_API_KEY`
-(for the record scratch, optional), `NTFY_TOPIC` (optional phone alerts), `CLOUDFLARE_ACCOUNT_ID` +
-`CLOUDFLARE_API_TOKEN` (optional last-resort AI; the token needs Workers AI and Account Analytics: Read). GitHub
-Models needs no secret (the workflow's own token).
+(for the record scratch, optional), `NTFY_TOPIC` (optional phone alerts), and the optional AI fallback keys in the
+provider table above.
 
 ## Local offline test (no keys)
 

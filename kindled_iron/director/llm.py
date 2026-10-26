@@ -1,18 +1,16 @@
 """One interface for the director's AI calls (the shot plan and the vision review), whatever provider answers.
 
-Providers, in order (each one is skipped when it is not configured, out of quota or busy):
-  1. Gemini Flash models (GEMINI_API_KEY, free tier; the key's own Flash models, see gemini.py)
-  2. GitHub Models (GITHUB_TOKEN inside Actions with `permissions: models: read`; the best chat model of the
-     catalog, one that also reads images for the review). Free requests are small (8k tokens in), so they get
-     the compact prompt.
-  3. Cloudflare Workers AI (CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN), last resort. The account's daily free
-     neurons are shared with Night Files: a call is made only when Cloudflare's own analytics say there is room
-     (cf_budget below), and never more than KI_CF_DAILY_NEURONS a day for this bot.
+The providers and their models live in providers.json (free tiers only), tried in its order:
+  gemini -> github (GitHub Models, the workflow token) -> huggingface -> groq -> openrouter (':free' models only)
+  -> cloudflare (the Kindled account: KINDLED_CF_*) -> claude (off unless allow_claude_fallback; max 1 plan call)
+A provider whose secret is missing is skipped. One that answers 429 / quota / 5xx / a timeout is marked exhausted
+for the rest of the run and the next one is asked. The vision review only asks providers with a vision model.
+Every answer goes through the same plan checks afterwards, whoever sent it.
 
-call_json() returns the first JSON answer. When no provider answers because every one is out of quota, busy or
-over its budget, it raises QuotaWait: the video waits for the daily reset instead of failing. Every call (also
-the failed ones) is logged in calls.CALLS with its provider. Offline tests set KI_LLM_MOCK (or the older
-KI_GEMINI_MOCK) to a directory of canned answers (plan_<n>.json / plan.json, review_<n>.json / review.json).
+call_json() returns the first JSON answer. When every usable provider is exhausted it raises QuotaWait: the
+video waits for the daily reset instead of failing. Every call (also the failed ones) is logged in calls.CALLS
+with its provider and model. Offline tests set KI_LLM_MOCK (or KI_GEMINI_MOCK) to a directory of canned answers
+(plan_<n>.json / plan.json, review_<n>.json / review.json).
 """
 from __future__ import annotations
 
@@ -23,14 +21,17 @@ import re
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
 from pathlib import Path
 
 from kindled_iron.director.calls import CALLS
 
+CONFIG = Path(__file__).resolve().parent / "providers.json"
+EXHAUSTED: dict[str, str] = {}          # provider -> why, for the rest of this run
+SYSTEM = "You answer with one JSON object only."
+
 
 class Unavailable(Exception):
-    """This provider gave no answer. quota=True: out of quota / busy / over budget (worth waiting for)."""
+    """This provider gave no answer. quota=True: out of quota / busy / timed out (worth waiting for)."""
 
     def __init__(self, msg: str, quota: bool = True):
         super().__init__(msg)
@@ -41,12 +42,16 @@ class QuotaWait(Exception):
     """No provider can answer until a quota resets."""
 
 
+def config() -> dict:
+    return json.loads(CONFIG.read_text(encoding="utf-8"))
+
+
 def _log(msg: str) -> None:
     print(f"[llm] {msg}", flush=True)
 
 
-def _http(method: str, url: str, headers: dict, body: dict | None = None, timeout: float = 300):
-    """-> (status, headers, parsed JSON or text). Never raises on an HTTP error status (tests replace this)."""
+def _http(method: str, url: str, headers: dict, body: dict | None = None, timeout: float = 420):
+    """-> (status, headers, parsed JSON or text); status 0 = no answer (timeout, dropped). Tests replace this."""
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", **headers})
     try:
@@ -62,175 +67,131 @@ def _http(method: str, url: str, headers: dict, body: dict | None = None, timeou
         return st, hd, raw.decode("utf-8", "replace")
 
 
-# ------------------------------------------------------------------ 1. Gemini
-class Gemini:
-    name, compact = "gemini", False
+def _busy(status: int, body) -> bool:
+    return status in (0, 408, 429, 500, 502, 503, 504, 529) or bool(re.search(r"quota|rate.?limit|exhaust|3036", str(body)[:500], re.I))
+
+
+def _image_url(img: Path) -> str:
+    return "data:image/jpeg;base64," + base64.b64encode(Path(img).read_bytes()).decode()
+
+
+def _parse(text: str, who: str) -> dict:
+    from kindled_iron.director.gemini import parse_json
+    return parse_json(text, who)
+
+
+# ------------------------------------------------------------------ provider kinds
+class Provider:
+    def __init__(self, cfg: dict):
+        self.cfg, self.name = cfg, cfg["name"]
+
+    def secret(self) -> str | None:
+        return os.getenv(self.cfg["secret"])
 
     def ready(self) -> bool:
-        return bool(os.getenv("GEMINI_API_KEY"))
+        return bool(self.secret()) and all(os.getenv(k) for k in [self.cfg.get("account_secret")] if k)
 
-    def call(self, kind, prompt, images, sheet, temperature):
+    def model(self, vision: bool) -> str | None:
+        return self.cfg.get("vision") if vision else self.cfg.get("chat")
+
+    def fits(self, prompt: str, images) -> bool:
+        return len(prompt) / 3.6 + 85 * len(images or []) <= self.cfg.get("max_input_tokens", 8000)
+
+
+class Gemini(Provider):
+    def call(self, kind, prompt, images, model, temperature):
         from kindled_iron.director import gemini
-        return gemini.generate(kind, prompt, images=images, temperature=temperature)
+        return gemini.generate(kind, prompt, images=images, model=model, temperature=temperature)
 
 
-# ------------------------------------------------------------------ 2. GitHub Models
-GH_API = "https://models.github.ai"
-# the strongest families first; within the catalog the first match wins (no guessed names: only listed models)
-GH_PREFER = [r"gpt-5(?!.*(nano|mini))", r"gpt-4\.1(?!.*(nano|mini))", r"gpt-4o(?!.*mini)", r"gpt-5-mini", r"gpt-4\.1-mini",
-             r"gpt-4o-mini", r"llama-4", r"llama-3\.3-70b", r"deepseek-v3", r"mistral-(medium|large)"]
+class OpenAICompatible(Provider):
+    """GitHub Models, Hugging Face router, Groq, OpenRouter, Cloudflare Workers AI: the same chat-completions call."""
 
-
-class GitHubModels:
-    name, compact = "github", True
-    _cat: list | None = None
-
-    def ready(self) -> bool:
-        return bool(os.getenv("KI_MODELS_TOKEN") or os.getenv("GITHUB_MODELS_TOKEN"))
-
-    def _hdr(self) -> dict:
-        tok = os.getenv("KI_MODELS_TOKEN") or os.getenv("GITHUB_MODELS_TOKEN")
-        return {"Authorization": f"Bearer {tok}", "Accept": "application/vnd.github+json",
-                "X-GitHub-Api-Version": "2022-11-28"}
-
-    def pick(self, vision: bool) -> dict:
-        if GitHubModels._cat is None:
-            st, _, cat = _http("GET", f"{GH_API}/catalog/models", self._hdr(), timeout=30)
-            if st != 200 or not isinstance(cat, list):
-                raise Unavailable(f"GitHub Models catalog HTTP {st}: {str(cat)[:200]}", quota=st in (0, 429, 503))
-            GitHubModels._cat = cat
-        ok = [m for m in GitHubModels._cat if "text" in (m.get("supported_output_modalities") or ["text"])
-              and (not vision or "image" in (m.get("supported_input_modalities") or []))
-              and not re.search(r"embed|whisper|tts|image-gen|dall", m.get("id", ""), re.I)]
-        for pat in GH_PREFER:
-            for m in ok:
-                if re.search(pat, m.get("id", ""), re.I):
-                    return m
-        if not ok:
-            raise Unavailable("GitHub Models: no " + ("vision " if vision else "") + "chat model in the catalog", quota=False)
-        return ok[0]
-
-    def call(self, kind, prompt, images, sheet, temperature):
-        m = self.pick(vision=bool(images))
-        mid = m["id"]
-        limit = int(((m.get("limits") or {}).get("max_input_tokens")) or 8000)
-        limit = min(limit, int(os.getenv("KI_GH_MAX_INPUT_TOKENS", "8000")))     # the free tier's per-request cap
-        if len(prompt) / 3.6 + 85 * len(images or []) > limit:
-            raise Unavailable(f"GitHub Models {mid}: prompt ~{len(prompt) / 3.6:.0f} tokens is over its {limit}-token "
-                              "request limit", quota=False)
+    def call(self, kind, prompt, images, model, temperature):
+        c = self.cfg
+        if c.get("free_only") and not model.endswith(":free"):
+            raise Unavailable(f"{self.name}: model {model} is not a ':free' model", quota=False)
+        url = c["url"].replace("{account}", os.getenv(c.get("account_secret") or "", "") or "")
         content: list = [{"type": "text", "text": prompt}]
         for img in images or []:
-            content.append({"type": "image_url", "image_url": {
-                "url": "data:image/jpeg;base64," + base64.b64encode(Path(img).read_bytes()).decode(), "detail": "low"}})
-        reasoning = bool(re.search(r"gpt-5|/o\d", mid))
-        body = {"model": mid, "messages": [
-            {"role": "system", "content": "You answer with one JSON object only."},
-            {"role": "user", "content": content}], "response_format": {"type": "json_object"}}
-        body["max_completion_tokens" if reasoning else "max_tokens"] = 4000
-        if not reasoning:
-            body["temperature"] = temperature
+            iu = {"url": _image_url(img)}
+            if c.get("image_detail"):
+                iu["detail"] = c["image_detail"]
+            content.append({"type": "image_url", "image_url": iu})
+        body = {"model": model, "messages": [{"role": "system", "content": SYSTEM},
+                                             {"role": "user", "content": content if images else prompt}],
+                "temperature": temperature, "max_tokens": c.get("max_output_tokens", 4000),
+                "response_format": {"type": "json_object"}}
+        hdr = {"Authorization": f"Bearer {self.secret()}", **(c.get("headers") or {})}
         t0 = time.time()
-        st, hd, out = _http("POST", f"{GH_API}/inference/chat/completions", self._hdr(), body)
-        rec = {"kind": kind, "provider": "github", "model": mid, "seconds": round(time.time() - t0, 1),
+        st, hd, out = _http("POST", url, hdr, body)
+        if st == 400 and "response_format" in str(out):          # some models take no JSON mode: ask in words
+            body.pop("response_format")
+            st, hd, out = _http("POST", url, hdr, body)
+        rec = {"kind": kind, "provider": self.name, "model": model, "seconds": round(time.time() - t0, 1),
                "images": len(images or [])}
         if st != 200:
             rec["error"] = f"HTTP {st}"
             CALLS.append(rec)
-            raise Unavailable(f"GitHub Models {mid} HTTP {st}: {str(out)[:300]}", quota=st in (0, 429, 500, 502, 503, 504))
-        usage = out.get("usage") or {}
+            raise Unavailable(f"{self.name} {model} HTTP {st}: {str(out)[:300]}", quota=_busy(st, out))
+        usage = (out or {}).get("usage") or {}
         rec.update(prompt_tokens=usage.get("prompt_tokens"), output_tokens=usage.get("completion_tokens"))
         CALLS.append(rec)
-        from kindled_iron.director.gemini import parse_json
         try:
             text = out["choices"][0]["message"]["content"]
         except (KeyError, IndexError, TypeError):
-            raise Unavailable(f"GitHub Models {mid}: no answer text", quota=False) from None
-        return parse_json(text, f"GitHub Models {mid}")
+            raise Unavailable(f"{self.name} {model}: no answer text ({str(out)[:200]})", quota=False) from None
+        return _parse(text if isinstance(text, str) else json.dumps(text), f"{self.name} {model}")
 
 
-# ------------------------------------------------------------------ 3. Cloudflare Workers AI (shared budget)
-CF_API = "https://api.cloudflare.com/client/v4"
-CF_TEXT = os.getenv("KI_CF_TEXT_MODEL", "@cf/meta/llama-3.3-70b-instruct-fp8-fast")
-CF_VISION = os.getenv("KI_CF_VISION_MODEL", "@cf/meta/llama-3.2-11b-vision-instruct")
-CF_DAILY = 10000.0                       # the account's free neurons per UTC day (Night Files uses most of them)
-CF_RESERVE = 20 * 172.8                  # always leave Night Files room for at least 20 FLUX images
-# neurons per million tokens, as Cloudflare prices these models (input, output)
-CF_PRICE = {"llama-3.3-70b": (26668, 204805), "llama-3.2-11b-vision": (4410, 61493)}
-
-
-def cf_used_today() -> tuple[float, float]:
-    """(account total, this bot's models) neurons used today, from Cloudflare's own analytics (the same count
-    Night Files reads). Raises Unavailable when the analytics cannot be read: then the budget is unknown."""
-    acct, token = os.getenv("CLOUDFLARE_ACCOUNT_ID"), os.getenv("CLOUDFLARE_API_TOKEN")
-    now = datetime.now(timezone.utc)
-    query = """query($acct: String!, $since: Time!, $until: Time!) { viewer { accounts(filter: {accountTag: $acct}) {
-      aiInferenceAdaptiveGroups(limit: 200, filter: {datetime_geq: $since, datetime_leq: $until}) {
-        sum { totalNeurons } dimensions { modelId } } } } }"""
-    st, _, data = _http("POST", f"{CF_API}/graphql", {"Authorization": f"Bearer {token}"},
-                        {"query": query, "variables": {"acct": acct, "since": now.strftime("%Y-%m-%dT00:00:00Z"),
-                                                       "until": now.strftime("%Y-%m-%dT%H:%M:%SZ")}}, timeout=30)
-    try:
-        rows = data["data"]["viewer"]["accounts"][0]["aiInferenceAdaptiveGroups"]
-    except (KeyError, IndexError, TypeError):
-        raise Unavailable(f"Cloudflare analytics unreadable (HTTP {st}: {str(data)[:160]}): the shared budget is "
-                          "unknown, so Cloudflare is not used") from None
-    total = sum(float(r["sum"].get("totalNeurons") or 0) for r in rows)
-    mine = sum(float(r["sum"].get("totalNeurons") or 0) for r in rows
-               if r["dimensions"]["modelId"] in (CF_TEXT, CF_VISION))
-    return total, mine
-
-
-class Cloudflare:
-    name, compact = "cloudflare", True
+class Claude(Provider):
+    """Anthropic Messages API with the Claude Code OAuth token. Off unless the config allows it; plan calls only,
+    at most claude_max_plan_calls per video."""
 
     def ready(self) -> bool:
-        return bool(os.getenv("CLOUDFLARE_ACCOUNT_ID") and os.getenv("CLOUDFLARE_API_TOKEN"))
+        return super().ready() and bool(config().get("allow_claude_fallback"))
 
-    def call(self, kind, prompt, images, sheet, temperature):
-        vision = bool(images)
-        model = CF_VISION if vision else CF_TEXT
-        price = CF_PRICE["llama-3.2-11b-vision" if vision else "llama-3.3-70b"]
-        est = len(prompt) / 3.6 * price[0] / 1e6 + 4000 * price[1] / 1e6 + (600 if vision else 0)
-        total, mine = cf_used_today()
-        cap = float(os.getenv("KI_CF_DAILY_NEURONS", "1500"))
-        if mine + est > cap or total + est > CF_DAILY - CF_RESERVE:
-            raise Unavailable(f"Cloudflare budget: today {total:.0f}/{CF_DAILY:.0f} neurons (this bot {mine:.0f}/{cap:.0f}), "
-                              f"a call needs ~{est:.0f}: left for Night Files")
-        acct, token = os.getenv("CLOUDFLARE_ACCOUNT_ID"), os.getenv("CLOUDFLARE_API_TOKEN")
-        body: dict = {"messages": [{"role": "system", "content": "You answer with one JSON object only."},
-                                   {"role": "user", "content": prompt}], "max_tokens": 4000, "temperature": temperature}
-        if vision:
-            img = Path(sheet or images[0]).read_bytes()          # one image: the stills as one sheet
-            body["image"] = list(img)
-        else:
-            body["response_format"] = {"type": "json_object"}
-        url, hdr = f"{CF_API}/accounts/{acct}/ai/run/{model}", {"Authorization": f"Bearer {token}"}
+    def _hdr(self) -> dict:
+        return {"Authorization": f"Bearer {self.secret()}", "anthropic-version": "2023-06-01",
+                "anthropic-beta": "oauth-2025-04-20"}
+
+    def model(self, vision: bool) -> str | None:
+        want = self.cfg.get("vision") if vision else self.cfg.get("chat")
+        if not want or not want.startswith("auto"):
+            return want
+        family = want.split("-", 1)[1] if "-" in want else ""
+        st, _, out = _http("GET", self.cfg["models_url"], self._hdr(), timeout=30)
+        ids = [m.get("id", "") for m in (out or {}).get("data", [])] if st == 200 and isinstance(out, dict) else []
+        pick = next((i for i in ids if family in i), ids[0] if ids else None)
+        if not pick:
+            raise Unavailable(f"claude: model list HTTP {st}", quota=_busy(st, out))
+        return pick
+
+    def call(self, kind, prompt, images, model, temperature):
+        used = sum(1 for c in CALLS if c.get("provider") == "claude" and c.get("kind") == "plan" and not c.get("error"))
+        if kind != "plan" or used >= int(config().get("claude_max_plan_calls", 1)):
+            raise Unavailable(f"claude: only {config().get('claude_max_plan_calls', 1)} plan call(s) per video", quota=True)
+        body = {"model": model, "max_tokens": self.cfg.get("max_output_tokens", 8000), "temperature": temperature,
+                "system": SYSTEM, "messages": [{"role": "user", "content": prompt}]}
         t0 = time.time()
-        st, hd, out = _http("POST", url, hdr, body)
-        if st != 200 and "agree" in str(out).lower():            # Meta's license: accepted once per account
-            _http("POST", url, hdr, {"prompt": "agree"}, timeout=60)
-            st, hd, out = _http("POST", url, hdr, body)
-        if st != 200 and not vision and "response_format" in str(out):
-            body.pop("response_format", None)
-            st, hd, out = _http("POST", url, hdr, body)
-        rec = {"kind": kind, "provider": "cloudflare", "model": model, "seconds": round(time.time() - t0, 1),
-               "images": 1 if vision else 0, "neurons": hd.get("cf-ai-neurons") or hd.get("Cf-Ai-Neurons"),
-               "budget_before": f"{total:.0f}/{CF_DAILY:.0f}"}
+        st, _, out = _http("POST", self.cfg["url"], self._hdr(), body)
+        rec = {"kind": kind, "provider": "claude", "model": model, "seconds": round(time.time() - t0, 1), "images": 0}
         if st != 200:
             rec["error"] = f"HTTP {st}"
             CALLS.append(rec)
-            raise Unavailable(f"Cloudflare {model} HTTP {st}: {str(out)[:300]}",
-                              quota=st in (0, 429, 500, 502, 503, 504) or "3036" in str(out))
+            raise Unavailable(f"claude HTTP {st}: {str(out)[:300]}", quota=_busy(st, out))
+        usage = out.get("usage") or {}
+        rec.update(prompt_tokens=usage.get("input_tokens"), output_tokens=usage.get("output_tokens"))
         CALLS.append(rec)
-        res = (out or {}).get("result") or {}
-        ans = res.get("response")
-        if isinstance(ans, dict):
-            return ans
-        from kindled_iron.director.gemini import parse_json
-        return parse_json(str(ans or ""), f"Cloudflare {model}")
+        text = "".join(b.get("text", "") for b in out.get("content", []) if b.get("type") == "text")
+        return _parse(text, f"claude {model}")
 
 
-PROVIDERS = [Gemini(), GitHubModels(), Cloudflare()]
+KINDS = {"gemini": Gemini, "openai": OpenAICompatible, "claude": Claude}
+
+
+def providers() -> list[Provider]:
+    return [KINDS[c["kind"]](c) for c in config()["providers"]]
 
 
 # ------------------------------------------------------------------ the interface
@@ -248,25 +209,39 @@ def _mock(kind: str):
 
 def call_json(kind: str, prompt: str, compact: str | None = None, images: list[Path] | None = None,
               sheet: Path | None = None, temperature: float = 0.3) -> dict:
-    """The first JSON answer of Gemini -> GitHub Models -> Cloudflare. compact: the shorter prompt for the
-    small-request providers. Raises QuotaWait when every provider is out of quota / busy / over budget, and
-    RuntimeError when one failed for another reason and nobody answered."""
+    """The first JSON answer of the configured providers. compact: a shorter prompt for providers whose request
+    limit the full one exceeds. images: the review stills (only vision providers are asked). Raises QuotaWait
+    when every usable provider is exhausted, RuntimeError when they failed for other reasons."""
     mocked = _mock(kind)
     if mocked is not None:
         return mocked
+    vision = bool(images)
     why, all_quota = [], True
-    for p in PROVIDERS:
+    for p in providers():
+        if p.name in EXHAUSTED:
+            why.append(f"{p.name}: exhausted earlier this run ({EXHAUSTED[p.name][:80]})")
+            continue
         if not p.ready():
-            why.append(f"{p.name}: not configured")
+            why.append(f"{p.name}: not configured" + (" (off: allow_claude_fallback is false)" if p.name == "claude" else ""))
             continue
         try:
-            out = p.call(kind, compact if (p.compact and compact) else prompt, images, sheet, temperature)
+            model = p.model(vision)
+            if not model:
+                why.append(f"{p.name}: no vision model")
+                continue
+            text = prompt if p.fits(prompt, images) else (compact or prompt)
+            if not p.fits(text, images):
+                why.append(f"{p.name}: the prompt is over its {p.cfg.get('max_input_tokens')}-token request limit")
+                continue
+            out = p.call(kind, text, images, model, temperature)
             if why:
-                _log(f"{kind} answered by {p.name} after: " + "; ".join(why))
+                _log(f"{kind} answered by {p.name} ({model}) after: " + "; ".join(why))
             return out
         except Unavailable as e:
             why.append(f"{p.name}: {e}")
             all_quota = all_quota and e.quota
+            if e.quota:
+                EXHAUSTED[p.name] = str(e)
             _log(f"{kind}: {p.name} unavailable ({str(e)[:240]}); next provider")
     if all_quota:
         raise QuotaWait("; ".join(why))

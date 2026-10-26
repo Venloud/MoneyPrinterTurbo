@@ -35,10 +35,14 @@ jobs:
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
       NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-      KI_MODELS_TOKEN: ${{ github.token }}                      # GitHub Models (needs permissions: models: read)
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}  # last-resort AI, within the budget shared with Night Files
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      KI_DIRECTOR_MODEL: "gemini-3.8-flash"
+      # AI providers (kindled_iron/director/providers.json; a missing secret just skips that provider)
+      GITHUB_TOKEN: ${{ github.token }}                          # GitHub Models (permissions: models: read)
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}          # ':free' models only
+      KINDLED_CF_ACCOUNT_ID: ${{ secrets.KINDLED_CF_ACCOUNT_ID }}    # Kindled's own Cloudflare account (never Night Files')
+      KINDLED_CF_API_TOKEN: ${{ secrets.KINDLED_CF_API_TOKEN }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}  # used only if allow_claude_fallback is true
       KI_THIRD_PARTY: "1"            # the owner's own meme / clip library (private repo)
       KI_MUSIC_SOURCE: "generated"   # private music/theme_1.mp3
       KI_YTDLP: "0"
@@ -57,7 +61,9 @@ jobs:
           done
           [ -n "$PIXABAY_API_KEY" ] || echo "::warning::PIXABAY_API_KEY missing: Pexels only"
           [ -n "$NTFY_TOPIC" ] || echo "::warning::NTFY_TOPIC missing: no phone alert"
-          [ -n "$CLOUDFLARE_API_TOKEN" ] || echo "::warning::CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN missing: no last-resort AI provider"
+          for k in HF_TOKEN GROQ_API_KEY OPENROUTER_API_KEY KINDLED_CF_API_TOKEN; do
+            [ -n "${!k}" ] || echo "::notice::$k not set: that AI fallback provider is skipped"
+          done
 
       - name: Private inputs (approved_audio, meme library, music)
         run: |
@@ -119,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m kindled_iron.director.catalog
-          for t in 'test_director*.py' 'test_llm*.py'; do python -m unittest discover -s test/kindled_iron -p "$t" -v; done
+          for t in 'test_director*.py' 'test_llm*.py' 'test_direct_budget*.py'; do python -m unittest discover -s test/kindled_iron -p "$t" -v; done
 
       - name: Direct, render, gate, review
         id: direct

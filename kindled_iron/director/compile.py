@@ -110,8 +110,10 @@ def _draw_fields(d: dict, types: dict) -> dict:
 
 
 def _tip_ok(spot: float, target: tuple[float, float], reach: float) -> bool:
-    """Pointing: the hand ends ~reach px sideways toward the target; it must stay in the usable frame."""
-    return 125 <= _arm_tip(spot, target, reach)[0] <= 775
+    """Pointing: the hand ends ~reach px sideways toward the target (also when the target is nearly above him:
+    the renderer still points sideways); it must stay in the usable frame, left of the button column."""
+    side = 1 if target[0] >= spot else -1
+    return 125 <= _arm_tip(spot, target, reach)[0] <= 775 and 125 <= spot + side * reach <= 775
 
 
 from kindled_iron.director.catalog import ZONES as _Z
@@ -359,7 +361,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.3      # refill the lane right after the freeze
                 a = _at_time(W, t)
             if fz and t <= fz[1] + FREEZE["dur"] + FREEZE["after"]:
-                t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.05 + 0.35 * j   # the freeze line's drawings land after it
+                t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35 + 0.35 * j   # after it, the camera fully back
                 a = _at_time(W, t)
             if j and first_t is not None and abs(t - first_t) < 0.3 and i:
                 t = first_t + 0.35

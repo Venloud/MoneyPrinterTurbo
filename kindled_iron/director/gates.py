@@ -141,7 +141,7 @@ def run(work: Path, scene: dict, plan: dict, lines: list[str], cat: dict, align_
         data = json.loads(html.split("window.KI_DATA = ", 1)[1].split(";</script>", 1)[0])
         # the freeze empties the board on purpose (zoom), then the camera returns (0.45 s) and the board refills
         # (the pencil draw-on, 0.6 s): that beat is not measured
-        fz = [(e["t"], e["t"] + e.get("dur", 1.0) + 0.45 + 0.7) for e in data["events"] if e.get("do") == "freeze"]
+        fz = [(e["t"], e["t"] + e.get("dur", 1.0) + 0.45 + 1.0) for e in data["events"] if e.get("do") == "freeze"]
         seen: dict = {}
         cov = coverage(page, data["duration"], SAFE, fz, chrome, sizes=seen)
         tiny = [f"{oid} is {px:.0f} px" for oid, px in seen.items() if oid.split("_")[0][1:].isdigit() and px < MIN_DOODLE]

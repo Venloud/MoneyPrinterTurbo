@@ -30,11 +30,12 @@ def good_plan():
         {"line": 1, "expression": "curious", "gesture": {"do": "point", "word": "powerful"},
          "box": [{"word": "evil", "kind": "stock", "query": "storm lightning sky"}],
          "pop": None,
-         "drawings": [{"word": "powerful", "type": "flow", "fields": {"labels": ["CAN STOP IT", "WHY EVIL"]}},
-                      {"word": "evil", "type": "question", "fields": {"label": "WHY?"}}]},
+         "drawings": [{"word": "powerful", "type": "triangle_diagram", "concept": "three claims",
+                       "fields": {"top": "ALL POWERFUL", "left": "ALL GOOD", "right": "ALL KNOWING"}},
+                      {"word": "evil", "type": "question_big", "fields": {"label": "WHY?"}}]},
         {"line": 2, "expression": "happy", "gesture": {"do": "point", "word": "future"},
          "verse": {"ref": "Revelation 21:4", "word": "Revelation", "quoted": False}, "box": [],
-         "drawings": [{"word": "future", "type": "timeline", "fields": {"labels": ["NOW", "NO MORE PAIN"]}},
+         "drawings": [{"word": "future", "type": "rainbow", "fields": {"label": "NO MORE PAIN"}},
                       {"word": "death", "type": "heart", "fields": {"label": "NO PAIN"}}]}]}
 
 
@@ -74,12 +75,15 @@ class Director(unittest.TestCase):
 
     def test_drawing_shapes_follow_the_slots(self):
         sh = planmod.shapes(self.cat)
-        self.assertEqual(sh["flow"], "wide")
+        self.assertNotIn("flow", sh)                        # a thin strip: never used, the library has flow_arrows
         self.assertIn(sh["person"], ("tall", "both"))
+        self.assertEqual(sh["bar_chart"], "both")
         p = good_plan()
-        p["lines"][0]["drawings"].reverse()                # tall first, wide second: rejected before any render
-        errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
-        self.assertIn("the first drawing must be wide", errs)
+        p["lines"][0]["drawings"][0] = {"word": "powerful", "type": "flow", "fields": {"labels": ["A", "B", "C"]}}
+        notes = planmod.repair(p, LINES, self.keys, self.cat)     # repaired in code, no new AI call
+        self.assertEqual(p["lines"][0]["drawings"][0]["type"], "flow_arrows")
+        self.assertEqual(p["lines"][0]["drawings"][0]["fields"], {"a": "A", "b": "B", "c": "C"})
+        self.assertTrue(any("thin strip" in n for n in notes))
 
     def test_malformed_plan_is_an_error_not_a_crash(self):
         p = good_plan()
@@ -96,11 +100,12 @@ class Director(unittest.TestCase):
 
     def test_repair_fixes_what_needs_no_new_idea(self):
         p = good_plan()
-        p["lines"][0]["drawings"].reverse()                    # tall first: swapped back
+        p["lines"][0]["drawings"] = [{"word": "evil", "type": "thinker", "fields": {"label": "WHY?"}},   # tall first,
+                                     {"word": "powerful", "type": "scales_big", "fields": {}}]           # wide second
         p["lines"][0]["expression"] = "serious"                # not listed: closest or neutral
         p["lines"][0]["pop"] = {"word": "evil", "file": "side-eye.webp"}   # pop on the hook line: dropped
         notes = planmod.repair(p, LINES, self.keys, self.cat)
-        self.assertEqual(p["lines"][0]["drawings"][0]["type"], "flow")
+        self.assertEqual(p["lines"][0]["drawings"][0]["type"], "scales_big")          # swapped back
         self.assertIn(p["lines"][0]["expression"], self.cat["expressions"])
         self.assertIsNone(p["lines"][0]["pop"])
         self.assertEqual(len(notes), 3)

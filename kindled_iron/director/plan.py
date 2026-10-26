@@ -29,7 +29,15 @@ GESTURES = {"point", "shrug", "present", "look", "wave", "none"}
 REF = re.compile(r"\b((?:[1-3]\s)?[A-Z][a-z]+)\s(\d{1,3}):(\d{1,3})(?:\s?[-–]\s?(\d{1,3}))?")
 MAX_POPS = 3
 LABEL_MAX = 28
-LIB_COMPACT = 60                     # library doodles listed in the compact prompt (the best matches to the script)                       # characters per label (it wraps onto two lines of ~14)
+LIB_COMPACT = 60
+STRIP = 2.6                          # a built-in drawing this many times wider than tall is a thin strip: not used
+# thin built-in diagrams -> the library illustration that says the same (labels moved into its slots)
+STRIP_SWAP = {"flow": ("flow_arrows", lambda f: dict(zip(("a", "b", "c"), f.get("labels") or []))),
+              "scales": ("scales_big", lambda f: dict(zip(("left", "right"), f.get("labels") or []))),
+              "crossout": ("x_mark", lambda f: {"label": f["text"]} if f.get("text") else {}),
+              "timeline": ("line_graph", lambda f: {"label": " / ".join((f.get("labels") or [])[:2])[:28]} if f.get("labels") else {}),
+              "cloud": ("rain_cloud", lambda f: {}), "hill": ("mountain", lambda f: {}), "fish": ("fishing", lambda f: {}),
+              "birds": ("dove", lambda f: {})}                     # library doodles listed in the compact prompt (the best matches to the script)                       # characters per label (it wraps onto two lines of ~14)
 
 
 def key(word: str) -> str:
@@ -55,6 +63,8 @@ def shapes(cat: dict) -> dict:
     out = {}
     for n, o in director_types(cat).items():
         w, h = o.get("size") or (1, 1)
+        if w >= STRIP * h and not o.get("doodle"):     # a thin strip leaves the drawing area empty
+            continue
         ok = [k for k, (sw, sh) in slots.items()
               if (lambda sc: sc >= MIN_LABEL_SCALE and max(w, h) * sc >= 254)(min(sw * FILL / w, sh * FILL / h, 2.4))]
         if ok:
@@ -241,6 +251,11 @@ def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict) 
     for i, L in enumerate(plan["lines"]):
         n = i + 1
         dr = L.get("drawings") or []
+        for d in dr:                                   # thin strips -> the library illustration of the same idea
+            if isinstance(d, dict) and d.get("type") in STRIP_SWAP and d["type"] not in sh:
+                new, conv = STRIP_SWAP[d["type"]]
+                notes.append(f"line {n}: {d['type']} (a thin strip) -> {new}")
+                d["type"], d["fields"] = new, conv(d.get("fields") or {})
         if len(dr) == 2 and all(isinstance(d, dict) for d in dr):
             a, b = (sh.get(d.get("type")) for d in dr)
             if a == "tall" and b in ("wide", "both") or a in ("both",) and b == "wide":
@@ -312,7 +327,8 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
         for j, d in enumerate(dr[:2]):
             t = d.get("type")
             if t in types and t not in sh:
-                errs.append(f"line {n}: {t} cannot be shown readably in any slot; pick another type")
+                errs.append(f"line {n}: {t} cannot be shown big and readable here (too small or a thin strip); "
+                            "pick a library illustration")
             elif t in sh and len(dr) == 2 and sh[t] not in ("both", ("wide", "tall")[j]):
                 errs.append(f"line {n}: drawing {j + 1} ({t}) is {sh[t]}; the first drawing must be wide (or both), "
                             "the second tall (or both)")

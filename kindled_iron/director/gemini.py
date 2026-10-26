@@ -49,7 +49,7 @@ def models(requested: str) -> list[str]:
     chain = ([requested] if requested in names else []) + [n for n in flash if n != requested]
     if not chain:
         raise RuntimeError("no Gemini Flash model on this key; models: " + ", ".join(names[:20]))
-    _MODEL["chain"] = chain[:4]
+    _MODEL["chain"] = chain
     return _MODEL["chain"]
 
 

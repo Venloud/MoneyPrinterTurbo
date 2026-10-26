@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 MAX_FIX = 2
+ROUNDS: list[dict] = []   # every round's plan + errors (kept for the fail report, also after a crash)
 PLAN_TRIES = 3          # invalid plans retried inside one round (cheap: no render)
 
 
@@ -121,6 +122,10 @@ def attempt(lines, words, cat, lib, meta, work: Path, feedback: list[str], round
     fb = list(feedback)
     for k in range(PLAN_TRIES):
         p = gemini.call_json("plan", planmod.prompt(lines, lib, cat, fb, spoken))
+        notes = planmod.repair(p, lines, line_keys, cat)
+        if notes:
+            log("plan repaired in code: " + "; ".join(notes))
+            rec.setdefault("repairs", []).extend(notes)
         errs = planmod.validate(p, lines, line_keys, lib, cat)
         if not errs:
             per_line, records, errs = media.resolve(p, lib, log)
@@ -132,7 +137,7 @@ def attempt(lines, words, cat, lib, meta, work: Path, feedback: list[str], round
         if not errs:
             break
         log(f"plan try {k + 1}: {len(errs)} problem(s): " + "; ".join(errs[:6]))
-        rec["errors"].append({"stage": "plan", "try": k + 1, "errors": errs})
+        rec["errors"].append({"stage": "plan", "try": k + 1, "errors": errs, "plan": p})
         fb = list(feedback) + errs
     else:
         return None
@@ -219,7 +224,7 @@ def main() -> None:
     cat = planmod.catalog()
     lib = media.library(a.private)
     log(f"catalog: {sum(1 for o in cat['objects'].values() if o.get('director'))} drawings; meme library: {len(lib)} files")
-    rounds: list[dict] = []
+    rounds: list[dict] = ROUNDS
     status = {"id": a.id, "lines": len(lines), "alignment": round(ratio, 3)}
 
     def finish(ok: bool, result: dict | None, rev: dict | None, why: str = "") -> None:
@@ -304,6 +309,7 @@ if __name__ == "__main__":
         if out:
             out.mkdir(parents=True, exist_ok=True)
             (out / "gemini_calls.json").write_text(json.dumps(gemini.CALLS, indent=1), encoding="utf-8")
+            (out / "rounds.json").write_text(json.dumps(ROUNDS, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
             (out / "status.json").write_text(json.dumps({"id": vid, "ok": False, "error": why}, indent=1), encoding="utf-8")
             (out / "fail_report.md").write_text(f"# Director failed: {vid}\n\n{why}\n\n```\n{tb[-3000:]}\n```\n", encoding="utf-8")
         ntfy(f"Kindled Iron director FAILED: {vid}", why)

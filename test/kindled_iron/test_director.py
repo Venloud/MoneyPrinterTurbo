@@ -94,6 +94,18 @@ class Director(unittest.TestCase):
         p["lines"][0]["gesture"] = {"do": ["point"]}
         self.assertIn("unexpected shape", planmod.validate(p, LINES, self.keys, LIB, self.cat)[0])
 
+    def test_repair_fixes_what_needs_no_new_idea(self):
+        p = good_plan()
+        p["lines"][0]["drawings"].reverse()                    # tall first: swapped back
+        p["lines"][0]["expression"] = "serious"                # not listed: closest or neutral
+        p["lines"][0]["pop"] = {"word": "evil", "file": "side-eye.webp"}   # pop on the hook line: dropped
+        notes = planmod.repair(p, LINES, self.keys, self.cat)
+        self.assertEqual(p["lines"][0]["drawings"][0]["type"], "flow")
+        self.assertIn(p["lines"][0]["expression"], self.cat["expressions"])
+        self.assertIsNone(p["lines"][0]["pop"])
+        self.assertEqual(len(notes), 3)
+        self.assertEqual(planmod.validate(p, LINES, self.keys, LIB, self.cat), [])
+
     def test_pop_never_on_god_or_verse(self):
         p = good_plan()
         p["lines"][1]["pop"] = {"word": "future", "file": "side-eye.webp"}

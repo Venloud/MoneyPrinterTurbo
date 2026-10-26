@@ -119,7 +119,7 @@ RULES = [
     "Stock queries must name filmable things (e.g. 'earthquake rubble street', 'hospital patient bed', 'person praying'), never abstract words alone. No God depicted as a person, no occult imagery.",
     "No identical box media twice in a row; no file or query used more than twice in the video.",
     "A line that quotes scripture word for word, or names a reference like 'Revelation 21:4', gets 'verse': {ref, word (the first word of the quote or the reference), quoted: true|false}. That line's box shows the typed verse card, so give it no other box media.",
-    "'pop' (optional): a meme from the library that pops up beside the guide on a reaction word; at most 3 in the video, at least 3 lines apart, never on a verse line, never on the word 'God'.",
+    "'pop' (optional): a meme from the library that pops up beside the guide on a reaction word; at most 3 in the video, at least 3 lines apart, never on line 1 (the hook), never on a verse line, never on the word 'God'.",
     "'gesture': point at the drawing being named (word = that drawing's word), or shrug on a question, present/look/wave otherwise. Use a gesture on at least every second line.",
     "'expression' every line, from the catalog's expressions, matching the line's emotion.",
     "'freeze': exactly one, on the line with the biggest twist or surprise, on its key word (a record-scratch freeze-frame).",
@@ -186,6 +186,47 @@ def shape_errors(plan) -> list[str]:
         if L.get("expression") is not None and not isinstance(L["expression"], str):
             errs.append(f"line {n}: 'expression' must be a string")
     return errs
+
+
+def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict) -> list[str]:
+    """Fix in code what needs no new idea (no Gemini call is spent on it); returns notes of what was changed.
+    Two drawings in the wrong order are swapped; an unknown expression becomes the closest listed one (else
+    neutral); an unknown gesture becomes none; pop-ups that break a pop rule are dropped."""
+    import difflib
+    notes: list[str] = []
+    if shape_errors(plan):
+        return notes
+    sh, exprs = shapes(cat), list(cat["expressions"])
+    pops = []
+    for i, L in enumerate(plan["lines"]):
+        n = i + 1
+        dr = L.get("drawings") or []
+        if len(dr) == 2 and all(isinstance(d, dict) for d in dr):
+            a, b = (sh.get(d.get("type")) for d in dr)
+            if a == "tall" and b in ("wide", "both") or a in ("both",) and b == "wide":
+                L["drawings"] = [dr[1], dr[0]]
+                notes.append(f"line {n}: drawings swapped (wide first)")
+        e = L.get("expression")
+        if e not in exprs:
+            close = difflib.get_close_matches(str(e or ""), exprs, n=1, cutoff=0.6)
+            L["expression"] = close[0] if close else "neutral"
+            notes.append(f"line {n}: expression {e!r} -> {L['expression']!r}")
+        g = L.get("gesture")
+        if isinstance(g, dict) and g.get("do") not in GESTURES:
+            notes.append(f"line {n}: gesture {g.get('do')!r} -> none")
+            L["gesture"] = {"do": "none"}
+        p = L.get("pop")
+        if isinstance(p, dict):
+            why = ("the first line is the hook" if i == 0 else "verse line" if L.get("verse") or scripture_refs(lines[i])
+                   else "on the word God" if key(p.get("word", "")) == "god"
+                   else "too close to the previous pop-up" if pops and i - pops[-1] < 2
+                   else "more than %d pop-ups" % MAX_POPS if len(pops) >= MAX_POPS else "")
+            if why:
+                L["pop"] = None
+                notes.append(f"line {n}: pop-up dropped ({why})")
+            else:
+                pops.append(i)
+    return notes
 
 
 def validate(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict) -> list[str]:

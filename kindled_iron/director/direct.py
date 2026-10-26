@@ -52,24 +52,58 @@ def split_beats(text: str) -> list[str]:
     return beats
 
 
+def _available_flash_models(key: str) -> list[str]:
+    """Query models enabled for THIS API key, never guess a model that returns 404."""
+    import urllib.error
+    url = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100"
+    req = urllib.request.Request(url, headers={"x-goog-api-key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            data = json.load(response)
+    except urllib.error.HTTPError as e:
+        detail = e.read(900).decode("utf-8", "replace")
+        raise RuntimeError(f"Gemini listModels HTTP {e.code}: {detail}") from None
+    return [m["name"].split("/", 1)[1] for m in data.get("models", [])
+            if "generateContent" in m.get("supportedGenerationMethods", [])
+            and "flash" in m.get("name", "").lower()
+            and not any(x in m.get("name", "").lower() for x in ("image", "preview", "tts", "live", "exp"))]
+
+
 def request_gemini(prompt: str, model: str) -> dict:
+    import urllib.error
     key = os.getenv("GEMINI_API_KEY")
     if not key:
         raise RuntimeError("GEMINI_API_KEY missing, cannot direct scene")
     if not re.fullmatch(r"[a-zA-Z0-9._-]+", model):
         raise ValueError("invalid Gemini model ID")
+    available = _available_flash_models(key)
+    if not available:
+        raise RuntimeError("No Gemini Flash text models available to this API key")
+    preferred = [model, "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+    selected = next((name for name in preferred if name in available), None)
+    if selected is None:
+        raise RuntimeError("Requested model unavailable. Flash models on key: "
+                           + ", ".join(available[:15]) + ". Update KI_DIRECTOR_MODEL explicitly.")
+    print(f"Gemini director model: {selected} (requested: {model})", flush=True)
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"responseMimeType": "application/json", "temperature": 0.25}
     }).encode("utf-8")
     req = urllib.request.Request(
         "https://generativelanguage.googleapis.com/v1beta/models/"
-        + model + ":generateContent",
+        + selected + ":generateContent",
         data=body, method="POST",
         headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    with urllib.request.urlopen(req, timeout=120) as response:
-        data = json.load(response)
-    return json.loads(data["candidates"][0]["content"]["parts"][0]["text"])
+    try:
+        with urllib.request.urlopen(req, timeout=120) as response:
+            data = json.load(response)
+    except urllib.error.HTTPError as e:
+        detail = e.read(1400).decode("utf-8", "replace")
+        raise RuntimeError(f"Gemini generateContent HTTP {e.code} ({selected}): {detail}") from None
+    try:
+        return json.loads(data["candidates"][0]["content"]["parts"][0]["text"])
+    except (KeyError, IndexError, ValueError) as exc:
+        raise RuntimeError(f"Gemini returned invalid JSON response ({type(exc).__name__})") from None
 
 
 def validate(scene: dict, beats: list[str]) -> list[str]:

@@ -404,8 +404,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     fades.setdefault(round(max(t_start - 0.4, min(hits) - 0.05), 3), []).append(od)
         for did_, _ in pop_redraw:
             fades.setdefault(round(pop_t[i] - 0.2, 3), []).append(did_)
-            ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"] + 0.1), "do": "fade", "ids": [did_], "opacity": 1,
-                       "dur": 0.2})
+            ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [did_], "opacity": 1,
+                       "dur": 0.1})                    # the card is hidden at its end time (it shrinks just before)
         # an old side drawing cleared early (a new band drawing covers it): the new side drawing takes its place at
         # once instead of waiting for its word, so the side never stands empty
         old_lane = set(shown["lane"])

@@ -79,7 +79,7 @@ def request_gemini(prompt: str, model: str) -> dict:
     available = _available_flash_models(key)
     if not available:
         raise RuntimeError("No Gemini Flash text models available to this API key")
-    preferred = [model, "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]
+    preferred = [model, "gemini-3.8-flash"]
     selected = next((name for name in preferred if name in available), None)
     if selected is None:
         raise RuntimeError("Requested model unavailable. Flash models on key: "
@@ -181,7 +181,7 @@ def main() -> None:
     ap.add_argument("--id", required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--private-audio-path", required=True)
-    ap.add_argument("--model", default=os.getenv("KI_DIRECTOR_MODEL", "gemini-2.5-flash"))
+    ap.add_argument("--model", default=os.getenv("KI_DIRECTOR_MODEL", "gemini-3.8-flash"))
     args = ap.parse_args()
     if not ID.fullmatch(args.id):
         ap.error("id must use lowercase words separated by hyphens")

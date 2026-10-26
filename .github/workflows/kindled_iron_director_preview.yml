@@ -1,7 +1,11 @@
 name: Kindled Iron Director Preview
 # script.txt + the owner's narration.mp3 (private kindled-iron-voice/approved_audio/<id>/) -> a finished PRIVATE
 # preview in kindled-iron-voice/previews/<id>/. No voice is generated, nothing is published, no public artifacts.
-# video_id empty = every approved_audio/<id>/ folder (script.txt + narration.mp3) that has no previews/<id>/review.json.
+# video_id empty = every approved_audio/<id>/ folder (script.txt + narration.mp3) that has no previews/<id>/review.json,
+# plus every video waiting for AI quota.
+# The daily schedule below ONLY resumes videos whose status is waiting_quota (all AI providers were out of quota);
+# picking up new folders on a schedule stays OFF until the owner says go. (GitHub runs schedules from the default
+# branch's copy of this file.)
 on:
   workflow_dispatch:
     inputs:
@@ -9,12 +13,12 @@ on:
         description: "Video id (folder in approved_audio/); empty = every new folder without a preview"
         required: false
         default: ""
-  # schedule stays OFF until the owner says go:
-  # schedule:
-  #   - cron: "23 14 * * *"
+  schedule:
+    - cron: "17 7 * * *"     # after the 07:00 UTC Gemini quota reset: resume waiting_quota videos only
 
 permissions:
   contents: read
+  models: read               # GitHub Models: the director's second AI provider (free in Actions)
 
 concurrency:
   group: kindled-iron-director
@@ -31,6 +35,9 @@ jobs:
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
       PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
       NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      KI_MODELS_TOKEN: ${{ github.token }}                      # GitHub Models (needs permissions: models: read)
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}  # last-resort AI, within the budget shared with Night Files
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       KI_DIRECTOR_MODEL: "gemini-3.8-flash"
       KI_THIRD_PARTY: "1"            # the owner's own meme / clip library (private repo)
       KI_MUSIC_SOURCE: "generated"   # private music/theme_1.mp3
@@ -50,6 +57,7 @@ jobs:
           done
           [ -n "$PIXABAY_API_KEY" ] || echo "::warning::PIXABAY_API_KEY missing: Pexels only"
           [ -n "$NTFY_TOPIC" ] || echo "::warning::NTFY_TOPIC missing: no phone alert"
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || echo "::warning::CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN missing: no last-resort AI provider"
 
       - name: Private inputs (approved_audio, meme library, music)
         run: |
@@ -64,14 +72,21 @@ jobs:
         id: ids
         env:
           WANT: ${{ inputs.video_id }}
+          EVENT: ${{ github.event_name }}
         run: |
           set -euo pipefail
           d="$KI_PRIVATE_MEDIA"
+          waiting() { grep -q '"state": "waiting_quota"' "$d/previews/$1/status.json" 2>/dev/null; }
           if [ -n "$WANT" ]; then ids="$WANT"; else
             ids=""
             for f in "$d"/approved_audio/*/; do
               id=$(basename "$f")
-              [ -f "$f/script.txt" ] && [ -f "$f/narration.mp3" ] && [ ! -f "$d/previews/$id/review.json" ] && ids="$ids $id"
+              [ -f "$f/script.txt" ] && [ -f "$f/narration.mp3" ] || continue
+              if [ "$EVENT" = "schedule" ]; then
+                waiting "$id" && ids="$ids $id"              # the schedule only resumes quota waits
+              elif [ ! -f "$d/previews/$id/review.json" ] || waiting "$id"; then
+                ids="$ids $id"
+              fi
             done
           fi
           ids=$(echo $ids)
@@ -104,21 +119,25 @@ jobs:
         run: |
           set -euo pipefail
           python -m kindled_iron.director.catalog
-          python -m unittest discover -s test/kindled_iron -p 'test_director*.py' -v
+          for t in 'test_director*.py' 'test_llm*.py'; do python -m unittest discover -s test/kindled_iron -p "$t" -v; done
 
       - name: Direct, render, gate, review
         id: direct
         if: ${{ steps.ids.outputs.ids != '' }}
         run: |
           set -uo pipefail
-          failed=""
+          failed=""; waiting=""
           for id in ${{ steps.ids.outputs.ids }}; do
             echo "::group::$id"
             python -m kindled_iron.director.direct --id "$id" --private "$KI_PRIVATE_MEDIA" \
-              --out "$RUNNER_TEMP/out/$id" --work "storage/director/$id" || failed="$failed $id"
+              --out "$RUNNER_TEMP/out/$id" --work "storage/director/$id"
+            rc=$?
+            [ $rc -eq 75 ] && waiting="$waiting $id"        # every AI provider out of quota: resumed after the reset
+            [ $rc -ne 0 ] && [ $rc -ne 75 ] && failed="$failed $id"
             echo "::endgroup::"
           done
           echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          [ -z "$waiting" ] || echo "::notice::waiting for AI quota:$waiting (the 07:17 UTC run resumes them)"
           [ -z "$failed" ] || echo "::error::director failed for:$failed (see their fail_report.md)"
 
       - name: Save to the private previews (MP4, sheet, scene, media, gates, review, fail report)

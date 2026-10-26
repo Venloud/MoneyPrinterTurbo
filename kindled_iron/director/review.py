@@ -1,4 +1,4 @@
-"""Vision review: the 8 review stills of the finished MP4, each with its script line, judged by Gemini vision.
+"""Vision review: the 8 review stills of the finished MP4, each with its script line, judged by one vision call (llm.py: Gemini, GitHub Models or Cloudflare).
 
 For every still: does the picture match the line, is everything readable, is anything empty, does anything overlap?
 The verdict and every issue go to review.json; failed stills feed one automatic fix round of the planner.
@@ -9,7 +9,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from kindled_iron.director import gemini
+from kindled_iron.director import llm
 
 QUESTION = (
     "These are {n} stills from a vertical educational short (hand-drawn whiteboard style: a clip box at the top, "
@@ -36,7 +36,10 @@ def stills(mp4: Path, times: list[float], out_dir: Path) -> list[Path]:
 def review(mp4: Path, times: list[float], frame_lines: list[str], work: Path) -> dict:
     imgs = stills(mp4, times, work / "review_stills")
     q = QUESTION.format(n=len(imgs), lines=json.dumps({str(k + 1): l for k, l in enumerate(frame_lines)}, ensure_ascii=False))
-    r = gemini.call_json("review", q, images=imgs, temperature=0.1)
+    sheet = work / "review_stills" / "sheet.jpg"          # one image for providers that read a single picture
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(imgs[0].parent / "still_%d.jpg"), "-vf",
+                    "scale=270:480,tile=4x2", "-frames:v", "1", "-q:v", "4", str(sheet)], check=False)
+    r = llm.call_json("review", q, images=imgs, sheet=sheet if sheet.exists() else None, temperature=0.1)
     st = r.get("stills") or []
     bad = [s for s in st if not (s.get("matches") and s.get("readable") and not s.get("empty") and not s.get("overlap"))]
     r["verdict"] = "pass" if st and not bad else "fail"

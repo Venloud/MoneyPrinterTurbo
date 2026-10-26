@@ -4,13 +4,16 @@ generated and nothing is published.
     python -m kindled_iron.director.direct --id epicurean-paradox --private <kindled-iron-voice checkout> --out <dir>
 
 1. align   the MP3 is transcribed (faster-whisper small.en) and aligned to the script's words, like the renderer
-2. plan    Gemini writes a shot plan per line (meaning only: drawings, clip-box media, verse, pop, gesture, freeze)
+2. plan    the AI (llm.py: Gemini -> GitHub Models -> Cloudflare) writes a shot plan per line (meaning only: drawings, clip-box media, verse, pop, gesture, freeze)
 3. check   plan.validate + media.resolve (stock footage by meaning, the owner's memes) + compile (zones -> coordinates)
 4. render  preflight: 8 stills + the every-frame audit; then the full MP4 (music, pencil, record scratch, chimes)
-5. gates   gates.run on both renders; any failure goes back to Gemini as the plan's fix_errors (max 2 fix rounds)
-6. review  Gemini vision judges the 8 stills against their lines; one automatic fix round; final verdict
+5. gates   gates.run on both renders; any failure goes back to the planner as fix_errors (at most 3 plan calls a video;
+           plain mistakes are repaired in code first)
+6. review  one vision call judges the 8 stills against their lines; one automatic fix round if the budget allows
+   quota   every provider out of quota -> status waiting_quota, checkpoint.json kept, exit 75; the scheduled run
+           after the 07:00 UTC reset resumes it
 7. output  <out>/: <id>.mp4, <id>-8-frames.jpg, scene.json, plan.json, media.json, gates.json, review.json,
-           gemini_calls.json, and fail_report.md when it could not make a video that passes every gate
+           ai_calls.json, rounds.json, checkpoint.json, status.json, and fail_report.md when it failed
 """
 from __future__ import annotations
 
@@ -27,14 +30,18 @@ import time
 import urllib.request
 from pathlib import Path
 
-from kindled_iron.director import compile as compiler, gates, gemini, media, plan as planmod, review as reviewmod
+from datetime import datetime, timedelta, timezone
+
+from kindled_iron.director import compile as compiler, gates, llm, media, plan as planmod, review as reviewmod
+from kindled_iron.director.calls import CALLS
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-MAX_FIX = 2
-ROUNDS: list[dict] = []   # every round's plan + errors (kept for the fail report, also after a crash)
-PLAN_TRIES = 3          # invalid plans retried inside one round (cheap: no render)
+ROUNDS: list[dict] = []   # every attempt's plan + errors (kept for the fail report, also after a crash)
+PLAN_CALLS = 3            # AI plan calls per video (code repairs come first; every re-plan counts)
+VISION_CALLS = 1          # AI vision calls per video
+WAIT_EXIT = 75            # exit code: waiting for AI quota (EX_TEMPFAIL), not a failure
 
 
 def log(msg: str) -> None:
@@ -112,36 +119,27 @@ def _measure(specs: list[dict]) -> dict:
     return measure_specs(specs)[0]
 
 
-def attempt(lines, words, cat, lib, meta, work: Path, feedback: list[str], rounds: list[dict]) -> dict | None:
-    """One round: plan (+ re-plans for invalid plans), media, compile, preflight, full render, gates.
-    Returns the result dict when every gate passed, else None (rounds[-1] holds the errors)."""
-    rec: dict = {"feedback_in": feedback, "errors": []}
-    rounds.append(rec)
+def attempt(p: dict, lines, words, cat, lib, meta, work: Path, rec: dict) -> dict | None:
+    """One plan, all the way: code repairs, checks, media, compile, preflight render + gates, full render + gates.
+    Returns the result when every gate passed, else None with the errors in rec["errors"] (no AI call here)."""
     line_keys = [[planmod.key(w["word"]) for w in ws] for ws in words]
-    spoken = [[w["word"] for w in ws] for ws in words]
-    fb = list(feedback)
-    for k in range(PLAN_TRIES):
-        p = gemini.call_json("plan", planmod.prompt(lines, lib, cat, fb, spoken))
-        notes = planmod.repair(p, lines, line_keys, cat)
-        if notes:
-            log("plan repaired in code: " + "; ".join(notes))
-            rec.setdefault("repairs", []).extend(notes)
-        errs = planmod.validate(p, lines, line_keys, lib, cat)
-        if not errs:
-            per_line, records, errs = media.resolve(p, lib, log)
-        if not errs:
-            try:
-                scene, frames = compiler.compile_scene(p, lines, words, cat, per_line, meta, measure=_measure)
-            except compiler.CompileError as e:
-                errs = [f"layout: {e}"]
-        if not errs:
-            break
-        log(f"plan try {k + 1}: {len(errs)} problem(s): " + "; ".join(errs[:6]))
-        rec["errors"].append({"stage": "plan", "try": k + 1, "errors": errs, "plan": p})
-        fb = list(feedback) + errs
-    else:
-        return None
     rec["plan"] = p
+    notes = planmod.repair(p, lines, line_keys, cat)
+    if notes:
+        log("plan repaired in code: " + "; ".join(notes))
+        rec["repairs"] = notes
+    errs = planmod.validate(p, lines, line_keys, lib, cat)
+    if not errs:
+        per_line, records, errs = media.resolve(p, lib, log)
+    if not errs:
+        try:
+            scene, frames = compiler.compile_scene(p, lines, words, cat, per_line, meta, measure=_measure)
+        except compiler.CompileError as e:
+            errs = [f"layout: {e}"]
+    if errs:
+        log(f"plan: {len(errs)} problem(s): " + "; ".join(errs[:6]))
+        rec["errors"].append({"stage": "plan", "errors": errs})
+        return None
     scene_file = work / "scene.json"
     scene_file.write_text(json.dumps(scene, indent=1, ensure_ascii=False), encoding="utf-8")
     mp4 = work / f"{meta['id']}.mp4"
@@ -181,12 +179,12 @@ def _coverage_lines(g: dict, words: list[list[dict]]) -> list[str]:
 
 
 def fail_report(out: Path, vid: str, rounds: list[dict], why: str) -> str:
-    lines = [f"# Director failed: {vid}", "", why, "", "Each round below lists the checks that failed. The errors of a round are what "
-             "Gemini received as fix_errors in the next round.", ""]
+    lines = [f"# Director failed: {vid}", "", why, "", "Each attempt below is one AI plan (at most 3 per video) and the checks it failed. The errors of an "
+             "attempt are what the planner received as fix_errors in the next one.", ""]
     for n, r in enumerate(rounds):
-        lines.append(f"## Round {n + 1}")
+        lines.append(f"## Attempt {n + 1}" + (f" (plan by {r['provider']})" if r.get("provider") else ""))
         for e in r["errors"]:
-            lines.append(f"- {e['stage']}" + (f" (plan try {e['try']})" if "try" in e else "") + ":")
+            lines.append(f"- {e['stage']}:")
             lines += [f"  - {x}" for x in e["errors"][:30]]
         if not r["errors"]:
             lines.append("- no errors recorded")
@@ -194,6 +192,20 @@ def fail_report(out: Path, vid: str, rounds: list[dict], why: str) -> str:
     text = "\n".join(lines)
     (out / "fail_report.md").write_text(text, encoding="utf-8")
     return text
+
+
+def load_checkpoint(private: Path, vid: str, sha: str) -> dict:
+    """The state of a video that waits for AI quota (previews/<id>/checkpoint.json): kept only while its status
+    says waiting_quota and the recording is the same, so a finished or failed video always starts fresh."""
+    d = private / "previews" / vid
+    try:
+        st = json.loads((d / "status.json").read_text())
+        ck = json.loads((d / "checkpoint.json").read_text())
+    except (OSError, ValueError):
+        return {}
+    if st.get("state") != "waiting_quota" or ck.get("sha256") != sha:
+        return {}
+    return ck
 
 
 def main() -> None:
@@ -217,21 +229,48 @@ def main() -> None:
     a.out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     lines = split_beats(script.read_text(encoding="utf-8").strip())
-    words, ratio = align(mp3, lines, work)
+    sha = hashlib.sha256(mp3.read_bytes()).hexdigest()
+    ck = load_checkpoint(a.private, a.id, sha)
+    if ck:
+        log(f"resuming after a quota wait (since {ck.get('waiting_since')}): {ck['plan_calls']} plan call(s), "
+            f"{ck['vision_calls']} vision call(s) already used")
+        words, ratio = ck["words"], ck["align"]
+        ROUNDS.extend(ck.get("rounds", []))
+    else:
+        words, ratio = align(mp3, lines, work)
+        ck = {"sha256": sha, "words": words, "align": ratio, "plan_calls": 0, "vision_calls": 0, "feedback": [],
+              "rounds": [], "passed_plan": None}
     log(f"{len(lines)} lines, {sum(len(w) for w in words)} words; recording matches {ratio:.0%} of the script")
-    meta = {"id": a.id, "audio_path": f"approved_audio/{a.id}/narration.mp3",
-            "sha256": hashlib.sha256(mp3.read_bytes()).hexdigest(), "align": ratio}
+    meta = {"id": a.id, "audio_path": f"approved_audio/{a.id}/narration.mp3", "sha256": sha, "align": ratio}
     cat = planmod.catalog()
     lib = media.library(a.private)
     log(f"catalog: {sum(1 for o in cat['objects'].values() if o.get('director'))} drawings; meme library: {len(lib)} files")
     rounds: list[dict] = ROUNDS
     status = {"id": a.id, "lines": len(lines), "alignment": round(ratio, 3)}
+    spoken = [[w["word"] for w in ws] for ws in words]
 
-    def finish(ok: bool, result: dict | None, rev: dict | None, why: str = "") -> None:
-        (a.out / "gemini_calls.json").write_text(json.dumps(gemini.CALLS, indent=1), encoding="utf-8")
+    def calls_summary() -> dict:
+        by: dict = {}
+        for c in CALLS:
+            k = f"{c.get('provider')}:{c.get('kind')}"
+            by.setdefault(k, {"answered": 0, "failed": 0, "models": []})
+            by[k]["failed" if c.get("error") else "answered"] += 1
+            if c.get("model") not in by[k]["models"]:
+                by[k]["models"].append(c.get("model"))
+        return {"plan_calls": ck["plan_calls"], "vision_calls": ck["vision_calls"], "limits": {"plan": PLAN_CALLS,
+                "vision": VISION_CALLS}, "by_provider": by}
+
+    def write_common() -> None:
+        (a.out / "ai_calls.json").write_text(json.dumps(CALLS, indent=1), encoding="utf-8")
         (a.out / "rounds.json").write_text(json.dumps(rounds, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
-        status.update({"ok": ok, "minutes": round((time.time() - t0) / 60, 1), "gemini_calls": len(gemini.CALLS)})
-        (a.out / "status.json").write_text(json.dumps(status, indent=1), encoding="utf-8")
+        ck["rounds"] = rounds
+        (a.out / "checkpoint.json").write_text(json.dumps(ck, ensure_ascii=False, default=str), encoding="utf-8")
+        status.update({"minutes": round((time.time() - t0) / 60, 1), "ai": calls_summary()})
+        (a.out / "status.json").write_text(json.dumps(status, indent=1, default=str), encoding="utf-8")
+
+    def finish(ok: bool, rev: dict | None, why: str = "") -> None:
+        status.update({"ok": ok, "state": "done" if ok else "failed"})
+        write_common()
         if not ok:
             text = fail_report(a.out, a.id, rounds, why)
             ntfy(f"Kindled Iron director FAILED: {a.id}", why + "\n" + text[:1500])
@@ -240,19 +279,54 @@ def main() -> None:
         ntfy(f"Kindled Iron preview ready: {a.id}",
              f"Gates passed. Vision review: {rev.get('verdict')}. {rev.get('summary', '')}\nPrivate: previews/{a.id}/")
 
+    def wait(stage: str, e: Exception) -> None:
+        """Every AI provider is out of quota: keep the checkpoint and stop cleanly; the scheduled retry after the
+        07:00 UTC reset resumes it. Alert only when it is still stuck after 24 h."""
+        now = datetime.now(timezone.utc)
+        ck.setdefault("waiting_since", now.isoformat(timespec="seconds"))
+        since = datetime.fromisoformat(ck["waiting_since"])
+        status.update({"ok": False, "state": "waiting_quota", "stage": stage, "waiting_since": ck["waiting_since"],
+                       "why": str(e)[:1500]})
+        if now - since >= timedelta(hours=24) and not ck.get("notified"):
+            ck["notified"] = True
+            ntfy(f"Kindled Iron director waiting for AI quota: {a.id}",
+                 f"Still no AI provider with quota after 24 h (stage: {stage}).\n{str(e)[:800]}")
+        write_common()
+        log(f"WAITING FOR QUOTA ({stage}): every AI provider is out; the checkpoint is kept and the scheduled run "
+            f"after the 07:00 UTC reset resumes it. {str(e)[:400]}")
+        sys.exit(WAIT_EXIT)
+
     if ratio < gates.MIN_ALIGN:
         rounds.append({"errors": [{"stage": "alignment", "errors": [f"only {ratio:.0%} of script.txt is heard in narration.mp3"]}]})
-        finish(False, None, None, f"script.txt does not match narration.mp3 ({ratio:.0%} of the words heard)")
-    feedback: list[str] = []
+        finish(False, None, f"script.txt does not match narration.mp3 ({ratio:.0%} of the words heard)")
+
+    def plan_call(feedback: list[str]) -> dict:
+        full = planmod.prompt(lines, lib, cat, feedback, spoken)
+        compact = planmod.prompt(lines, lib, cat, feedback, spoken, compact=True)
+        n_before = len(CALLS)
+        p = llm.call_json("plan", full, compact=compact)
+        ck["plan_calls"] += 1
+        answered = [c for c in CALLS[n_before:] if not c.get("error")]
+        rounds.append({"feedback_in": feedback, "errors": [], "provider": answered[-1]["provider"] if answered else "?"})
+        return p
+
     result = None
-    for n in range(1 + MAX_FIX):
-        log(f"round {n + 1}/{1 + MAX_FIX}")
-        result = attempt(lines, words, cat, lib, meta, work, feedback, rounds)
-        if result:
-            break
-        feedback = [e for x in rounds[-1]["errors"] for e in x["errors"]][-40:]
+    if ck.get("passed_plan"):                      # it had passed every gate and waited only for the review
+        log("re-rendering the plan that already passed every gate (no plan call)")
+        rounds.append({"feedback_in": [], "errors": [], "provider": "checkpoint"})
+        result = attempt(ck["passed_plan"], lines, words, cat, lib, meta, work, rounds[-1])
+    while not result and ck["plan_calls"] < PLAN_CALLS:
+        log(f"plan call {ck['plan_calls'] + 1}/{PLAN_CALLS}")
+        try:
+            p = plan_call(ck["feedback"])
+        except llm.QuotaWait as e:
+            wait("plan", e)
+        result = attempt(p, lines, words, cat, lib, meta, work, rounds[-1])
+        if not result:
+            ck["feedback"] = [x for e in rounds[-1]["errors"] for x in e["errors"]][-40:]
     if not result:
-        finish(False, None, None, f"no plan passed every gate after {1 + MAX_FIX} rounds")
+        finish(False, None, f"no plan passed every gate within the budget of {PLAN_CALLS} plan calls")
+    ck["passed_plan"] = result["plan"]
 
     def save(res: dict, rev: dict) -> None:
         shutil.copy(res["mp4"], a.out / f"{a.id}.mp4")
@@ -266,31 +340,44 @@ def main() -> None:
         for f in ("box_contact.jpg",):
             if (res["work"] / f).exists():
                 shutil.copy(res["work"] / f, a.out / f"{a.id}-{f}")
+        rev = dict(rev, ai=calls_summary(), calls=CALLS)
         (a.out / "review.json").write_text(json.dumps(rev, indent=1, ensure_ascii=False), encoding="utf-8")
         status["preview_times"] = times
+        status["gates"] = {k: v["ok"] for k, v in res["gates"].items() if not k.startswith("_")}
 
-    def do_review(res: dict) -> dict:
-        times = json.loads((res["work"] / "preview_times.json").read_text())
-        return reviewmod.review(res["mp4"], times, [f["line"] for f in res["frames"]], res["work"])
-
-    rev = do_review(result)
-    log(f"vision review: {rev['verdict']} ({rev.get('summary', '')})")
+    times = json.loads((result["work"] / "preview_times.json").read_text())
+    n_before = len(CALLS)
+    try:
+        rev = reviewmod.review(result["mp4"], times, [f["line"] for f in result["frames"]], result["work"])
+        ck["vision_calls"] += 1
+    except llm.QuotaWait as e:
+        save(result, {"verdict": "pending", "summary": "waiting for AI quota for the vision review"})
+        wait("review", e)
+    rev["provider"] = next((c["provider"] for c in reversed(CALLS[n_before:]) if not c.get("error")), "?")
+    log(f"vision review ({rev['provider']}): {rev['verdict']} ({rev.get('summary', '')})")
     reviews = [rev]
-    if rev["verdict"] != "pass":
+    final_verdict = rev["verdict"]
+    if rev["verdict"] != "pass" and ck["plan_calls"] < PLAN_CALLS:
         fb = reviewmod.fixes(rev, [f"line {int(f['beat'][1:])}" for f in result["frames"]])
         log("review fix round: " + "; ".join(fb[:6]))
-        better = attempt(lines, words, cat, lib, meta, work, fb, rounds)
+        try:
+            p = plan_call(fb)
+            better = attempt(p, lines, words, cat, lib, meta, work, rounds[-1])
+        except llm.QuotaWait as e:
+            log(f"no AI quota for the review fix round ({str(e)[:200]}): keeping the reviewed video")
+            better = None
         if better:
-            rev2 = do_review(better)
-            reviews.append(rev2)
-            result, rev = better, rev2
-            log(f"vision review after the fix: {rev['verdict']}")
+            result = better
+            final_verdict = "fixed_not_rereviewed"      # the vision budget is one call per video
+            log("the review fix passed every gate; the vision budget (1 call) leaves it not re-reviewed")
         else:
-            log("the review fix round did not pass the gates: keeping the first video")
-    final = {"verdict": rev["verdict"], "summary": rev.get("summary", ""), "rounds": reviews}
-    status.update({"verdict": rev["verdict"], "gates": {k: v["ok"] for k, v in result["gates"].items() if not k.startswith("_")}})
+            log("the review fix round did not pass the gates: keeping the reviewed video")
+    elif rev["verdict"] != "pass":
+        log("vision review failed and the plan budget is spent: keeping the video with the failed verdict")
+    final = {"verdict": final_verdict, "summary": rev.get("summary", ""), "rounds": reviews}
+    status.update({"verdict": final_verdict})
     save(result, final)
-    finish(True, result, final)
+    finish(True, final)
     log(f"done: {a.out}")
 
 
@@ -308,9 +395,9 @@ if __name__ == "__main__":
         why = f"crashed: {type(e).__name__}: {e}"
         if out:
             out.mkdir(parents=True, exist_ok=True)
-            (out / "gemini_calls.json").write_text(json.dumps(gemini.CALLS, indent=1), encoding="utf-8")
+            (out / "ai_calls.json").write_text(json.dumps(CALLS, indent=1), encoding="utf-8")
             (out / "rounds.json").write_text(json.dumps(ROUNDS, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
-            (out / "status.json").write_text(json.dumps({"id": vid, "ok": False, "error": why}, indent=1), encoding="utf-8")
+            (out / "status.json").write_text(json.dumps({"id": vid, "ok": False, "state": "failed", "error": why}, indent=1), encoding="utf-8")
             (out / "fail_report.md").write_text(f"# Director failed: {vid}\n\n{why}\n\n```\n{tb[-3000:]}\n```\n", encoding="utf-8")
         ntfy(f"Kindled Iron director FAILED: {vid}", why)
         sys.exit(f"FAIL: {why}")

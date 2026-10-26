@@ -3,7 +3,7 @@
 The model is discovered from the key's own model list (never a guessed name that returns 404). Temporary
 server errors are retried with backoff; auth, quota and invalid-model errors are not. Every call is recorded in
 CALLS (kind, model, seconds, prompt/response sizes) so each preview can report the Gemini calls it used.
-Offline tests set KI_GEMINI_MOCK to a directory of canned responses (plan_<n>.json, review_<n>.json).
+One provider of llm.py (Gemini -> GitHub Models -> Cloudflare).
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import urllib.request
 from pathlib import Path
 
 API = "https://generativelanguage.googleapis.com/v1beta"
-CALLS: list[dict] = []
+from kindled_iron.director.calls import CALLS     # shared call log of every provider
 _MODEL: dict[str, str] = {}
 TIMEOUTS = (420, 600)       # seconds per try: a full shot plan can take minutes on the free tier
 WAITS = (10, 30, 60, 120)    # busy (503/429/5xx), slow or dropped: the same model again after these pauses
@@ -57,18 +57,6 @@ def pick_model(requested: str) -> str:
     return models(requested)[0]
 
 
-def _mock(kind: str):
-    d = os.getenv("KI_GEMINI_MOCK")
-    if not d:
-        return None
-    n = sum(1 for c in CALLS if c["kind"] == kind)
-    f = Path(d) / f"{kind}_{n}.json"
-    if not f.exists():
-        f = Path(d) / f"{kind}.json"
-    CALLS.append({"kind": kind, "model": "mock", "seconds": 0.0, "file": f.name})
-    return json.loads(f.read_text(encoding="utf-8"))
-
-
 def _try_model(kind: str, name: str, body: bytes, images) -> tuple:
     """-> (response dict, t0) or (reason string, t0). Busy / slow / dropped = the same model again after
     10, 30, 60, 120 s; a per-day quota = next model at once; any other HTTP error stops the whole call."""
@@ -86,23 +74,24 @@ def _try_model(kind: str, name: str, body: bytes, images) -> tuple:
                 why += " per-day quota"
                 break
             if e.code not in (429, 500, 502, 503, 504):
-                CALLS.append({"kind": kind, "model": name, "seconds": round(time.time() - t0, 1), "error": why})
+                CALLS.append({"kind": kind, "provider": "gemini", "model": name, "seconds": round(time.time() - t0, 1), "error": why})
                 raise RuntimeError(f"Gemini {name} HTTP {e.code}: {detail[:600]}") from None
         except (TimeoutError, urllib.error.URLError, ConnectionError, OSError) as e:
             why = type(e).__name__
         if attempt < len(WAITS):
             print(f"[gemini] {kind} {name} try {attempt + 1}: {why}; again in {WAITS[attempt]} s", flush=True)
             time.sleep(WAITS[attempt])
-    CALLS.append({"kind": kind, "model": name, "seconds": round(time.time() - t0, 1), "error": why})
+    CALLS.append({"kind": kind, "provider": "gemini", "model": name, "seconds": round(time.time() - t0, 1), "error": why})
     return why, t0
 
 
-def call_json(kind: str, prompt: str, images: list[Path] | None = None, model: str | None = None,
-              temperature: float = 0.3) -> dict:
-    """One generateContent call that must return a JSON object. kind = 'plan' | 'review' (for the call log)."""
-    mocked = _mock(kind)
-    if mocked is not None:
-        return mocked
+def generate(kind: str, prompt: str, images: list[Path] | None = None, model: str | None = None,
+             temperature: float = 0.3) -> dict:
+    """One generateContent call that must return a JSON object, falling through the key's Flash models.
+    Raises llm.Unavailable when no model answers (quota=True when every failure was quota / busy / timeout)."""
+    from kindled_iron.director.llm import Unavailable
+    if not os.getenv("GEMINI_API_KEY"):
+        raise Unavailable("GEMINI_API_KEY missing", quota=False)
     chain = models(model or os.getenv("KI_DIRECTOR_MODEL", "gemini-3.8-flash"))
     parts: list[dict] = [{"text": prompt}]
     for img in images or []:
@@ -111,22 +100,41 @@ def call_json(kind: str, prompt: str, images: list[Path] | None = None, model: s
                        "generationConfig": {"responseMimeType": "application/json", "temperature": temperature}}).encode()
     data, last = None, ""
     for name in chain:
-        data, t0 = _try_model(kind, name, body, images)
+        try:
+            data, t0 = _try_model(kind, name, body, images)
+        except RuntimeError as e:                      # a non-retryable HTTP error of this model
+            data, last = None, str(e)[:200]
+            continue
         if isinstance(data, dict):
             break
         last, data = data, None
         print(f"[gemini] {kind}: {name} gave up ({last}); next model", flush=True)
     if data is None:
-        raise RuntimeError(f"Gemini: every model failed for the {kind} call; last: {last}")
+        raise Unavailable(f"every Gemini model failed; last: {last}",
+                          quota=bool(re.search(r"429|503|50[024]|quota|Timeout|URLError|Remote|Connection", last)))
     usage = (data or {}).get("usageMetadata", {})
-    CALLS.append({"kind": kind, "model": name, "seconds": round(time.time() - t0, 1), "images": len(images or []),
-                  "prompt_tokens": usage.get("promptTokenCount"), "output_tokens": usage.get("candidatesTokenCount")})
+    CALLS.append({"kind": kind, "provider": "gemini", "model": name, "seconds": round(time.time() - t0, 1),
+                  "images": len(images or []), "prompt_tokens": usage.get("promptTokenCount"),
+                  "output_tokens": usage.get("candidatesTokenCount")})
     try:
         text = data["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError, TypeError):
-        raise RuntimeError(f"Gemini {name}: no text in the response ({json.dumps(data)[:300]})") from None
-    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+        raise Unavailable(f"Gemini {name}: no text in the response ({json.dumps(data)[:200]})", quota=False) from None
+    return parse_json(text, f"Gemini {name}")
+
+
+def parse_json(text: str, who: str) -> dict:
+    """The JSON object in a model's answer (code fences and stray prose around it are ignored)."""
+    from kindled_iron.director.llm import Unavailable
+    t = re.sub(r"^```(?:json)?\s*|\s*```$", "", (text or "").strip())
     try:
-        return json.loads(text)
+        out = json.loads(t)
     except ValueError:
-        raise RuntimeError(f"Gemini {name}: response is not JSON: {text[:300]}") from None
+        m = re.search(r"\{.*\}", t, re.S)
+        try:
+            out = json.loads(m.group(0)) if m else None
+        except ValueError:
+            out = None
+    if not isinstance(out, dict):
+        raise Unavailable(f"{who}: the answer is not a JSON object: {t[:200]}", quota=False)
+    return out

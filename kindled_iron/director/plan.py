@@ -127,18 +127,23 @@ RULES = [
 ]
 
 
-def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], words_heard: list[list[str]]) -> str:
+def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], words_heard: list[list[str]],
+           compact: bool = False) -> str:
+    """The planner prompt. compact=True (small-request providers): the golden scenes as their per-line summary
+    only, the meme library without notes, and the script lines without the separate word lists."""
     sh = shapes(cat)
     types = {n: {"what": o["doc"], "fields": o["params"], "shape": sh[n]} for n, o in director_types(cat).items() if n in sh}
     return json.dumps({
         "task": "You direct a Kindled Iron short: a hand-drawn whiteboard explainer with a guide character, a clip box at "
                 "the top, captions under it, drawings in the middle, the guide walking at the bottom. Write the shot plan.",
         "rules": RULES,
-        "script_lines": [{"line": i + 1, "text": t, "spoken_words": w} for i, (t, w) in enumerate(zip(lines, words_heard))],
+        "script_lines": [{"line": i + 1, "text": t} if compact else {"line": i + 1, "text": t, "spoken_words": w}
+                         for i, (t, w) in enumerate(zip(lines, words_heard))],
         "drawing_catalog": types,
         "expressions": cat["expressions"],
-        "meme_library": memes,
-        "golden_examples": golden_examples(),
+        "meme_library": [{"file": m["file"], "tags": m.get("tags", [])[:6]} for m in memes] if compact else memes,
+        "golden_examples": [{"name": g["name"], "per_line": g["per_line"]} for g in golden_examples()][:1 if compact else 2]
+                           if compact else golden_examples(),
         "fix_errors": feedback,
         "output_example": {"freeze": {"line": 2, "word": "word"}, "lines": [{
             "line": 1, "expression": "curious", "gesture": {"do": "point", "word": "graph"},

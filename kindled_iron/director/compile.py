@@ -403,9 +403,24 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 if hits:
                     fades.setdefault(round(max(t_start - 0.4, min(hits) - 0.05), 3), []).append(od)
         for did_, _ in pop_redraw:
-            fades.setdefault(round(pop_t[i] - 0.4, 3), []).append(did_)
-            ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"] + 0.25), "do": "fade", "ids": [did_], "opacity": 1,
-                       "dur": 0.3})
+            fades.setdefault(round(pop_t[i] - 0.2, 3), []).append(did_)
+            ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"] + 0.1), "do": "fade", "ids": [did_], "opacity": 1,
+                       "dur": 0.2})
+        # an old side drawing cleared early (a new band drawing covers it): the new side drawing takes its place at
+        # once instead of waiting for its word, so the side never stands empty
+        old_lane = set(shown["lane"])
+        cleared = [ft for ft, fids in fades.items() if old_lane & set(fids) and ft >= t_start]
+        if cleared:
+            tf = min(cleared)
+            for nd in [d for d in ids if draw_pos[d][4] == "lane" and draw_pos[d][3] > tf + 0.3]:
+                if i in walks and _path_hits(walks[i], [slot_of[nd]], G):
+                    continue
+                if i in pop_t and pop_t[i] - 0.3 <= tf + 0.05 <= pop_t[i] + POP_CARD["dur"] + 0.2:
+                    continue
+                for e in ev:
+                    if e.get("do") == "draw" and e.get("id") == nd:
+                        e["at"] = _at_time(W, tf + 0.05)
+                draw_pos[nd] = draw_pos[nd][:3] + (round(tf + 0.05, 3),) + draw_pos[nd][4:]
         for ft, fids in sorted(fades.items()):
             fids = sorted(set(fids))
             ev.append({"at": _at_time(W, ft) if ft >= t_start else _anchor(W, first, ft - t_start)[0], "do": "fade",

@@ -341,8 +341,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             zone, slot = places[j]
             s, x, y = _fit(obj, slot)
             a, t = _anchor(W, d["word"], 0.0)
-            if i in walks and zone == "lane" and (t < walks[i][3] + 0.1 or t > walks[i][3] + 1.5):
-                t = walks[i][3] + 0.15                # right after the guide arrives: the lane never stays empty
+            through = i in walks and _path_hits(walks[i], [slot], G)          # does his walk cross this slot?
+            if i in walks and zone == "lane" and ((through and t < walks[i][3] + 0.1) or t > walks[i][3] + 1.5):
+                t = walks[i][3] + 0.15 if through else max(t_start, walks[i][2])   # the lane never stays empty
                 a = _at_time(W, t)
             if i in pop_t and zone == "lane" and t < pop_t[i] + POP_CARD["dur"] + 0.2:
                 t = pop_t[i] + POP_CARD["dur"] + 0.25

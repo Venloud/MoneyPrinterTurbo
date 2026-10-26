@@ -25,6 +25,7 @@ FACE_OF = {"happy": "crying_laughing", "curious": "thinking", "thinking": "think
 POP_CARD = {"w": 380, "dur": 1.2}
 FREEZE = {"dur": 1.0, "zoom": 1.45, "after": 0.45}   # the camera needs ~0.35 s to come back after the freeze
 SHOULDER_Y = 1110
+FILL = 0.97                     # a drawing fills its slot to this share (the measured size includes its strokes)
 MIN_LABEL_SCALE = 0.72          # a labeled drawing smaller than this makes its labels too small to read on a phone
 
 
@@ -91,7 +92,7 @@ def _fit(obj: dict, slot: tuple[float, float, float, float], strict: bool = True
     x0, y0, x1, y1 = slot
     w, h = obj["size"]
     cx, cy = obj.get("center", [0, 0])
-    s = min((x1 - x0) * 0.94 / w, (y1 - y0) * 0.94 / h, 2.4)      # room for the strokes' width
+    s = min((x1 - x0) * FILL / w, (y1 - y0) * FILL / h, 2.4)      # room for the strokes' width
     if max(w, h) * s < 254:
         if not strict:
             return None

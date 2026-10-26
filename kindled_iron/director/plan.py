@@ -47,7 +47,7 @@ def director_types(cat: dict) -> dict:
 def shapes(cat: dict) -> dict:
     """{type: "wide" | "tall" | "both"}: where each drawing can be shown big enough (>= 254 px) with readable labels:
     the drawing band (wide) and/or the guide-lane slot beside him (tall). A type that fits neither is left out."""
-    from kindled_iron.director.compile import LANES, MIN_LABEL_SCALE
+    from kindled_iron.director.compile import FILL, LANES, MIN_LABEL_SCALE
     dz = cat["zones"]["draw"]
     lx0, ly0, lx1, ly1 = LANES["left"]
     slots = {"wide": (min(dz["x1"], 775) - dz["x0"], dz["y1"] - dz["y0"]), "tall": (lx1 - lx0, ly1 - ly0)}
@@ -55,7 +55,7 @@ def shapes(cat: dict) -> dict:
     for n, o in director_types(cat).items():
         w, h = o.get("size") or (1, 1)
         ok = [k for k, (sw, sh) in slots.items()
-              if (lambda sc: sc >= MIN_LABEL_SCALE and max(w, h) * sc >= 254)(min(sw * 0.94 / w, sh * 0.94 / h, 2.4))]
+              if (lambda sc: sc >= MIN_LABEL_SCALE and max(w, h) * sc >= 254)(min(sw * FILL / w, sh * FILL / h, 2.4))]
         if ok:
             out[n] = ok[0] if len(ok) == 1 else "both"
     return out

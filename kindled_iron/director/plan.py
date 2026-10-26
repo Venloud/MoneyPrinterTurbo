@@ -44,6 +44,23 @@ def director_types(cat: dict) -> dict:
     return {n: o for n, o in cat["objects"].items() if o.get("director")}
 
 
+def shapes(cat: dict) -> dict:
+    """{type: "wide" | "tall" | "both"}: where each drawing can be shown big enough (>= 254 px) with readable labels:
+    the drawing band (wide) and/or the guide-lane slot beside him (tall). A type that fits neither is left out."""
+    from kindled_iron.director.compile import LANES, MIN_LABEL_SCALE
+    dz = cat["zones"]["draw"]
+    lx0, ly0, lx1, ly1 = LANES["left"]
+    slots = {"wide": (min(dz["x1"], 775) - dz["x0"], dz["y1"] - dz["y0"]), "tall": (lx1 - lx0, ly1 - ly0)}
+    out = {}
+    for n, o in director_types(cat).items():
+        w, h = o.get("size") or (1, 1)
+        ok = [k for k, (sw, sh) in slots.items()
+              if (lambda sc: sc >= MIN_LABEL_SCALE and max(w, h) * sc >= 254)(min(sw * 0.94 / w, sh * 0.94 / h, 2.4))]
+        if ok:
+            out[n] = ok[0] if len(ok) == 1 else "both"
+    return out
+
+
 def scripture_refs(text: str) -> list[str]:
     """Bible references written in a line ("Revelation 21:4"), only books the WEB bundle knows."""
     out = []
@@ -111,10 +128,8 @@ RULES = [
 
 
 def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], words_heard: list[list[str]]) -> str:
-    def shape(o):
-        w, h = o.get("size") or (1, 1)
-        return "wide" if w >= 1.6 * h else ("tall" if h > 1.2 * w else "square")
-    types = {n: {"what": o["doc"], "fields": o["params"], "shape": shape(o)} for n, o in director_types(cat).items()}
+    sh = shapes(cat)
+    types = {n: {"what": o["doc"], "fields": o["params"], "shape": sh[n]} for n, o in director_types(cat).items() if n in sh}
     return json.dumps({
         "task": "You direct a Kindled Iron short: a hand-drawn whiteboard explainer with a guide character, a clip box at "
                 "the top, captions under it, drawings in the middle, the guide walking at the bottom. Write the shot plan.",
@@ -128,7 +143,8 @@ def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], 
         "output_example": {"freeze": {"line": 2, "word": "word"}, "lines": [{
             "line": 1, "expression": "curious", "gesture": {"do": "point", "word": "graph"},
             "box": [{"word": "graph", "kind": "stock", "query": "chalkboard diagram classroom"}],
-            "drawings": [{"word": "graph", "type": "triangle", "fields": {"labels": ["ALL POWERFUL", "ALL KNOWING", "ALL GOOD"], "center": "EVIL?"}}]}]},
+            "drawings": [{"word": "graph", "type": "flow", "fields": {"labels": ["ALL POWERFUL", "ALL GOOD", "EVIL?"]}},
+                         {"word": "evil", "type": "question", "fields": {"label": "WHY?"}}]}]},
     }, ensure_ascii=False)
 
 
@@ -164,6 +180,14 @@ def validate(plan: dict, lines: list[str], line_keys: list[list[str]], memes: li
             errs.append(f"line {n}: no drawing; every line needs at least one new illustration")
         if len(dr) > 2:
             errs.append(f"line {n}: {len(dr)} drawings; at most 2 per line")
+        sh = shapes(cat)
+        for j, d in enumerate(dr[:2]):
+            t = d.get("type")
+            if t in types and t not in sh:
+                errs.append(f"line {n}: {t} cannot be shown readably in any slot; pick another type")
+            elif t in sh and len(dr) == 2 and sh[t] not in ("both", ("wide", "tall")[j]):
+                errs.append(f"line {n}: drawing {j + 1} ({t}) is {sh[t]}; the first drawing must be wide (or both), "
+                            "the second tall (or both)")
         for d in dr:
             t = d.get("type")
             if t not in types:

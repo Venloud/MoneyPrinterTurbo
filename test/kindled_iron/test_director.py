@@ -72,6 +72,15 @@ class Director(unittest.TestCase):
         self.assertIn("not in the meme library", errs)
         self.assertIn("'nowhere' is not spoken", errs)
 
+    def test_drawing_shapes_follow_the_slots(self):
+        sh = planmod.shapes(self.cat)
+        self.assertEqual(sh["flow"], "wide")
+        self.assertEqual(sh["person"], "tall")
+        p = good_plan()
+        p["lines"][0]["drawings"].reverse()                # tall first, wide second: rejected before any render
+        errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
+        self.assertIn("the first drawing must be wide", errs)
+
     def test_pop_never_on_god_or_verse(self):
         p = good_plan()
         p["lines"][1]["pop"] = {"word": "future", "file": "side-eye.webp"}

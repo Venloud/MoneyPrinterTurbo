@@ -473,7 +473,7 @@
       for (var i = 0; i < n; i++) {
         var x = -380 + gap * (i + 0.5), w = gap * 0.84;
         s += p('M' + (x - w / 2).toFixed(0) + ',-62 L' + (x + w / 2).toFixed(0) + ',-62 L' + (x + w / 2).toFixed(0) + ',62 L' + (x - w / 2).toFixed(0) + ',62 Z', { w: 6, c: i === n - 1 ? 'accent' : 'ink', fill: 'page', fo: 1 }) +
-          lbl(x, 0, L[i], 24);
+          lbl(x, 0, L[i], 27);
         if (i < n - 1) s += p('M' + (x + w / 2 + 4).toFixed(0) + ',0 L' + (x + gap - w / 2 - 6).toFixed(0) + ',0 M' + (x + gap - w / 2 - 18).toFixed(0) + ',-10 L' + (x + gap - w / 2 - 6).toFixed(0) + ',0 L' + (x + gap - w / 2 - 18).toFixed(0) + ',10', { w: 6, c: 'accent' });
       }
       return s + (o.title ? lbl(0, -92, o.title, 34, 'accent') : '');
@@ -499,7 +499,7 @@
       var k = o.kid ? 0.62 : 1, P = function (d) { return d.replace(/-?[\d.]+/g, function (n) { return (parseFloat(n) * k).toFixed(1); }); };
       return p(P(circlePath(0, -150, 32)), { w: 6, fill: 'skin', fo: 1 }) + p(P('M-40,-108 L40,-108 L48,10 L-48,10 Z'), { w: 6, fill: o.kid ? 'water' : '#4A6C8F', fo: 1 }) +
         p(P('M-40,-100 L-70,-20 M40,-100 L70,-20 M-22,10 L-28,110 M22,10 L28,110'), { w: 7 }) + p(P('M-10,-155 L-10,-145 M10,-155 L10,-145 M-12,-132 Q0,-124 12,-132'), { w: 4 }) +
-        (o.label ? lbl(0, 110 * k + 30, o.label, 32, 'accent') : '');
+        (o.label ? lbl(0, 110 * k + 62, o.label, 32, 'accent') : '');
     },
     people: function (o) {      // a group: an adult and a child side by side (family, innocent people)
       return '<g transform="translate(-75,0)">' + OBJ.person({}) + '</g><g transform="translate(80,40)">' + OBJ.person({ kid: true }) + '</g>' +

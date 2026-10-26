@@ -945,7 +945,7 @@
   "person": {
    "center": [
     0,
-    6
+    22
    ],
    "director": true,
    "doc": "a simple standing person; kid: true draws a small child; label under it",
@@ -955,7 +955,7 @@
    ],
    "size": [
     140,
-    322
+    354
    ]
   },
   "plane": {
@@ -1251,7 +1251,7 @@
    ]
   }
  },
- "runtime_sha256": "7b59aa72a1d72f4337b1bc0280e6922e642e040c6f5309c9412242653ba40641",
+ "runtime_sha256": "03fc3b3fcee573e639d1e90fb8e5bae475a9ca750fd1b5362fdac32fc7e6650d",
  "zones": {
   "box": {
    "h": 420,

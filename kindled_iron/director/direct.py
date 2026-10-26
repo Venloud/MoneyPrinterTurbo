@@ -148,12 +148,14 @@ def attempt(lines, words, cat, lib, meta, work: Path, feedback: list[str], round
     rec["preflight_gates"] = g
     if not g["_passed"]:
         rec["errors"].append({"stage": "preflight", "errors": gates.errors(g) + _coverage_lines(g, words)})
+        log("preflight gates failed: " + "; ".join(rec["errors"][-1]["errors"][:8]))
         return None
     err = run_render(scene_file, mp4, full_work, preflight=False)
     g = gates.run(full_work, scene, p, lines, cat, meta["align"], True, err, mp4.with_name(mp4.stem + "_meta.json"))
     rec["final_gates"] = g
     if not g["_passed"]:
         rec["errors"].append({"stage": "final", "errors": gates.errors(g)})
+        log("final gates failed: " + "; ".join(rec["errors"][-1]["errors"][:8]))
         return None
     return {"plan": p, "scene": scene, "frames": frames, "media": records, "gates": g, "mp4": mp4, "work": full_work}
 

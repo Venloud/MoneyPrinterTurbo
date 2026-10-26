@@ -25,6 +25,7 @@ FACE_OF = {"happy": "crying_laughing", "curious": "thinking", "thinking": "think
 POP_CARD = {"w": 380, "dur": 1.2}
 FREEZE = {"dur": 1.0, "zoom": 1.45, "after": 0.45}   # the camera needs ~0.35 s to come back after the freeze
 SHOULDER_Y = 1110
+MIN_LABEL_SCALE = 0.72          # a labeled drawing smaller than this makes its labels too small to read on a phone
 
 
 class CompileError(Exception):
@@ -156,6 +157,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     measure(specs) -> {id: {size, center}}: the drawings' real boxes with their own labels (Chrome); without it
     the catalog's sample sizes are used (offline tests)."""
     Z, G = cat["zones"], cat["guide"]
+    scene_notes = []
     types = director_types(cat)
     real = {}
     if measure:
@@ -237,7 +239,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         first = W[0]["word"]
         if i == 0:
             ev += [{"at": 0, "do": "place", "who": "guide", "x": spot, "facing": -1 if spot > 540 else 1},
-                   {"at": 0, "do": "size", "who": "guide", "value": Z["guide"]["size"], "dur": 0.01}]
+                   {"at": 0, "do": "size", "who": "guide", "value": Z["guide"]["size"], "dur": 0}]
         if i in walks:
             ev.append({"at": _anchor(W, first, 0.1)[0], "do": "walk", "who": "guide", "to": walks[i][1]})
         if i == n_lines - 1:
@@ -257,7 +259,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         # replaces what was in its own slot, so the frame never empties between lines.
         dr = L["drawings"][:2]
         lane = _lane_slot(spot, G)           # on a pop-up line the lane drawing waits until the card is gone
-        objs = [dict(types[d["type"]], _name=d["type"], **real.get(f"l{i + 1}_{d['type']}{j}", {})) for j, d in enumerate(dr)]
+        objs = [dict(types[d["type"]], _name=d["type"], _labeled=bool(d.get("fields")),
+                     **real.get(f"l{i + 1}_{d['type']}{j}", {})) for j, d in enumerate(dr)]
         options = [[("area", slots1[0])]] if len(dr) == 1 else \
             ([[("area", slots1[0]), ("lane", lane)], [("lane", lane), ("area", slots1[0])]] if lane else []) + \
             [[("area", slots2[0]), ("area", slots2[1])]]
@@ -266,12 +269,28 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             area = 0.0
             for o, (_, sl) in zip(objs, opt):
                 f = _fit(o, sl, strict=False)
-                if f is None:
+                if f is None or (f[0] < MIN_LABEL_SCALE and o.get("_labeled")):   # labels must stay readable
                     area = -1.0
                     break
                 area += o["size"][0] * o["size"][1] * f[0] ** 2
             if area > best_area:
                 best, best_area = opt, area
+        if (best is None or best_area < 0) and len(dr) == 2:
+            # the pair does not fit readably: keep the one drawing that fills the most frame on its own
+            # (the other slot keeps its previous drawing), instead of failing the whole plan
+            single = None
+            for k, o in enumerate(objs):
+                for zone, sl in [("area", slots1[0])] + ([("lane", lane)] if lane else []):
+                    f = _fit(o, sl, strict=False)
+                    if f and (f[0] >= MIN_LABEL_SCALE or not o.get("_labeled")):
+                        a_ = o["size"][0] * o["size"][1] * f[0] ** 2
+                        if single is None or a_ > single[0]:
+                            single = (a_, k, zone, sl)
+            if single:
+                _, k, zone, sl = single
+                log_note = f"line {i + 1}: only '{dr[k]['type']}' fits readably; the other drawing is dropped"
+                scene_notes.append(log_note)
+                dr, objs, best, best_area = [dr[k]], [objs[k]], [(zone, sl)], single[0]
         if best is None or best_area < 0:
             raise CompileError(f"line {i + 1}: {' and '.join(o['_name'] for o in objs)} cannot be drawn 250 px or larger "
                                "here: pick wider diagrams")
@@ -290,8 +309,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if i in pop_t and zone == "lane" and t < pop_t[i] + POP_CARD["dur"] + 0.2:
                 t = pop_t[i] + POP_CARD["dur"] + 0.25
                 a = _at_time(W, t)
-            if i == 0 and t - t_start > 0.1 * j:        # the first frame is already full (the hook)
-                t = round(0.1 * j, 3)
+            k0 = 1 if zone == "lane" else j              # a lane drawing waits until the guide stands on his spot
+            if i == 0 and t - t_start > 0.1 * k0:       # the first frame is already full (the hook)
+                t = round(0.1 * k0, 3)
                 a = t
             if fz and zone == "lane" and t > fz[1] + FREEZE["dur"] + FREEZE["after"] + 1.5:
                 t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.3      # refill the lane right after the freeze
@@ -304,7 +324,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 a = _at_time(W, t)
             # drawn stroke by stroke (no pop-in overshoot, no idle sway): it never grows past its slot
             ev.append({"at": a, "do": "draw", "id": did, "type": d["type"], "x": x, "y": y, "scale": s, "dur": 0.6,
-                       "pop": False, "still": True, "main": True, **({"instant": True} if i == 0 and j == 0 else {}),
+                       "pop": False, "still": True, "main": True, **({"instant": True} if i == 0 and j == 0 and zone == "area" else {}),
                        **(d.get("fields") or {})})
             ids.append(did)
             draw_pos[did] = ((slot[0] + slot[2]) / 2, (slot[1] + slot[3]) / 2, key(d["word"]), t, zone)
@@ -448,7 +468,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",
                     "frames": [{"beat": f["beat"], "at": f["at"]} for f in pv]},
         "post": {"title": meta.get("title") or meta["id"].replace("-", " ").title()},
-        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}},
+        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}, "notes": scene_notes},
         "beats": beats,
     }
     return scene, pv

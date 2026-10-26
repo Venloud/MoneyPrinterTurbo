@@ -25,22 +25,17 @@
    ],
    "drawings": [
     {
-     "word": "graph",
-     "type": "triangle",
-     "fields": {
-      "labels": [
-       "ALL POWERFUL",
-       "ALL KNOWING",
-       "ALL GOOD"
-      ],
-      "center": "EVIL?"
-     }
-    },
-    {
      "word": "exist",
      "type": "crossout",
      "fields": {
       "text": "GOD EXISTS"
+     }
+    },
+    {
+     "word": "graph",
+     "type": "question",
+     "fields": {
+      "label": "EVIL?"
      }
     }
    ]

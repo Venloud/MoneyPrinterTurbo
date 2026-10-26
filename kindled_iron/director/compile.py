@@ -194,7 +194,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     route, walks, nxt, k = [], {}, WALK_EVERY[0], 0
     for i in range(n_lines):
         t0 = words[i][0]["start"]
-        need_outer = i in pop_t and cur not in outer
+        # a pop-up needs him on an outer spot: get there a line early, so a pop early in its line never fails
+        need_outer = (i in pop_t or (i + 1) in pop_t) and cur not in outer
         due = i >= nxt and i < n_lines - 1
         if need_outer or due:
             if need_outer:
@@ -221,8 +222,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 cur = dest
                 k += 1
                 nxt = i + WALK_EVERY[k % 2]
-            elif need_outer:
-                raise CompileError(f"line {i + 1}: the guide cannot reach an outer spot before the pop-up")
+            elif need_outer and i in pop_t:
+                # no time to reach an outer spot: this line goes without its pop-up (the card would hit him)
+                del pop_t[i]
+                P[i] = dict(P[i], pop=None)
+                scene_notes.append(f"line {i + 1}: pop-up dropped (the guide could not reach an outer spot in time)")
         route.append(cur)
 
     scene_clips: dict[str, dict] = {}

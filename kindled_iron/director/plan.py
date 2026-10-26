@@ -149,11 +149,58 @@ def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], 
 
 
 # ------------------------------------------------------------------ checks
-def validate(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict) -> list[str]:
-    """Every error is phrased so Gemini can fix it in the next round."""
-    errs: list[str] = []
+OBJ_FIELDS = ("gesture", "verse", "pop")      # one object or null
+LIST_FIELDS = ("drawings", "box")             # a list of objects
+
+
+def shape_errors(plan) -> list[str]:
+    """The JSON shape (objects, lists) before any rule is checked. A one-item list where one object belongs (a
+    common model habit) is unwrapped in place; anything else malformed becomes an error for the next try."""
     if not isinstance(plan, dict) or not isinstance(plan.get("lines"), list):
         return ["the plan must be an object with a 'lines' list"]
+    errs = []
+    if isinstance(plan.get("freeze"), list) and len(plan["freeze"]) == 1:
+        plan["freeze"] = plan["freeze"][0]
+    if plan.get("freeze") is not None and not isinstance(plan["freeze"], dict):
+        errs.append("'freeze' must be one object {line, word}")
+    for i, L in enumerate(plan["lines"]):
+        n = i + 1
+        if not isinstance(L, dict):
+            errs.append(f"line {n}: each entry of 'lines' must be an object")
+            continue
+        for f in OBJ_FIELDS:
+            v = L.get(f)
+            if isinstance(v, list) and len(v) <= 1:
+                L[f] = v[0] if v else None
+            elif v is not None and not isinstance(v, dict):
+                errs.append(f"line {n}: '{f}' must be one object or null, not {type(v).__name__}")
+        for f in LIST_FIELDS:
+            v = L.get(f)
+            if isinstance(v, dict):
+                L[f] = [v]
+            elif v is not None and not (isinstance(v, list) and all(isinstance(x, dict) for x in v)):
+                errs.append(f"line {n}: '{f}' must be a list of objects")
+        for d in L.get("drawings") or []:
+            if isinstance(d, dict) and d.get("fields") is not None and not isinstance(d["fields"], dict):
+                errs.append(f"line {n}: a drawing's 'fields' must be an object")
+        if L.get("expression") is not None and not isinstance(L["expression"], str):
+            errs.append(f"line {n}: 'expression' must be a string")
+    return errs
+
+
+def validate(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict) -> list[str]:
+    """Every error is phrased so Gemini can fix it in the next round. Never raises on a malformed plan."""
+    errs = shape_errors(plan)
+    if errs:
+        return errs
+    try:
+        return _rules(plan, lines, line_keys, memes, cat)
+    except (AttributeError, TypeError, KeyError, ValueError) as e:     # a shape the checks above did not foresee
+        return [f"the plan's JSON has an unexpected shape ({type(e).__name__}: {e}); follow output_example exactly"]
+
+
+def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict) -> list[str]:
+    errs: list[str] = []
     P = plan["lines"]
     if len(P) != len(lines):
         return [f"the plan has {len(P)} lines but the script has {len(lines)}: give exactly one entry per script line"]

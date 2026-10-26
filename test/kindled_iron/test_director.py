@@ -81,6 +81,19 @@ class Director(unittest.TestCase):
         errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
         self.assertIn("the first drawing must be wide", errs)
 
+    def test_malformed_plan_is_an_error_not_a_crash(self):
+        p = good_plan()
+        p["lines"][0]["pop"] = [{"word": "evil", "file": "side-eye.webp"}]      # one-item list: unwrapped
+        self.assertEqual(planmod.validate(p, LINES, self.keys, LIB, self.cat), [])
+        p["lines"][0]["pop"] = [{"word": "evil"}, {"word": "why"}]
+        p["lines"][1]["box"] = "storm"
+        errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
+        self.assertIn("'pop' must be one object", errs)
+        self.assertIn("'box' must be a list of objects", errs)
+        p = good_plan()
+        p["lines"][0]["gesture"] = {"do": ["point"]}
+        self.assertIn("unexpected shape", planmod.validate(p, LINES, self.keys, LIB, self.cat)[0])
+
     def test_pop_never_on_god_or_verse(self):
         p = good_plan()
         p["lines"][1]["pop"] = {"word": "future", "file": "side-eye.webp"}

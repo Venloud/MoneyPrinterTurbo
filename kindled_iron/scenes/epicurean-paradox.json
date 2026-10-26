@@ -89,6 +89,15 @@
       "events": [
         {
           "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_intro"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
           "do": "draw",
           "type": "word",
           "id": "ki_argument",
@@ -121,6 +130,15 @@
       "panel": 0,
       "narration": "Well, there's something this graph leaves out. Free will. Think about it. If God controlled every decision you made, would you really have a choice?",
       "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_argument"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
         {
           "at": 0,
           "do": "draw",
@@ -157,6 +175,15 @@
       "events": [
         {
           "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_freedom"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
           "do": "draw",
           "type": "word",
           "id": "ki_choices",
@@ -189,6 +216,15 @@
       "panel": 0,
       "narration": "Now, what about suffering nobody chooses? Earthquakes, diseases, innocent children dying? Free will doesn't explain those things.",
       "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_choices"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
         {
           "at": 0,
           "do": "draw",
@@ -225,6 +261,15 @@
       "events": [
         {
           "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_suffering"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
           "do": "draw",
           "type": "word",
           "id": "ki_creation",
@@ -259,6 +304,15 @@
       "events": [
         {
           "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_creation"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
           "do": "draw",
           "type": "word",
           "id": "ki_hope",
@@ -291,6 +345,15 @@
       "panel": 0,
       "narration": "So God allowing evil doesn't necessarily mean He approves of it or lacks the power to stop it. But why does He allow innocent people to suffer? That's a question Christians still wrestle with.",
       "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_hope"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
         {
           "at": 0,
           "do": "draw",

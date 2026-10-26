@@ -94,12 +94,27 @@ def request_gemini(prompt: str, model: str) -> dict:
         + selected + ":generateContent",
         data=body, method="POST",
         headers={"Content-Type": "application/json", "x-goog-api-key": key})
-    try:
-        with urllib.request.urlopen(req, timeout=120) as response:
-            data = json.load(response)
-    except urllib.error.HTTPError as e:
-        detail = e.read(1400).decode("utf-8", "replace")
-        raise RuntimeError(f"Gemini generateContent HTTP {e.code} ({selected}): {detail}") from None
+    import time
+    # A model can be listed but temporarily overloaded for generation.
+    # Retry only transient server errors. Never retry authentication, invalid
+    # model, quota or billing failures automatically.
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as response:
+                data = json.load(response)
+            break
+        except urllib.error.HTTPError as e:
+            detail = e.read(1400).decode("utf-8", "replace")
+            if e.code in (500, 502, 503, 504) and attempt < 2:
+                pause = (3, 9)[attempt]
+                print(f"Gemini {selected}: temporary HTTP {e.code}, retry "
+                      f"{attempt + 1}/2 after {pause}s", flush=True)
+                time.sleep(pause)
+                continue
+            raise RuntimeError(
+                f"Gemini generateContent HTTP {e.code} ({selected}), "
+                f"attempt {attempt + 1}/3: {detail}"
+            ) from None
     try:
         return json.loads(data["candidates"][0]["content"]["parts"][0]["text"])
     except (KeyError, IndexError, ValueError) as exc:

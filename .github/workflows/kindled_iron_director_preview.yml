@@ -19,7 +19,7 @@ jobs:
       VOICE_REPO: "Venloud/kindled-iron-voice"
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
-      KI_DIRECTOR_MODEL: "gemini-2.5-flash"
+      KI_DIRECTOR_MODEL: "gemini-3.8-flash"
       KI_YTDLP: "0"
       KI_THIRD_PARTY: "0"
       KI_MUSIC_SOURCE: "none"

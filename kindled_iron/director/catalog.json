@@ -1203,17 +1203,17 @@
   "venn": {
    "center": [
     2,
-    2
+    19
    ],
    "director": true,
-   "doc": "two overlapping circles: left label, right label, and what they share in the middle",
+   "doc": "two overlapping circles: left label, right label, and what they share (written under them)",
    "params": [
     "center",
     "labels"
    ],
    "size": [
     361,
-    223
+    257
    ]
   },
   "voice": {
@@ -1251,7 +1251,7 @@
    ]
   }
  },
- "runtime_sha256": "03fc3b3fcee573e639d1e90fb8e5bae475a9ca750fd1b5362fdac32fc7e6650d",
+ "runtime_sha256": "4d48a40054ed79eac1dad0162e4f8598bb14d501af59f96155d28b53ebfeae22",
  "zones": {
   "box": {
    "h": 420,

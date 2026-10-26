@@ -449,7 +449,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             beat["interaction"] = False
         beats.append(beat)
         if ids:
-            frames.append({"beat": beat["id"], "t": draw_pos[ids[-1]][3] + 0.9, "line": text})
+            # a still once the line's last drawing is complete (draw 0.6 s + margin for the renderer's own timing)
+            frames.append({"beat": beat["id"], "t": max(draw_pos[d][3] for d in ids) + 1.5, "line": text})
 
     # ---------------- the 8 review stills: spread over the lines
     picks = frames if len(frames) <= 8 else [frames[round(k * (len(frames) - 1) / 7)] for k in range(8)]

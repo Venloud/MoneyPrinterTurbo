@@ -122,7 +122,7 @@ jobs:
           test -s "$dest/$ID.mp4"
           git -C "$KI_PRIVATE_MEDIA" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C "$KI_PRIVATE_MEDIA" config user.name "github-actions[bot]"
-          git -C "$KI_PRIVATE_MEDIA" add "previews/$ID"
+          git -C "$KI_PRIVATE_MEDIA" add --sparse -- "previews/$ID"
           git -C "$KI_PRIVATE_MEDIA" commit -m "Private Kindled Iron director preview: $ID" || exit 0
           git -C "$KI_PRIVATE_MEDIA" push origin HEAD:main
           echo "Private preview: https://github.com/$VOICE_REPO/tree/main/previews/$ID" >> "$GITHUB_STEP_SUMMARY"

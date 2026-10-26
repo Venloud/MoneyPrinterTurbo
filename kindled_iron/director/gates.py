@@ -41,16 +41,15 @@ def coverage(page_file: Path, duration: float, safe: dict, skip: list[tuple[floa
         page.goto(page_file.as_uri())
         page.wait_for_function("window.kiSeek !== undefined", timeout=60000)
         page.wait_for_timeout(1500)
-        t = 0.0
+        t = 0.25                                  # the first quarter second is the cut-in (drawings appearing)
         while t <= duration:
             if not any(a <= t <= c for a, c in skip):
                 page.evaluate(f"window.kiSeek({t:.3f})")
                 rects = page.evaluate("""() => { var o = window.kiRects(), out = [];
-                    if (o.box) out.push(o.box);
+                    if (o.box) out.push(o.box);          // the page; its hand-drawn frame is the mediabox object below
                     ['guide', 'cap'].forEach(function (k) { var v = o[k]; if (v) out.push(v.left !== undefined ? [v.left, v.top, v.right, v.bottom] : v); });
                     document.querySelectorAll('.ki-obj').forEach(function (el) {
                       if (el.getAttribute('visibility') === 'hidden' || parseFloat(getComputedStyle(el).opacity) < 0.3) return;
-                      if (el.getAttribute('data-type') === 'mediabox') return;
                       var q = el.getBoundingClientRect(); if (q.width > 4 && q.height > 4) out.push([q.left, q.top, q.right, q.bottom]); });
                     return out; }""")
                 for oid, w, h in page.evaluate("""() => Array.from(document.querySelectorAll('.ki-obj')).filter(function (el) {
@@ -124,7 +123,7 @@ def run(work: Path, scene: dict, plan: dict, lines: list[str], cat: dict, align_
         tiny = [f"{oid} is {px:.0f} px" for oid, px in seen.items() if oid.split("_")[0][1:].isdigit() and px < MIN_DOODLE]
         gate("doodles", not small and not tiny, small + tiny, "drawings too small (under 250 px): " + "; ".join(small + tiny))
         low = [(t, c) for t, c in cov if c < MIN_COVER]
-        gate("coverage", not low, {"min": min((c for _, c in cov), default=0), "low_samples": low[:12], "samples": len(cov)},
+        gate("coverage", not low, {"min": min((c for _, c in cov), default=0), "low_samples": low[:60], "samples": len(cov)},
              f"the frame is under {MIN_COVER:.0%} covered at " + ", ".join(f"{t:.1f}s ({c:.0%})" for t, c in low[:6]) +
              ": add a second drawing to those lines or use wider diagrams")
     if final:

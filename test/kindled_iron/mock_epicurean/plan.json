@@ -67,16 +67,20 @@
    "drawings": [
     {
      "word": "powerful",
-     "type": "bolt",
+     "type": "flow",
      "fields": {
-      "label": "CAN STOP IT"
+      "labels": [
+       "CAN STOP IT",
+       "KNOWS IT",
+       "WANTS TO"
+      ]
      }
     },
     {
-     "word": "good",
-     "type": "heart",
+     "word": "evil",
+     "type": "question",
      "fields": {
-      "label": "WANTS TO"
+      "label": "WHY EVIL?"
      }
     }
    ]
@@ -98,12 +102,13 @@
    "drawings": [
     {
      "word": "will",
-     "type": "signpost",
+     "type": "scales",
      "fields": {
       "labels": [
-       "GOOD",
-       "EVIL"
-      ]
+       "GOD'S CONTROL",
+       "YOUR CHOICE"
+      ],
+      "tilt": 0.5
      }
     },
     {
@@ -176,9 +181,13 @@
    "drawings": [
     {
      "word": "earthquakes",
-     "type": "ground",
+     "type": "flow",
      "fields": {
-      "label": "EARTHQUAKE"
+      "labels": [
+       "EARTHQUAKE",
+       "DISEASE",
+       "NOBODY CHOSE"
+      ]
      }
     },
     {
@@ -216,9 +225,9 @@
     },
     {
      "word": "punishment",
-     "type": "crossout",
+     "type": "person",
      "fields": {
-      "text": "PUNISHMENT"
+      "label": "NOT A PUNISHMENT"
      }
     }
    ]

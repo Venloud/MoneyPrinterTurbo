@@ -460,8 +460,8 @@
         lbl(-115, 0, L[0], 32) + lbl(115, 0, L[1], 32) + (o.center ? lbl(0, 0, o.center, 26, 'accent') : '');
     },
     scales: function (o) {      // a balance scale: two labeled pans; tilt -1 (left heavier) .. 1 (right heavier)
-      var L = o.labels || ['A', 'B'], t = Math.max(-1, Math.min(1, o.tilt || 0)) * 30, a = t * Math.PI / 180;
-      var lx = -150 * Math.cos(a), ly = -60 + 150 * Math.sin(a), rx = 150 * Math.cos(a), ry = -60 - 150 * Math.sin(a);
+      var L = o.labels || ['A', 'B'], t = Math.max(-1, Math.min(1, o.tilt || 0)) * 20, a = t * Math.PI / 180;
+      var lx = -230 * Math.cos(a), ly = -60 + 230 * Math.sin(a), rx = 230 * Math.cos(a), ry = -60 - 230 * Math.sin(a);
       var pan = function (x, y) { return p('M' + (x - 55).toFixed(0) + ',' + (y + 50).toFixed(0) + ' Q' + x.toFixed(0) + ',' + (y + 95).toFixed(0) + ' ' + (x + 55).toFixed(0) + ',' + (y + 50).toFixed(0) + ' Z', { w: 6, fill: 'starFill', fo: 1 }) +
         p('M' + x.toFixed(0) + ',' + y.toFixed(0) + ' L' + (x - 50).toFixed(0) + ',' + (y + 50).toFixed(0) + ' M' + x.toFixed(0) + ',' + y.toFixed(0) + ' L' + (x + 50).toFixed(0) + ',' + (y + 50).toFixed(0), { w: 4, c: 'inkSoft' }); };
       return p('M0,-60 L0,110 M-60,110 L60,110', { w: 9, c: 'trunk' }) + p('M' + lx.toFixed(0) + ',' + ly.toFixed(0) + ' L' + rx.toFixed(0) + ',' + ry.toFixed(0), { w: 8 }) +
@@ -469,11 +469,11 @@
         lbl(lx, ly + 112, L[0], 30) + lbl(rx, ry + 112, L[1], 30);
     },
     flow: function (o) {        // 2-4 labeled boxes joined by arrows: cause -> effect, step -> step
-      var L = o.labels || ['A', 'B', 'C'], n = L.length, gap = 400 / n, s = '';
+      var L = o.labels || ['A', 'B', 'C'], n = L.length, gap = 760 / n, s = '';
       for (var i = 0; i < n; i++) {
-        var x = -200 + gap * (i + 0.5), w = gap * 0.78;
-        s += p('M' + (x - w / 2).toFixed(0) + ',-55 L' + (x + w / 2).toFixed(0) + ',-55 L' + (x + w / 2).toFixed(0) + ',55 L' + (x - w / 2).toFixed(0) + ',55 Z', { w: 6, c: i === n - 1 ? 'accent' : 'ink', fill: 'page', fo: 1 }) +
-          lbl(x, 0, L[i], 28);
+        var x = -380 + gap * (i + 0.5), w = gap * 0.84;
+        s += p('M' + (x - w / 2).toFixed(0) + ',-62 L' + (x + w / 2).toFixed(0) + ',-62 L' + (x + w / 2).toFixed(0) + ',62 L' + (x - w / 2).toFixed(0) + ',62 Z', { w: 6, c: i === n - 1 ? 'accent' : 'ink', fill: 'page', fo: 1 }) +
+          lbl(x, 0, L[i], 24);
         if (i < n - 1) s += p('M' + (x + w / 2 + 4).toFixed(0) + ',0 L' + (x + gap - w / 2 - 6).toFixed(0) + ',0 M' + (x + gap - w / 2 - 18).toFixed(0) + ',-10 L' + (x + gap - w / 2 - 6).toFixed(0) + ',0 L' + (x + gap - w / 2 - 18).toFixed(0) + ',10', { w: 6, c: 'accent' });
       }
       return s + (o.title ? lbl(0, -92, o.title, 34, 'accent') : '');
@@ -525,8 +525,8 @@
         p('M10,-20 L-150,-20 L-185,10 L-150,40 L10,40 Z', { w: 6, c: 'accent', fill: 'page', fo: 1 }) + lbl(-80, 10, L[1], 28, 'accent');
     },
     timeline: function (o) {    // a time line with labeled moments (past -> now -> future); the last one is highlighted
-      var L = o.labels || ['THEN', 'NOW', 'LATER'], n = L.length, s = p('M-200,20 L200,20 M186,8 L200,20 L186,32', { w: 7 });
-      for (var i = 0; i < n; i++) { var x = -170 + 340 * i / Math.max(1, n - 1);
+      var L = o.labels || ['THEN', 'NOW', 'LATER'], n = L.length, s = p('M-310,20 L310,20 M296,8 L310,20 L296,32', { w: 7 });
+      for (var i = 0; i < n; i++) { var x = -260 + 520 * i / Math.max(1, n - 1);
         s += p(circlePath(x, 20, i === n - 1 ? 16 : 11), { w: 6, c: i === n - 1 ? 'accent' : 'ink', fill: i === n - 1 ? 'accent' : 'page', fo: 1 }) + lbl(x, i % 2 ? 70 : -30, L[i], 30, i === n - 1 ? 'accent' : 'ink'); }
       return s + (o.title ? lbl(0, -95, o.title, 34, 'accent') : '');
     },
@@ -557,7 +557,7 @@
     if (t.length > 14 && t.indexOf(' ') > 0) { var m = t.length / 2, cut = -1;
       for (var i = 0; i < t.length; i++) if (t[i] === ' ' && (cut < 0 || Math.abs(i - m) < Math.abs(cut - m))) cut = i;
       lines = [t.slice(0, cut), t.slice(cut + 1)]; }
-    var sz = size || 32, out = '';
+    var sz = (size || 32) * 1.35, out = '';     // read on a phone: labels stay big after the drawing is scaled
     lines.forEach(function (ln, k) {
       out += '<text x="' + x + '" y="' + (y + (k - (lines.length - 1) / 2) * sz * 0.95).toFixed(0) + '" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + sz +
         '" fill="' + col(color || 'ink') + '">' + esc(ln) + '</text>'; });

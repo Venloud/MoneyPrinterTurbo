@@ -94,7 +94,7 @@ RULES = [
     "Return ONLY JSON: {\"freeze\": {\"line\": n, \"word\": w}, \"lines\": [...]} with exactly one entry per script line, in order.",
     "Never change, add or drop narration words. Every 'word' you give must be a word spoken in THAT line (copy it exactly).",
     "Imitate the golden scenes' density and pacing: something new on screen every 2-3 seconds, the drawing appears on the word that names it.",
-    "EVERY line gets TWO new real illustrations in 'drawings': first the main diagram of the idea (shown wide in the drawing area), second a concrete object or person from the line (shown big beside the guide). Pick types from the catalog only; fill their fields.",
+    "EVERY line gets TWO new real illustrations in 'drawings': first the main diagram of the idea, shown in a WIDE band (650 x 270 px), so pick a wide type (see 'shape' in the catalog: flow, timeline, scales, signpost, crossout, bars, venn...); second a concrete object or person from the line, shown big beside the guide (a tall or square type). Pick types from the catalog only; fill their fields.",
     "Concrete nouns become drawn objects: a graph -> 'bars' or 'triangle' with labeled parts; an earthquake -> 'ground'; a child -> 'person' with kid true; the Bible -> 'openbook'; a disease -> 'germ'.",
     "Abstract ideas become diagrams: cause/effect -> 'flow'; two options -> 'signpost' or 'scales'; overlap -> 'venn'; a rejected idea -> 'crossout'; past/future -> 'timeline'; a question -> 'question'; control -> 'puppet'.",
     "Words appear only as LABELS inside a drawing (labels, title, center, label, text fields), short and in CAPS (max 28 characters).",
@@ -111,7 +111,10 @@ RULES = [
 
 
 def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], words_heard: list[list[str]]) -> str:
-    types = {n: {"what": o["doc"], "fields": o["params"], "size_px": o.get("size")} for n, o in director_types(cat).items()}
+    def shape(o):
+        w, h = o.get("size") or (1, 1)
+        return "wide" if w >= 1.6 * h else ("tall" if h > 1.2 * w else "square")
+    types = {n: {"what": o["doc"], "fields": o["params"], "shape": shape(o)} for n, o in director_types(cat).items()}
     return json.dumps({
         "task": "You direct a Kindled Iron short: a hand-drawn whiteboard explainer with a guide character, a clip box at "
                 "the top, captions under it, drawings in the middle, the guide walking at the bottom. Write the shot plan.",

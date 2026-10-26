@@ -411,7 +411,7 @@
   "bars": {
    "center": [
     1,
-    -12
+    -13
    ],
    "director": true,
    "doc": "a bar graph: axes, 2-5 labeled bars (values 0-1), optional title on top",
@@ -422,7 +422,7 @@
    ],
    "size": [
     358,
-    278
+    292
    ]
   },
   "birds": {
@@ -457,7 +457,7 @@
   "bolt": {
    "center": [
     12,
-    28
+    32
    ],
    "director": true,
    "doc": "a lightning bolt (power, all-powerful, sudden)",
@@ -466,7 +466,7 @@
    ],
    "size": [
     144,
-    316
+    324
    ]
   },
   "book": {
@@ -646,7 +646,7 @@
   "eye_check": {
    "center": [
     20,
-    41
+    44
    ],
    "director": true,
    "doc": "a magnifying glass over a page (knowing, seeing everything, examining)",
@@ -655,7 +655,7 @@
    ],
    "size": [
     280,
-    282
+    289
    ]
   },
   "figure": {
@@ -711,8 +711,8 @@
     "title"
    ],
    "size": [
-    374,
-    172
+    724,
+    186
    ]
   },
   "frame": {
@@ -726,7 +726,7 @@
   "germ": {
    "center": [
     2,
-    25
+    29
    ],
    "director": true,
    "doc": "a germ / virus (disease, sickness): spiky round cell",
@@ -735,7 +735,7 @@
    ],
    "size": [
     258,
-    293
+    300
    ]
   },
   "globe": {
@@ -756,7 +756,7 @@
   "ground": {
    "center": [
     0,
-    23
+    27
    ],
    "director": true,
    "doc": "cracked ground (earthquake, broken world): a split landscape with falling rocks",
@@ -765,7 +765,7 @@
    ],
    "size": [
     400,
-    276
+    284
    ]
   },
   "hammer": {
@@ -776,7 +776,7 @@
   "heart": {
    "center": [
     2,
-    31
+    35
    ],
    "director": true,
    "doc": "a heart (love, good, care); broken: true cracks it in two",
@@ -786,7 +786,7 @@
    ],
    "size": [
     216,
-    250
+    258
    ]
   },
   "heartdollar": {
@@ -900,7 +900,7 @@
   "openbook": {
    "center": [
     2,
-    31
+    35
    ],
    "director": true,
    "doc": "an open book (the Bible, a law, a story) with a short line written on each page",
@@ -911,7 +911,7 @@
    ],
    "size": [
     384,
-    210
+    218
    ]
   },
   "openhand": {
@@ -930,7 +930,7 @@
   "people": {
    "center": [
     -11,
-    8
+    12
    ],
    "director": true,
    "doc": "a group: an adult and a child side by side (family, innocent people)",
@@ -939,13 +939,13 @@
    ],
    "size": [
     268,
-    326
+    334
    ]
   },
   "person": {
    "center": [
     0,
-    3
+    6
    ],
    "director": true,
    "doc": "a simple standing person; kid: true draws a small child; label under it",
@@ -955,7 +955,7 @@
    ],
    "size": [
     140,
-    316
+    322
    ]
   },
   "plane": {
@@ -999,7 +999,7 @@
   "puppet": {
    "center": [
     0,
-    21
+    24
    ],
    "director": true,
    "doc": "strings from a hand-held cross bar moving a figure (control, no choice)",
@@ -1008,13 +1008,13 @@
    ],
    "size": [
     220,
-    382
+    389
    ]
   },
   "question": {
    "center": [
     5,
-    24
+    28
    ],
    "director": true,
    "doc": "a big question mark (why? an open question)",
@@ -1023,7 +1023,7 @@
    ],
    "size": [
     130,
-    314
+    322
    ]
   },
   "rays": {
@@ -1048,7 +1048,7 @@
     "tilt"
    ],
    "size": [
-    414,
+    574,
     180
    ]
   },
@@ -1157,7 +1157,7 @@
   },
   "timeline": {
    "center": [
-    3,
+    1,
     -14
    ],
    "director": true,
@@ -1167,8 +1167,8 @@
     "title"
    ],
    "size": [
-    410,
-    206
+    621,
+    220
    ]
   },
   "tree": {
@@ -1186,7 +1186,7 @@
   },
   "triangle": {
    "center": [
-    9,
+    12,
     0
    ],
    "director": true,
@@ -1196,8 +1196,8 @@
     "labels"
    ],
    "size": [
-    381,
-    299
+    410,
+    314
    ]
   },
   "venn": {
@@ -1251,14 +1251,14 @@
    ]
   }
  },
- "runtime_sha256": "933764b0d35c3cf23428747856af56c020df01796ebef91401529d5eeb784bf8",
+ "runtime_sha256": "7b59aa72a1d72f4337b1bc0280e6922e642e040c6f5309c9412242653ba40641",
  "zones": {
   "box": {
-   "h": 340,
+   "h": 420,
    "use": "clip box: footage, memes, verse cards",
    "w": 820,
    "x": 540,
-   "y": 350
+   "y": 390
   },
   "caption": {
    "h": 110,
@@ -1266,13 +1266,13 @@
    "use": "one caption line, 1-3 words, spoken word orange",
    "w": 720,
    "x": 180,
-   "y": 546
+   "y": 626
   },
   "draw": {
-   "use": "drawing area: illustrations and diagrams",
+   "use": "drawing area: a wide band for the line's main diagram",
    "x0": 125,
    "x1": 775,
-   "y0": 662,
+   "y0": 742,
    "y1": 934
   },
   "guide": {

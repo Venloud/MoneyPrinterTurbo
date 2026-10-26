@@ -28,9 +28,9 @@ OUT = HERE / "catalog.json"
 # Fixed layout (1080x1920, inside the safe box x 120-960, y 160-1440; the right button column x >= 780 at y >= 840
 # stays free). The director picks zones and slots; only the compiler turns them into coordinates.
 ZONES = {
-    "box": {"x": 540, "y": 350, "w": 820, "h": 340, "use": "clip box: footage, memes, verse cards"},
-    "caption": {"x": 180, "y": 546, "w": 720, "h": 110, "size": 88, "use": "one caption line, 1-3 words, spoken word orange"},
-    "draw": {"x0": 125, "x1": 775, "y0": 662, "y1": 934, "use": "drawing area: illustrations and diagrams"},
+    "box": {"x": 540, "y": 390, "w": 820, "h": 420, "use": "clip box: footage, memes, verse cards"},
+    "caption": {"x": 180, "y": 626, "w": 720, "h": 110, "size": 88, "use": "one caption line, 1-3 words, spoken word orange"},
+    "draw": {"x0": 125, "x1": 775, "y0": 742, "y1": 934, "use": "drawing area: a wide band for the line's main diagram"},
     "guide": {"ground": 1490, "spots": [230, 340, 560, 650], "size": 0.85, "use": "guide lane: the guide walks between spots"},
     "pop": {"y": 1215, "w": 380, "use": "meme pop-up card in the guide lane beside the guide (guide at an outer spot)"},
     "lane": {"y0": 1005, "y1": 1430, "use": "the second drawing of a line: in the guide lane, on the side away from the guide"},

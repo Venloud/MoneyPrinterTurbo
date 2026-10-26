@@ -1,41 +1,131 @@
-"""Offline checks for the Kindled Iron director, no network or MP3 needed."""
+"""Offline checks for the Kindled Iron director (no network, no Gemini, no MP3, no Chrome)."""
+import json
 import unittest
-from kindled_iron.director.direct import norm, split_beats, validate
+from pathlib import Path
+
+from kindled_iron.director import catalog, compile as compiler, media, plan as planmod
+from kindled_iron.director.direct import split_beats
+
+HERE = Path(__file__).resolve().parent
+LINES = ["If God is all powerful, He can stop evil. So why does evil exist?",
+         "Revelation 21:4 describes a future without death, pain, or mourning."]
+LIB = [{"file": "Ideas_Surprised_Pikachu_HD.webp", "kind": "image", "tags": ["surprised"], "note": ""},
+       {"file": "side-eye.webp", "kind": "image", "tags": ["side", "eye"], "note": ""}]
 
 
-class DirectorTests(unittest.TestCase):
+def words(lines):
+    out, t = [], 0.0
+    for line in lines:
+        ws = []
+        for w in line.split():
+            ws.append({"word": w, "start": round(t, 2), "end": round(t + 0.3, 2)})
+            t += 0.35
+        t += 0.6
+        out.append(ws)
+    return out
+
+
+def good_plan():
+    return {"freeze": {"line": 1, "word": "why"}, "lines": [
+        {"line": 1, "expression": "curious", "gesture": {"do": "point", "word": "powerful"},
+         "box": [{"word": "evil", "kind": "stock", "query": "storm lightning sky"}],
+         "pop": None,
+         "drawings": [{"word": "powerful", "type": "flow", "fields": {"labels": ["CAN STOP IT", "WHY EVIL"]}},
+                      {"word": "evil", "type": "question", "fields": {"label": "WHY?"}}]},
+        {"line": 2, "expression": "happy", "gesture": {"do": "point", "word": "future"},
+         "verse": {"ref": "Revelation 21:4", "word": "Revelation", "quoted": False}, "box": [],
+         "drawings": [{"word": "future", "type": "timeline", "fields": {"labels": ["NOW", "NO MORE PAIN"]}},
+                      {"word": "death", "type": "heart", "fields": {"label": "NO PAIN"}}]}]}
+
+
+class Director(unittest.TestCase):
+    def setUp(self):
+        self.cat = planmod.catalog()
+        self.keys = [[planmod.key(w["word"]) for w in ws] for ws in words(LINES)]
+
     def test_split_paragraphs(self):
-        self.assertEqual(split_beats("One sentence.\n\nSecond sentence."),
-                         ["One sentence.", "Second sentence."])
+        self.assertEqual(split_beats("One sentence.\n\nSecond sentence."), ["One sentence.", "Second sentence."])
 
-    def test_normalization(self):
-        self.assertEqual(norm("God's power!"), ["god", "s", "power"])
+    def test_catalog_is_current(self):
+        self.assertEqual(catalog.stale(json.loads(catalog.OUT.read_text())), [])
 
-    def test_accept_exact_scene(self):
-        lines = ["God is good and powerful."]
-        obj = {"beats": [{
-            "id": "one", "panel": 0, "narration": lines[0],
-            "events": [
-                {"at": 0, "do": "draw", "id": "obj1", "type": "word",
-                 "text": "GOOD", "x": 350, "y": 1080, "size": 70},
-                {"at": "powerful", "do": "point", "who": "guide", "toward": "obj1"},
-            ],
-        }]}
-        self.assertEqual(validate(obj, lines), [])
+    def test_catalog_has_measured_labeled_drawings(self):
+        objs = planmod.director_types(self.cat)
+        for name in ("bars", "triangle", "flow", "timeline", "ground", "germ", "person", "openbook", "crossout"):
+            self.assertIn(name, objs)
+            self.assertEqual(len(objs[name]["size"]), 2)
 
-    def test_reject_rewrite(self):
-        self.assertTrue(validate({"beats": [{"narration": "changed", "events": [
-            {"at": 0, "do": "express", "who": "guide", "expression": "happy"}]}]},
-            ["Original words."]))
+    def test_scripture_reference_found(self):
+        self.assertEqual(planmod.scripture_refs(LINES[1]), ["Revelation 21:4"])
 
-    def test_reject_unverified_media(self):
-        self.assertTrue(validate({"beats": [{"narration": "Hello", "events": [
-            {"at": 0, "box": "clip", "file": "unverified.mp4"}]}]},
-            ["Hello"]))
+    def test_valid_plan_passes(self):
+        self.assertEqual(planmod.validate(good_plan(), LINES, self.keys, LIB, self.cat), [])
 
-    def test_reject_invented_action(self):
-        self.assertTrue(validate({"beats": [{"narration": "Hello", "events": [
-            {"at": 0, "do": "publish"}]}]}, ["Hello"]))
+    def test_plan_errors_are_specific(self):
+        p = good_plan()
+        p["lines"][0]["drawings"] = []
+        p["lines"][1].pop("verse")
+        p["lines"][0]["box"] = [{"word": "nowhere", "kind": "meme", "file": "missing.jpg"}]
+        errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
+        self.assertIn("line 1: no drawing", errs)
+        self.assertIn("line 2: names Revelation 21:4", errs)
+        self.assertIn("not in the meme library", errs)
+        self.assertIn("'nowhere' is not spoken", errs)
+
+    def test_pop_never_on_god_or_verse(self):
+        p = good_plan()
+        p["lines"][1]["pop"] = {"word": "future", "file": "side-eye.webp"}
+        p["lines"][0]["pop"] = {"word": "God", "file": "side-eye.webp"}
+        errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
+        self.assertIn("no pop on a verse line", errs)
+        self.assertIn("never pop on the word 'God'", errs)
+
+    def test_compile_zones_and_rules(self):
+        import os
+        os.environ["KI_BOX_PLACEHOLDER"] = "1"
+        os.environ.pop("PEXELS_API_KEY", None)
+        p = good_plan()
+        per_line, records, errs = media.resolve(p, LIB, lambda m: None)
+        self.assertEqual(errs, [])
+        scene, frames = compiler.compile_scene(p, LINES, words(LINES), self.cat, per_line,
+                                               {"id": "t", "audio_path": "approved_audio/t/narration.mp3", "sha256": "x", "align": 1})
+        Z = self.cat["zones"]
+        evs = [e for b in scene["beats"] for e in b["events"]]
+        draws = [e for e in evs if e.get("do") == "draw"]
+        self.assertEqual(len(draws), 4)
+        for d in draws:                                   # every drawing inside the drawing area or a guide-lane slot
+            self.assertTrue(Z["draw"]["y0"] - 5 <= d["y"] <= 1430, d)
+        self.assertTrue(any(e.get("do") == "freeze" and e.get("sound") == "record_scratch" for e in evs))
+        self.assertTrue(any(e.get("do") == "look_viewer" for e in scene["beats"][-1]["events"]))
+        verse = [e for e in evs if e.get("box") == "verse"]
+        self.assertEqual(len(verse), 1)
+        self.assertTrue(verse[0]["paced"])                # named, not quoted: the WEB text types across the line
+        self.assertTrue(any(e.get("box") == "clip" for e in evs))
+        self.assertEqual(scene["voice_file"]["path"], "approved_audio/t/narration.mp3")
+        self.assertTrue(scene["voice_as_is"] and scene["pencil"])
+        self.assertFalse(scene["preview"]["public_artifacts"])
+        self.assertEqual(len(scene["preview"]["frames"]), 8)
+
+    def test_media_rejects_unrelated_stock(self):
+        import os
+        from kindled_iron import insets
+        os.environ.pop("KI_BOX_PLACEHOLDER", None)
+        real = insets._pexels, insets._pixabay
+        insets._pexels = lambda q, pin: [{"source": "pexels", "id": "1", "title": "", "page": "https://www.pexels.com/video/paint-brush-on-wood/"}]
+        insets._pixabay = lambda q, pin: []
+        try:
+            self.assertIsNone(media.stock("hammer nail", [], {}, lambda m: None))
+            insets._pexels = lambda q, pin: [{"source": "pexels", "id": "2", "title": "", "page": "https://www.pexels.com/video/hammer-hitting-a-nail/"}]
+            self.assertEqual(media.stock("hammer nail", [], {}, lambda m: None)["id"], "2")
+            self.assertIsNone(media.stock("hammer nail", ["pexels:2"], {}, lambda m: None))      # never twice in a row
+        finally:
+            insets._pexels, insets._pixabay = real
+
+    def test_mock_plan_fixture_is_valid(self):
+        """The offline end-to-end fixture (Epicurean Paradox) passes the plan checks."""
+        script = HERE / "mock_epicurean" / "plan.json"
+        p = json.loads(script.read_text())
+        self.assertEqual(len(p["lines"]), 8)
 
 
 if __name__ == "__main__":

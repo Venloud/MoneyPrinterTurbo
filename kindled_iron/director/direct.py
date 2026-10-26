@@ -147,7 +147,7 @@ def attempt(lines, words, cat, lib, meta, work: Path, feedback: list[str], round
     g = gates.run(pre_work, scene, p, lines, cat, meta["align"], False, err)
     rec["preflight_gates"] = g
     if not g["_passed"]:
-        rec["errors"].append({"stage": "preflight", "errors": gates.errors(g)})
+        rec["errors"].append({"stage": "preflight", "errors": gates.errors(g) + _coverage_lines(g, words)})
         return None
     err = run_render(scene_file, mp4, full_work, preflight=False)
     g = gates.run(full_work, scene, p, lines, cat, meta["align"], True, err, mp4.with_name(mp4.stem + "_meta.json"))
@@ -156,6 +156,21 @@ def attempt(lines, words, cat, lib, meta, work: Path, feedback: list[str], round
         rec["errors"].append({"stage": "final", "errors": gates.errors(g)})
         return None
     return {"plan": p, "scene": scene, "frames": frames, "media": records, "gates": g, "mp4": mp4, "work": full_work}
+
+
+def _coverage_lines(g: dict, words: list[list[dict]]) -> list[str]:
+    """Turn low-coverage times into per-line advice the planner can act on."""
+    c = g.get("coverage") or {}
+    if c.get("ok", True):
+        return []
+    hits: dict[int, int] = {}
+    for t, _ in (c.get("detail") or {}).get("low_samples", []):
+        n = next((i for i, ws in enumerate(words) if ws and ws[0]["start"] - 0.3 <= t <= ws[-1]["end"] + 0.6), None)
+        if n is not None:
+            hits[n] = hits.get(n, 0) + 1
+    return [f"line {n + 1}: the frame looks empty: make its first drawing a WIDE diagram (flow, timeline, scales, venn, "
+            "crossout, bars) and its second a TALL or square object (person, puppet, question, germ, bolt, heart)"
+            for n in sorted(hits)]
 
 
 def fail_report(out: Path, vid: str, rounds: list[dict], why: str) -> str:

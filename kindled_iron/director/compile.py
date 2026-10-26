@@ -84,32 +84,34 @@ def _split_word(text: str, limit: int = 110) -> str | None:
     return w or None
 
 
-def _fit(obj: dict, slot: tuple[float, float, float, float]) -> tuple[float, float, float]:
-    """Scale + position (x, y) so the measured drawing fills its slot (never under 250 px on its long side)."""
+def _fit(obj: dict, slot: tuple[float, float, float, float], strict: bool = True):
+    """Scale + position (x, y) so the measured drawing fills its slot (its long side never under 254 px, a margin
+    over the 250 px gate). strict=False returns None instead of raising."""
     x0, y0, x1, y1 = slot
     w, h = obj["size"]
     cx, cy = obj.get("center", [0, 0])
-    s = min((x1 - x0) * 0.92 / w, (y1 - y0) * 0.92 / h, 2.4)      # 8 % room for the pop-in and the strokes
-    if max(w, h) * s < 250:
+    s = min((x1 - x0) * 0.94 / w, (y1 - y0) * 0.94 / h, 2.4)      # room for the strokes' width
+    if max(w, h) * s < 254:
+        if not strict:
+            return None
         raise CompileError(f"a {obj.get('_name')} drawing would be under 250 px in its slot")
     return round(s, 3), round((x0 + x1) / 2 - cx * s, 1), round((y0 + y1) / 2 - cy * s, 1)
 
 
 def _tip_ok(spot: float, target: tuple[float, float], reach: float) -> bool:
-    """Pointing: the hand ends ~reach px from the shoulder toward the target; it must stay in the usable frame."""
-    dx, dy = target[0] - spot, target[1] - SHOULDER_Y
-    d = math.hypot(dx, dy) or 1
-    tx = spot + reach * dx / d
-    return 125 <= tx <= 775
+    """Pointing: the hand ends ~reach px sideways toward the target; it must stay in the usable frame."""
+    return 125 <= _arm_tip(spot, target, reach)[0] <= 775
+
+
+LANES = {"left": (125, 1005, 410, 1430), "right": (490, 1005, 775, 1430)}   # clear of his swinging arms at 340 / 560
 
 
 def _lane_slot(spot: float, G: dict) -> tuple[float, float, float, float] | None:
-    """The guide lane beside the guide, on the side with more room (never under the button column)."""
-    half = G["reach_side"] + 12          # clear of a pointing / shrugging arm, not just the body
-    right = (spot + half, 1005, 775, 1430)
-    left = (125, 1005, spot - half, 1430)
-    best = max((right, left), key=lambda r: r[2] - r[0])
-    return best if best[2] - best[0] >= 280 else None
+    """The guide lane's drawing slot on the far side from the guide. The two lane slots are fixed, so a walk
+    between the two spots on one side never passes through the drawing on the other side."""
+    slot = LANES["left"] if spot >= 540 else LANES["right"]
+    body = (spot - G["half_width"] - 20, spot + G["half_width"] + 20)
+    return slot if body[1] < slot[0] or body[0] > slot[2] else None
 
 
 def _pop_slot(spot: float, G: dict) -> tuple[float, float, float, float]:
@@ -117,6 +119,28 @@ def _pop_slot(spot: float, G: dict) -> tuple[float, float, float, float]:
     half = G["half_width"] + 30
     right, left = (spot + half, 1005, 775, 1430), (125, 1005, spot - half, 1430)
     return max((right, left), key=lambda r: r[2] - r[0])
+
+
+def _arm_tip(spot: float, target: tuple[float, float], reach: float) -> tuple[float, float]:
+    """Measured: a pointing arm reaches ~reach px sideways whatever the target's height (the elbow bends out),
+    unless the target is straight above him."""
+    dx = target[0] - spot
+    if abs(dx) < 40:
+        return spot, SHOULDER_Y - reach
+    return spot + reach * (1 if dx > 0 else -1), SHOULDER_Y
+
+
+def _inside(pt: tuple[float, float], rect, pad: float = 18) -> bool:
+    """The audit compares the guide's whole bounding box: an arm stretched over a lane drawing's columns touches
+    it whatever the arm's height, so only x counts."""
+    return rect[0] - pad <= pt[0] <= rect[2] + pad
+
+
+def _path_hits(walk: tuple, rects: list, G: dict) -> bool:
+    """Does the guide's body sweep over any of these drawings while he walks?"""
+    a, b = sorted(walk[:2])
+    lo, hi = a - G["half_width"] - 10, b + G["half_width"] + 10
+    return any(r[0] <= hi and r[2] >= lo for r in rects)
 
 
 def _walks_into(walk: tuple, side) -> bool:
@@ -174,15 +198,19 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if need_outer:
                 dest = min(outer, key=lambda s: abs(s - cur))
             else:
-                idx = spots.index(cur)
-                step = (1, 2)[k % 2] * (1 if (k // 2) % 2 == 0 else -1)
-                j = idx + step
-                if not 0 <= j < len(spots):
-                    j = idx - step
-                dest = spots[max(0, min(len(spots) - 1, j))]
+                # mostly steps within one side (the lane drawing on the far side stays clear of him); every
+                # third walk crosses to the other side
+                right = [x for x in spots if x >= 540]
+                left = [x for x in spots if x < 540]
+                mine, other = (right, left) if cur >= 540 else (left, right)
+                inner = min(mine, key=lambda x: abs(x - 540))
+                if (k % 3 == 2 and cur == inner) or len(mine) < 2:
+                    dest = min(other, key=lambda x: abs(x - cur))      # cross from the inner spot: a short walk
+                else:
+                    dest = next(x for x in mine if x != cur)
                 if i in pop_t and dest not in outer:
                     dest = min(outer, key=lambda s: abs(s - cur))
-            dur = abs(dest - cur) / WALK_SPEED + 0.25
+            dur = max(1.0, abs(dest - cur) / WALK_SPEED) + 0.25      # the renderer's walks last at least 1 s
             t_end = t0 + 0.1 + dur
             blocked = (i in verse_t and t_end > verse_t[i][0]) or (i in pop_t and t_end > pop_t[i] - 0.2) or \
                 (freeze_t and freeze_t[0] == i and t0 <= freeze_t[1] + FREEZE["dur"] + FREEZE["after"] and t_end >= freeze_t[1] - 0.2)
@@ -198,6 +226,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     scene_clips: dict[str, dict] = {}
     beats, frames, used_media = [], [], []
     shown: dict[str, list[str]] = {"area": [], "lane": []}
+    slot_of: dict[str, tuple] = {}
     old_lane_side = None
     last_gesture_line = -2
     for i, (L, text) in enumerate(zip(P, lines)):
@@ -227,38 +256,61 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         # from the guide (when no pop-up uses that side), else both side by side in the drawing area. Each one
         # replaces what was in its own slot, so the frame never empties between lines.
         dr = L["drawings"][:2]
-        lane = _lane_slot(spot, G) if i not in pop_t else None
-        if len(dr) == 2 and lane:
-            places = [("area", slots1[0]), ("lane", lane)]
-        elif len(dr) == 2:
-            places = [("area", slots2[0]), ("area", slots2[1])]
-        else:
-            places = [("area", slots1[0])]
+        lane = _lane_slot(spot, G)           # on a pop-up line the lane drawing waits until the card is gone
+        objs = [dict(types[d["type"]], _name=d["type"], **real.get(f"l{i + 1}_{d['type']}{j}", {})) for j, d in enumerate(dr)]
+        options = [[("area", slots1[0])]] if len(dr) == 1 else \
+            ([[("area", slots1[0]), ("lane", lane)], [("lane", lane), ("area", slots1[0])]] if lane else []) + \
+            [[("area", slots2[0]), ("area", slots2[1])]]
+        best, best_area = None, -1.0
+        for opt in options:                 # the arrangement that fills the most frame, every drawing >= 254 px
+            area = 0.0
+            for o, (_, sl) in zip(objs, opt):
+                f = _fit(o, sl, strict=False)
+                if f is None:
+                    area = -1.0
+                    break
+                area += o["size"][0] * o["size"][1] * f[0] ** 2
+            if area > best_area:
+                best, best_area = opt, area
+        if best is None or best_area < 0:
+            raise CompileError(f"line {i + 1}: {' and '.join(o['_name'] for o in objs)} cannot be drawn 250 px or larger "
+                               "here: pick wider diagrams")
+        places = best
         ids, first_t, draw_pos = [], None, {}
         new_in = {"area": None, "lane": None}
         for j, d in enumerate(dr):
             did = f"l{i + 1}_{d['type']}{j}"
-            obj = dict(types[d["type"]], _name=d["type"], **real.get(did, {}))
+            obj = objs[j]
             zone, slot = places[j]
             s, x, y = _fit(obj, slot)
             a, t = _anchor(W, d["word"], 0.0)
-            if fz and fz[1] - 0.1 <= t <= fz[1] + FREEZE["dur"] + FREEZE["after"]:
-                t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.05
+            if i in walks and zone == "lane" and (t < walks[i][3] + 0.1 or t > walks[i][3] + 1.5):
+                t = walks[i][3] + 0.15                # right after the guide arrives: the lane never stays empty
                 a = _at_time(W, t)
-            if i in walks and zone == "lane" and t < walks[i][3] + 0.1:
-                t = walks[i][3] + 0.15                # the lane drawing waits until the guide has arrived
+            if i in pop_t and zone == "lane" and t < pop_t[i] + POP_CARD["dur"] + 0.2:
+                t = pop_t[i] + POP_CARD["dur"] + 0.25
                 a = _at_time(W, t)
-            if i == 0 and t - t_start > 0.6 + 0.8 * j:
-                t = round(t_start + 0.05 + 0.8 * j, 3)
-                a = round(0.05 + 0.8 * j, 3)
-            if j and first_t is not None and t < first_t + 0.5:
-                t = first_t + 0.6
+            if i == 0 and t - t_start > 0.1 * j:        # the first frame is already full (the hook)
+                t = round(0.1 * j, 3)
+                a = t
+            if fz and zone == "lane" and t > fz[1] + FREEZE["dur"] + FREEZE["after"] + 1.5:
+                t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.3      # refill the lane right after the freeze
+                a = _at_time(W, t)
+            if fz and t <= fz[1] + FREEZE["dur"] + FREEZE["after"]:
+                t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.05 + 0.35 * j   # the freeze line's drawings land after it
+                a = _at_time(W, t)
+            if j and first_t is not None and abs(t - first_t) < 0.3 and i:
+                t = first_t + 0.35
                 a = _at_time(W, t)
             # drawn stroke by stroke (no pop-in overshoot, no idle sway): it never grows past its slot
             ev.append({"at": a, "do": "draw", "id": did, "type": d["type"], "x": x, "y": y, "scale": s, "dur": 0.6,
-                       "pop": False, "still": True, "main": True, **(d.get("fields") or {})})
+                       "pop": False, "still": True, "main": True, **({"instant": True} if i == 0 and j == 0 else {}),
+                       **(d.get("fields") or {})})
             ids.append(did)
             draw_pos[did] = ((slot[0] + slot[2]) / 2, (slot[1] + slot[3]) / 2, key(d["word"]), t, zone)
+            fw, fh = obj["size"][0] * s, obj["size"][1] * s
+            slot_of[did] = (x + obj.get("center", [0, 0])[0] * s - fw / 2, y + obj.get("center", [0, 0])[1] * s - fh / 2,
+                            x + obj.get("center", [0, 0])[0] * s + fw / 2, y + obj.get("center", [0, 0])[1] * s + fh / 2)
             first_t = t if first_t is None else min(first_t, t)
             if new_in[zone] is None or t < new_in[zone]:
                 new_in[zone] = t
@@ -271,7 +323,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 continue
             t_new = new_in[zone]
             if zone == "lane":
-                if i in walks and _walks_into(walks[i], old_lane_side):
+                if i in walks and _path_hits(walks[i], [slot_of[d] for d in old], G):
                     t_new = walks[i][2] - 0.05 if t_new is None else min(t_new, walks[i][2] - 0.05)
                 if i in pop_t:
                     t_new = pop_t[i] - 0.4 if t_new is None else min(t_new, pop_t[i] - 0.4)
@@ -279,11 +331,12 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     t_new = new_in["area"] if new_in["area"] is not None else t_start
             if t_new is None:
                 continue
-            fades.setdefault(round(max(t_start - 0.4, t_new - 0.15), 3), []).extend(old)
+            fades.setdefault(round(max(t_start - 0.4, t_new - 0.05), 3), []).extend(old)
         for ft, fids in sorted(fades.items()):
             ev.append({"at": _at_time(W, ft) if ft >= t_start else _anchor(W, first, ft - t_start)[0], "do": "fade",
-                       "ids": fids, "opacity": 0, "dur": 0.15})
+                       "ids": fids, "opacity": 0, "dur": 0.1})
         prev_old = shown["area"] + shown["lane"]
+        prev_lane = list(shown["lane"])
         for zone in ("area", "lane"):
             mine = [d for d in ids if draw_pos[d][4] == zone]
             if mine or zone == "lane":
@@ -304,9 +357,14 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 t_g = max(b for a, b in busy if a <= t_g <= b) + 0.1
             if t_g < t_last - 0.3:
                 at = _at_time(W, t_g)
-                if want == "point" and tg and _tip_ok(spot, tg[:2], reach):
+                lanes = [slot_of[d] for d in set(prev_lane + shown["lane"] + [d for d in ids if draw_pos[d][4] == "lane"])]
+                tip = _arm_tip(spot, tg[:2], reach) if tg else None
+                if want == "point" and tg and tg[4] == "lane":
+                    ev.append({"at": at, "do": "look", "who": "guide", "dir": "down", "expression": L["expression"], "hold": 0.7})
+                elif want == "point" and tg and _tip_ok(spot, tg[:2], reach) and not any(_inside(tip, r) for r in lanes):
                     ev.append({"at": at, "do": "point", "who": "guide", "toward": target, "hold": 0.6, "respond": False})
-                elif want == "shrug" and spot in shrug_ok:
+                elif want == "shrug" and spot in shrug_ok and not any(
+                        r[0] - 18 <= x <= r[2] + 18 for r in lanes for x in (spot - G["shrug_half_width"], spot + G["shrug_half_width"])):
                     ev.append({"at": at, "do": "shrug", "who": "guide"})
                 elif want == "wave" and spot + 150 <= 775:
                     ev.append({"at": at, "do": "wave", "who": "guide"})
@@ -315,8 +373,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 last_gesture_line = i
         if fz:
             # the freeze zooms the whole board: drawings on screen would be pushed off the safe box
-            on_screen = (prev_old if first_t is None or first_t > fz[1] else []) + \
-                [d for d, p in draw_pos.items() if p[3] < fz[1]]
+            on_screen = prev_old + [d for d, p in draw_pos.items() if p[3] < fz[1]]
             if on_screen:
                 ev.append({"at": _anchor(W, freeze["word"], -0.12)[0], "do": "fade", "ids": sorted(set(on_screen)),
                            "opacity": 0, "dur": 0.1})
@@ -386,7 +443,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         "audit": {"max_words": 3, "one_line": True}, "caption_color": "ink", "caption_on": "accent",
         "require_memes": sum(1 for L in P if L.get("pop")), "max_media_uses": 2,
         "cast": {"guide": {"panel": 0, "x": route[0], "scale": 2.1, "facing": -1 if route[0] > 540 else 1, "accent": True}},
-        "mediabox": {"x": Z["box"]["x"], "y": Z["box"]["y"], "w": Z["box"]["w"], "h": Z["box"]["h"], "verse_size": 56, "pad_x": 46},
+        "mediabox": {"x": Z["box"]["x"], "y": Z["box"]["y"], "w": Z["box"]["w"], "h": Z["box"]["h"], "verse_size": 60, "pad_x": 48},
         "clips": scene_clips,
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",
                     "frames": [{"beat": f["beat"], "at": f["at"]} for f in pv]},

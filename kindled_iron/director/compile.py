@@ -334,6 +334,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             scene_notes.append(f"line {i + 1}: {', '.join(dropped)} dropped (no room for it readably)")
         dr, objs, places = [dr[k] for k, _ in order], [objs[k] for k, _ in order], [p_ for _, p_ in order]
         ids, first_t, draw_pos = [], None, {}
+        pop_redraw: list = []                          # lane drawings that make way for this line's meme card
         new_in = {"area": None, "lane": None}
         for j, d in enumerate(dr):
             did = f"l{i + 1}_{d['type']}{j}"
@@ -346,8 +347,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 t = walks[i][3] + 0.15 if through else max(t_start, walks[i][2])   # the lane never stays empty
                 a = _at_time(W, t)
             if i in pop_t and zone == "lane" and t < pop_t[i] + POP_CARD["dur"] + 0.2:
-                t = pop_t[i] + POP_CARD["dur"] + 0.25
-                a = _at_time(W, t)
+                if t < pop_t[i] - 1.4:                 # shown on its word, cleared just before the card, back after it
+                    pop_redraw.append((did, t))
+                else:
+                    t = pop_t[i] + POP_CARD["dur"] + 0.25
+                    a = _at_time(W, t)
             k0 = 1 if zone == "lane" else j              # a lane drawing waits until the guide stands on his spot
             if i == 0 and t - t_start > 0.1 * k0 and not (zone == "lane" and i in pop_t):   # first frame full (the hook)
                 t = round(0.1 * k0, 3)
@@ -398,6 +402,10 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] != zone and _overlap(slot_of[od], slot_of[nd])]
                 if hits:
                     fades.setdefault(round(max(t_start - 0.4, min(hits) - 0.05), 3), []).append(od)
+        for did_, _ in pop_redraw:
+            fades.setdefault(round(pop_t[i] - 0.4, 3), []).append(did_)
+            ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"] + 0.25), "do": "fade", "ids": [did_], "opacity": 1,
+                       "dur": 0.3})
         for ft, fids in sorted(fades.items()):
             fids = sorted(set(fids))
             ev.append({"at": _at_time(W, ft) if ft >= t_start else _anchor(W, first, ft - t_start)[0], "do": "fade",

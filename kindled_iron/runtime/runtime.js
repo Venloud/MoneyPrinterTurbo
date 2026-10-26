@@ -456,7 +456,19 @@
     doodle: function (o) {      // a library illustration (kindled_iron/doodles): o.parts [[d, style]], o.slots {name: [x, y, size, color]}, o.labels {name: text}
       var s = '', L = o.labels || {};
       (o.parts || []).forEach(function (q) { s += p(q[0], q[1]); });
-      Object.keys(o.slots || {}).forEach(function (k) { var t = L[k], q = o.slots[k]; if (t) s += lbl(q[0], q[1], t, q[2] || 30, q[3]); });
+      Object.keys(o.slots || {}).forEach(function (k) {   // q[4] = the slot's width: the label wraps / shrinks to fit it
+        var t = L[k], q = o.slots[k]; if (!t) return;
+        var size = q[2] || 30, maxw = q[4] || 360, cw = function (z) { return z * 1.35 * 0.52; };
+        var words = String(t).toUpperCase().split(/\s+/), longest = Math.max.apply(null, words.map(function (w) { return w.length; }));
+        while (size > 12 && longest * cw(size) > maxw) size -= 1;
+        var lines = [], cur = '';
+        words.forEach(function (w) { var nx = cur ? cur + ' ' + w : w; if (cur && nx.length * cw(size) > maxw) { lines.push(cur); cur = w; } else cur = nx; });
+        if (cur) lines.push(cur);
+        while (lines.length > 3 && size > 12) { size -= 2; lines = [lines.join(' ')]; }
+        var sz = size * 1.35;
+        var top = k === 'label' ? 0 : (lines.length - 1) / 2;    // the label under a drawing grows downward
+        lines.forEach(function (ln, j) { s += lbl(q[0], q[1] + (j - top) * sz * 0.95, ln, size, q[3]); });
+      });
       return s;
     },
     venn: function (o) {        // two overlapping circles: left label, right label, and what they share (written under them)

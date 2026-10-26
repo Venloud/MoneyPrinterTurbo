@@ -10,6 +10,7 @@ event is anchored to a spoken word ("word#n+0.3") so the renderer resolves it on
 """
 from __future__ import annotations
 
+import itertools
 import math
 import re
 
@@ -192,7 +193,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     real = {}
     if measure:
         specs = [{"id": f"l{i + 1}_{d['type']}{j}", **_draw_fields(d, types)}
-                 for i, L in enumerate(plan["lines"]) for j, d in enumerate(L["drawings"][:2])]
+                 for i, L in enumerate(plan["lines"]) for j, d in enumerate(L["drawings"][:3])]
         real = measure(specs)
     spots = Z["guide"]["spots"]
     outer = (spots[0], spots[-1])
@@ -296,49 +297,42 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         # ---------------- drawings: the first in the drawing area, the second in the guide lane on the side away
         # from the guide (when no pop-up uses that side), else both side by side in the drawing area. Each one
         # replaces what was in its own slot, so the frame never empties between lines.
-        dr = L["drawings"][:2]
+        dr = L["drawings"][:3]
         lane = _lane_slot(spot, G)           # on a pop-up line the lane drawing waits until the card is gone
         objs = [dict(types[d["type"]], _name=d["type"], _labeled=bool(d.get("fields")),
                      **real.get(f"l{i + 1}_{d['type']}{j}", {})) for j, d in enumerate(dr)]
         full = _lane_slot(spot, G, full=True)
         near = _near_top(full) if full else None
-        if len(dr) == 1:
-            options = [[("area", slots1[0])]] + ([[("lane", full)]] if full else [])
-        else:                               # band above + side below, or full-height side + the band over him
-            options = ([[("area", slots1[0]), ("lane", lane)], [("lane", lane), ("area", slots1[0])]] if lane else []) + \
-                ([[("lane", full), ("area", near)], [("area", near), ("lane", full)]] if full else []) + \
-                [[("area", slots2[0]), ("area", slots2[1])]]
-        best, best_area = None, -1.0
-        for opt in options:                 # the arrangement that fills the most frame, every drawing >= 254 px
-            area = 0.0
-            for o, (_, sl) in zip(objs, opt):
-                f = _fit(o, sl, strict=False)
-                if f is None or (f[0] < MIN_LABEL_SCALE and o.get("_labeled")):   # labels must stay readable
-                    area = -1.0
-                    break
-                area += o["size"][0] * o["size"][1] * f[0] ** 2
-            if area > best_area:
-                best, best_area = opt, area
-        if (best is None or best_area < 0) and len(dr) == 2:
-            # the pair does not fit readably: keep the one drawing that fills the most frame on its own
-            # (the other slot keeps its previous drawing), instead of failing the whole plan
-            single = None
-            for k, o in enumerate(objs):
-                for zone, sl in [("area", slots1[0])] + ([("lane", lane)] if lane else []) + ([("lane", full)] if full else []):
-                    f = _fit(o, sl, strict=False)
-                    if f and (f[0] >= MIN_LABEL_SCALE or not o.get("_labeled")):
-                        a_ = o["size"][0] * o["size"][1] * f[0] ** 2
-                        if single is None or a_ > single[0]:
-                            single = (a_, k, zone, sl)
-            if single:
-                _, k, zone, sl = single
-                log_note = f"line {i + 1}: only '{dr[k]['type']}' fits readably; the other drawing is dropped"
-                scene_notes.append(log_note)
-                dr, objs, best, best_area = [dr[k]], [objs[k]], [(zone, sl)], single[0]
+        # every way to place the line's 1-3 drawings: the band (whole or two halves), the side beside him (lower
+        # or full height), the band over his own side; the one that fills the most frame wins (each >= 254 px,
+        # labels readable). Drawings no arrangement can hold readably are dropped (noted).
+        sets = [[("area", slots1[0])], [("area", slots2[0]), ("area", slots2[1])]]
+        if lane:
+            sets += [[("area", slots1[0]), ("lane", lane)], [("area", slots2[0]), ("area", slots2[1]), ("lane", lane)]]
+        if full:
+            sets += [[("lane", full)], [("lane", full), ("area", near)]]
+        best, best_area, pick = None, -1.0, ()
+        for st in sets:
+            if len(st) > len(dr):
+                continue
+            for perm in itertools.permutations(range(len(dr)), len(st)):
+                area = 0.0
+                for k, (_, sl) in zip(perm, st):
+                    f = _fit(objs[k], sl, strict=False)
+                    if f is None or (f[0] < MIN_LABEL_SCALE and objs[k].get("_labeled")):   # labels must stay readable
+                        area = -1.0
+                        break
+                    area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2
+                if area > best_area:
+                    best, best_area, pick = st, area, perm
         if best is None or best_area < 0:
             raise CompileError(f"line {i + 1}: {' and '.join(o['_name'] for o in objs)} cannot be drawn 250 px or larger "
-                               "here: pick wider diagrams")
-        places = best
+                               "here: pick library illustrations")
+        order = sorted(zip(pick, best))                # keep the planner's order
+        dropped = [dr[k]["type"] for k in range(len(dr)) if k not in pick]
+        if dropped:
+            scene_notes.append(f"line {i + 1}: {', '.join(dropped)} dropped (no room for it readably)")
+        dr, objs, places = [dr[k] for k, _ in order], [objs[k] for k, _ in order], [p_ for _, p_ in order]
         ids, first_t, draw_pos = [], None, {}
         new_in = {"area": None, "lane": None}
         for j, d in enumerate(dr):

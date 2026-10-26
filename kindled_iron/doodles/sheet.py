@@ -18,11 +18,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--chrome", default=None)
+    ap.add_argument("--sample", default=None, help="write this text in every label slot (checks long labels)")
+    ap.add_argument("--only", default=None, help="comma-separated doodle names")
     a = ap.parse_args()
     from playwright.sync_api import sync_playwright
     from kindled_iron import render
     lib = json.loads(LIBRARY.read_text())
-    names = list(lib)
+    names = a.only.split(",") if a.only else list(lib)
     a.out.mkdir(parents=True, exist_ok=True)
     per = COLS * ROWS
     with sync_playwright() as pw:
@@ -35,7 +37,7 @@ def main() -> None:
                 cx, cy = (j % COLS) * CELL_W + CELL_W / 2, 30 + (j // COLS) * CELL_H + CELL_H / 2 - 20
                 events.append({"at": 0.1, "do": "draw", "id": f"d{j}", "type": "doodle", "x": cx, "y": cy, "scale": SCALE,
                                "instant": True, "pop": False, "still": True, "parts": d["parts"], "slots": d["slots"],
-                               "labels": {s: s.upper() for s in d["slots"]}})
+                               "labels": {s: (a.sample or s.upper()) for s in d["slots"]}})
             scene = {"id": "sheet", "cast": {}, "ground": 1570, "camera_y": 960, "exact_narration": True,
                      "beats": [{"id": "b1", "narration": "sheet", "interaction": False, "events": events}]}
             data = render.build_data(scene, [(0.0, 4.0)], [[{"word": "sheet", "start": 0.0, "end": 0.5}]], 4.0)

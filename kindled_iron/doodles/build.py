@@ -8,7 +8,7 @@ off-register), orange (accent) and blue (water / waterLine) highlights. The runt
 any of them with the same stroke-by-stroke pencil reveal as the built-in drawings.
 
 Per doodle: tags (what it can stand for: the director picks by tag / meaning) and named label slots
-({slot: [x, y, size]}): the director fills them with short words from the script (labels only, never sentences).
+({slot: [x, y, size, colour, width]}): the director fills them with short words from the script (labels only, never sentences).
 Faith rules: no occult imagery, no eyes as symbols, God is never drawn as a figure.
 """
 from __future__ import annotations
@@ -806,7 +806,26 @@ doodle("rainbow", ["rainbow", "promise", "covenant", "hope", "after the storm", 
         P(circ(-160, 100, 40) + " " + circ(160, 100, 40), fill="cloud", w=6)])
 
 
+# the width (px, at the doodle's own scale) a label may use in each slot: it wraps / shrinks to fit
+SLOT_WIDTH = {"label": 340, "on": 200, "screen": 150, "thought": 70, "center": 120, "top": 200, "slice": 90,
+              "left": 130, "right": 130, "a": 92, "b": 92, "c": 92}
+WIDTH_OF = {("flow_arrows", "a"): 92, ("flow_arrows", "b"): 92, ("flow_arrows", "c"): 92, ("bar_chart", "a"): 80,
+            ("bar_chart", "b"): 80, ("bar_chart", "c"): 80, ("triangle_diagram", "left"): 150,
+            ("triangle_diagram", "right"): 150, ("triangle_diagram", "center"): 64, ("venn_big", "left"): 115,
+            ("venn_big", "right"): 115, ("scales_big", "left"): 125, ("scales_big", "right"): 125,
+            ("seesaw", "left"): 110, ("seesaw", "right"): 110, ("money_vs_heart", "left"): 150,
+            ("money_vs_heart", "right"): 150, ("calendar", "top"): 260, ("compass", "top"): 160, ("line_graph", "top"): 140,
+            ("cycle", "center"): 150, ("book_open", "left"): 120, ("book_open", "right"): 120,
+            ("signpost_big", "left"): 115, ("signpost_big", "right"): 115, ("road_fork", "left"): 130,
+            ("road_fork", "right"): 130}
+
+
 def main() -> None:
+    for name, d in LIB.items():
+        for slot, q in d["slots"].items():
+            while len(q) < 4:
+                q.append(None)
+            q[3:5] = [q[3], WIDTH_OF.get((name, slot), SLOT_WIDTH.get(slot, 200))]
     OUT.write_text(json.dumps(LIB, separators=(",", ":")), encoding="utf-8")
     print(f"doodle library: {len(LIB)} illustrations -> {OUT}")
 

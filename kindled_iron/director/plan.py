@@ -122,7 +122,7 @@ RULES = [
     "Return ONLY JSON: {\"freeze\": {\"line\": n, \"word\": w}, \"lines\": [...]} with exactly one entry per script line, in order.",
     "Never change, add or drop narration words. Every 'word' you give must be a word spoken in THAT line (copy it exactly).",
     "Imitate the golden scenes' density and pacing: something new on screen every 2-3 seconds, the drawing appears on the word that names it.",
-    "EVERY line gets TWO new real illustrations in 'drawings': first the main illustration of the idea, shown in the band above the guide (650 x 340 px: a wide or square type, see 'shape' in the catalog); second a concrete object or person from the line, shown big beside the guide (a tall or square type, up to 285 x 750 px). Pick types from the catalog only; fill their fields.",
+    "EVERY line gets THREE new illustrations in 'drawings' (the frame must look full): 1 the main one of the idea and 2 a second one, both shown in the band above the guide (650 x 318 px together; wide or square types), and 3 a concrete object or person from the line shown beside the guide (a tall or square type, up to 285 x 730 px). The code arranges them for the most frame and drops one only when it cannot fit readably. Pick types from the catalog only; fill their fields.",
     "Prefer the drawing library: the catalog entries with 'tags' are finished illustrations. For each drawing pick the one whose tags best match the thing or idea the line names (a graph -> bar_chart or line_graph, an earthquake -> earthquake, a child -> child, the Bible -> bible, money -> money, a choice -> road_fork). Put the idea it shows in 'concept' (1-3 words, e.g. 'free will').",
     "Compose from the built-in diagrams (entries without tags: flow, timeline, scales, venn, crossout...) only when no library illustration fits the idea; then also set 'miss': the concept you could not find in the library (it is logged so the library can grow).",
     "Abstract ideas become diagrams: cause/effect -> 'flow'; two options -> 'signpost' or 'scales'; overlap -> 'venn'; a rejected idea -> 'crossout'; past/future -> 'timeline'; a question -> 'question'; control -> 'puppet'.",
@@ -321,17 +321,15 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
         dr = L.get("drawings") or []
         if not dr:
             errs.append(f"line {n}: no drawing; every line needs at least one new illustration")
-        if len(dr) > 2:
-            errs.append(f"line {n}: {len(dr)} drawings; at most 2 per line")
+        if len(dr) > 3:
+            errs.append(f"line {n}: {len(dr)} drawings; at most 3 per line")
         sh = shapes(cat)
-        for j, d in enumerate(dr[:2]):
+        for j, d in enumerate(dr[:3]):
             t = d.get("type")
             if t in types and t not in sh:
                 errs.append(f"line {n}: {t} cannot be shown big and readable here (too small or a thin strip); "
                             "pick a library illustration")
-            elif t in sh and len(dr) == 2 and sh[t] not in ("both", ("wide", "tall")[j]):
-                errs.append(f"line {n}: drawing {j + 1} ({t}) is {sh[t]}; the first drawing must be wide (or both), "
-                            "the second tall (or both)")
+
         for d in dr:
             t = d.get("type")
             if t not in types:

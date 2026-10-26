@@ -39,6 +39,14 @@
      "fields": {
       "label": "EVIL?"
      }
+    },
+    {
+     "word": "Bible",
+     "type": "bible",
+     "concept": "bible",
+     "fields": {
+      "label": "THE BIBLE"
+     }
     }
    ]
   },
@@ -79,6 +87,14 @@
      "fields": {
       "label": "WHY EVIL?"
      }
+    },
+    {
+     "word": "powerful",
+     "type": "crown",
+     "concept": "crown",
+     "fields": {
+      "label": "ALL POWERFUL"
+     }
     }
    ]
   },
@@ -112,6 +128,15 @@
      "concept": "puppet strings",
      "fields": {
       "label": "NO CHOICE"
+     }
+    },
+    {
+     "word": "decision",
+     "type": "road_fork",
+     "concept": "road fork",
+     "fields": {
+      "left": "GOOD",
+      "right": "EVIL"
      }
     }
    ]
@@ -151,6 +176,14 @@
      "concept": "thinker",
      "fields": {
       "label": "YOUR CHOICE"
+     }
+    },
+    {
+     "word": "steal",
+     "type": "money_bag",
+     "concept": "money bag",
+     "fields": {
+      "label": "STEAL"
      }
     }
    ]
@@ -192,6 +225,14 @@
      "fields": {
       "label": "DISEASE"
      }
+    },
+    {
+     "word": "Earthquakes",
+     "type": "earthquake",
+     "concept": "earthquake",
+     "fields": {
+      "label": "EARTHQUAKES"
+     }
     }
    ]
   },
@@ -225,6 +266,14 @@
      "fields": {
       "label": "NOT A PUNISHMENT"
      }
+    },
+    {
+     "word": "creation",
+     "type": "planet_earth",
+     "concept": "planet earth",
+     "fields": {
+      "label": "CREATION"
+     }
     }
    ]
   },
@@ -257,6 +306,14 @@
      "word": "death",
      "type": "broken_heart",
      "concept": "broken heart",
+     "fields": {
+      "label": "NO MORE PAIN"
+     }
+    },
+    {
+     "word": "future",
+     "type": "rainbow",
+     "concept": "rainbow",
      "fields": {
       "label": "NO MORE PAIN"
      }
@@ -298,6 +355,14 @@
      "concept": "question big",
      "fields": {
       "label": "STILL ASKING"
+     }
+    },
+    {
+     "word": "people",
+     "type": "crowd",
+     "concept": "crowd",
+     "fields": {
+      "label": "INNOCENT PEOPLE"
      }
     }
    ]

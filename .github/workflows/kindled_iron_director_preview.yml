@@ -23,7 +23,7 @@ concurrency:
 jobs:
   preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 170
+    timeout-minutes: 330   # free-tier Gemini plan calls take 4-15 min under load
     env:
       VOICE_REPO: ${{ vars.KI_VOICE_REPO || 'Venloud/kindled-iron-voice' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

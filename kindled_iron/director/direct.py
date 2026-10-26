@@ -289,4 +289,21 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as e:                       # any crash still leaves a fail report, status and a phone alert
+        import traceback
+        tb = traceback.format_exc()
+        print(tb, flush=True)
+        out = Path(sys.argv[sys.argv.index("--out") + 1]) if "--out" in sys.argv else None
+        vid = sys.argv[sys.argv.index("--id") + 1] if "--id" in sys.argv else "?"
+        why = f"crashed: {type(e).__name__}: {e}"
+        if out:
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "gemini_calls.json").write_text(json.dumps(gemini.CALLS, indent=1), encoding="utf-8")
+            (out / "status.json").write_text(json.dumps({"id": vid, "ok": False, "error": why}, indent=1), encoding="utf-8")
+            (out / "fail_report.md").write_text(f"# Director failed: {vid}\n\n{why}\n\n```\n{tb[-3000:]}\n```\n", encoding="utf-8")
+        ntfy(f"Kindled Iron director FAILED: {vid}", why)
+        sys.exit(f"FAIL: {why}")

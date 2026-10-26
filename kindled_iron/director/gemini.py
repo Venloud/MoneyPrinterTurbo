@@ -19,6 +19,7 @@ from pathlib import Path
 API = "https://generativelanguage.googleapis.com/v1beta"
 CALLS: list[dict] = []
 _MODEL: dict[str, str] = {}
+TIMEOUTS = (420, 600, 600, 600)     # seconds per try: a full shot plan can take minutes on the free tier
 
 
 def _key() -> str:
@@ -76,7 +77,7 @@ def call_json(kind: str, prompt: str, images: list[Path] | None = None, model: s
     t0, data = time.time(), None
     for attempt in range(4):
         try:
-            with urllib.request.urlopen(req, timeout=240) as r:
+            with urllib.request.urlopen(req, timeout=TIMEOUTS[attempt]) as r:
                 data = json.load(r)
             break
         except urllib.error.HTTPError as e:
@@ -86,6 +87,14 @@ def call_json(kind: str, prompt: str, images: list[Path] | None = None, model: s
                 continue
             CALLS.append({"kind": kind, "model": name, "seconds": round(time.time() - t0, 1), "error": f"HTTP {e.code}"})
             raise RuntimeError(f"Gemini {name} HTTP {e.code}: {detail[:600]}") from None
+        except (TimeoutError, urllib.error.URLError, ConnectionError, OSError) as e:
+            # a slow answer (a long plan under load) or a dropped connection: the same request again, longer wait
+            print(f"[gemini] {kind} call {attempt + 1}: {type(e).__name__}: {e}; retrying", flush=True)
+            if attempt < 3:
+                time.sleep(10)
+                continue
+            CALLS.append({"kind": kind, "model": name, "seconds": round(time.time() - t0, 1), "error": type(e).__name__})
+            raise RuntimeError(f"Gemini {name}: no answer after 4 tries ({type(e).__name__})") from None
     usage = (data or {}).get("usageMetadata", {})
     CALLS.append({"kind": kind, "model": name, "seconds": round(time.time() - t0, 1), "images": len(images or []),
                   "prompt_tokens": usage.get("promptTokenCount"), "output_tokens": usage.get("candidatesTokenCount")})

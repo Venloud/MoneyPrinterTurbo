@@ -1,0 +1,126 @@
+name: Kindled Iron Director Preview
+# Only Kindled Iron. Manual trigger, no publishing, no voice generation.
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Video id (lowercase words separated by hyphens)"
+        required: true
+        default: "epicurean-paradox"
+
+permissions:
+  contents: read
+
+jobs:
+  private-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      VOICE_REPO: "Venloud/kindled-iron-voice"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+      KI_DIRECTOR_MODEL: "gemini-2.5-flash"
+      KI_YTDLP: "0"
+      KI_THIRD_PARTY: "0"
+      KI_MUSIC_SOURCE: "none"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/kindled-script-mp3-preview-20261026
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Require credentials and valid id
+        shell: bash
+        env:
+          ID: ${{ inputs.video_id }}
+        run: |
+          set -euo pipefail
+          [[ "$ID" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || { echo "::error::Invalid id"; exit 1; }
+          [ -n "$GEMINI_API_KEY" ] || { echo "::error::GEMINI_API_KEY missing"; exit 1; }
+          [ -n "$GH_TOKEN" ] || { echo "::error::VOICE_REPO_TOKEN missing"; exit 1; }
+
+      - name: Fetch private supplied MP3 and script
+        shell: bash
+        env:
+          ID: ${{ inputs.video_id }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --filter=blob:none --sparse \
+            "https://x-access-token:${GH_TOKEN}@github.com/${VOICE_REPO}.git" "$RUNNER_TEMP/ki-private"
+          git -C "$RUNNER_TEMP/ki-private" sparse-checkout set approved_audio music movie_reference reactions
+          test -f "$RUNNER_TEMP/ki-private/approved_audio/$ID/narration.mp3" || \
+            { echo "::error::Missing required owner MP3"; exit 1; }
+          test -f "$RUNNER_TEMP/ki-private/approved_audio/$ID/script.txt" || \
+            { echo "::error::Missing required script.txt next to MP3"; exit 1; }
+          echo "KI_PRIVATE_MEDIA=$RUNNER_TEMP/ki-private" >> "$GITHUB_ENV"
+
+      - name: Install renderer dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng fonts-dejavu-core
+          if ! command -v google-chrome >/dev/null; then
+            wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y /tmp/chrome.deb
+          fi
+          echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+          pip install soundfile faster-whisper playwright numpy spacy
+          python -m spacy download en_core_web_sm
+          python -m playwright install chromium
+
+      - name: Direct visuals using owner script and audio
+        shell: bash
+        env:
+          ID: ${{ inputs.video_id }}
+        run: |
+          set -euo pipefail
+          python -m kindled_iron.director.direct \
+            --script "$KI_PRIVATE_MEDIA/approved_audio/$ID/script.txt" \
+            --audio "$KI_PRIVATE_MEDIA/approved_audio/$ID/narration.mp3" \
+            --private-audio-path "approved_audio/$ID/narration.mp3" \
+            --id "$ID" --out "storage/kindled_iron/$ID.scene.json"
+          python - <<'PY'
+          import json,os
+          s=json.load(open('storage/kindled_iron/'+os.environ['ID']+'.scene.json'))
+          assert s['voice_file']['path'].startswith('approved_audio/')
+          assert s['exact_narration'] and s['preview']['public_artifacts'] is False
+          PY
+
+      - name: Render private MP4 without voice generation
+        shell: bash
+        env:
+          ID: ${{ inputs.video_id }}
+        run: |
+          set -euo pipefail
+          python -m kindled_iron.render "storage/kindled_iron/$ID.scene.json" \
+            --out "storage/kindled_iron/$ID.mp4" \
+            --work "storage/kindled_iron/$ID-work" \
+            --whisper-model small.en
+          ffprobe -v error -show_entries stream=codec_type,width,height -of json \
+            "storage/kindled_iron/$ID.mp4"
+          ffmpeg -v error -i "storage/kindled_iron/$ID.mp4" -f null -
+
+      - name: Save private preview only
+        shell: bash
+        env:
+          ID: ${{ inputs.video_id }}
+        run: |
+          set -euo pipefail
+          dest="$KI_PRIVATE_MEDIA/previews/$ID"
+          mkdir -p "$dest"
+          cp "storage/kindled_iron/$ID.mp4" "$dest/$ID.mp4"
+          cp "storage/kindled_iron/$ID.scene.json" "$dest/$ID.scene.json"
+          test -s "$dest/$ID.mp4"
+          git -C "$KI_PRIVATE_MEDIA" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$KI_PRIVATE_MEDIA" config user.name "github-actions[bot]"
+          git -C "$KI_PRIVATE_MEDIA" add "previews/$ID"
+          git -C "$KI_PRIVATE_MEDIA" commit -m "Private Kindled Iron director preview: $ID" || exit 0
+          git -C "$KI_PRIVATE_MEDIA" push origin HEAD:main
+          echo "Private preview: https://github.com/$VOICE_REPO/tree/main/previews/$ID" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete private media checkout
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/ki-private"

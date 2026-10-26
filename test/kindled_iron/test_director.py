@@ -70,7 +70,7 @@ class Director(unittest.TestCase):
         errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
         self.assertIn("line 1: no drawing", errs)
         self.assertIn("line 2: names Revelation 21:4", errs)
-        self.assertIn("not in the meme library", errs)
+        self.assertIn("not in media_library", errs)
         self.assertIn("'nowhere' is not spoken", errs)
 
     def test_drawing_shapes_follow_the_slots(self):

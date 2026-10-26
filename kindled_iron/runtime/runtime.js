@@ -759,6 +759,7 @@
     '<rect width="' + W + '" height="' + H + '" fill="url(#vig)" pointer-events="none"/>';
   var world = document.getElementById('world'), charEnd = document.getElementById('charEnd');
   var freezeEl = document.getElementById('freeze');
+  var stageEl = document.getElementById('stage');
   var darkEl = document.getElementById('darkpaper'), lightEl = document.getElementById('light');
   var lightWash = document.getElementById('lightwash'), lightGlow = document.getElementById('lightglow');
   var lightRays = document.getElementById('lightrays'), lightSrc = document.getElementById('lightsrc');
@@ -882,7 +883,7 @@
   // ---------------------------------------------------------------- timeline
   var tl = gsap.timeline({ paused: true });
   var hudState = { day: 0, pop: 0 };
-  var freezeState = { v: 0 };
+  var freezeState = { v: 0, grey: 0 };
   var freezeOn = (D.events || []).some(function (e) { return e.do === 'freeze'; });   // its zoom-out also hides captions
   var lightState = { dark: 0, wash: 0, glow: 0, rays: 0, spread: 0.2, x: W / 2, y: H * 0.3 };
   var REST = { armR: 8, armRf: 12, armL: 8, armLf: 12, busyR: 0, busyL: 0, lean: 0, headTilt: 0, legSpread: 0, y: 0,
@@ -1217,7 +1218,7 @@
         tl.to(cam, { z: e.zoom || 1.35, duration: e.dur || 0.3, ease: 'power2.in' }, e.t); break;
       case 'camera':
         tl.to(cam, { x: e.x, y: e.y, z: e.zoom, r: e.rotate || 0, duration: e.dur || 0.8, ease: e.ease || 'power2.inOut' }, e.t); break;
-      case 'freeze': {         // record-scratch freeze-frame (in colour): the camera snaps onto the guide (or e.focus)
+      case 'freeze': {         // record-scratch freeze-frame (in colour; grey with e.grey): the camera snaps onto the guide (or e.focus)
         var fg = chars[e.who || 'guide'], fd = e.dur || 1.0;
         if (fg) {
           var fsc = fg.scale * (fg.s.k || 1), gx = charX(e.who || 'guide', e.t), gy = GROUND - 230 * fsc;
@@ -1227,8 +1228,8 @@
           tl.to(cam, { x: px, y: D.camera.y, z: 1, duration: 0.35, ease: 'power2.inOut' }, e.t + fd);
           tl.set(fg.s, { expr: 'surprised' }, e.t);
         }
-        tl.set(freezeState, { v: 1 }, e.t);
-        tl.set(freezeState, { v: 0 }, e.t + fd);
+        tl.set(freezeState, { v: 1, grey: e.grey ? 1 : 0 }, e.t);
+        tl.set(freezeState, { v: 0, grey: 0 }, e.t + fd);
         break;
       }
       case 'lean_on': {        // stand right next to a drawing / card and lean on it with one arm
@@ -1724,7 +1725,9 @@
     renderObjects(t);
     renderLight(t);
     var fz = freezeState.v > 0.5;
-    board.style.filter = fz ? 'saturate(1.25) contrast(1.08)' : '';
+    var fzGrey = fz && freezeState.grey > 0.5;            // e.grey: the freeze-frame goes grey (whole frame)
+    board.style.filter = fzGrey ? 'grayscale(1) contrast(1.12)' : fz ? 'saturate(1.25) contrast(1.08)' : '';
+    if (stageEl) stageEl.style.filter = fzGrey ? 'grayscale(1)' : '';
     freezeEl.setAttribute('visibility', fz ? 'visible' : 'hidden');
     renderHud();
   }

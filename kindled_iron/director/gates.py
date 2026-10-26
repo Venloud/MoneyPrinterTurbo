@@ -7,7 +7,8 @@ Run on the work dir of a render (preflight = 8 stills + the every-frame audit; f
               single empty rectangle larger than 20% of it
   doodles     every drawing >= 250 px on its long side
   empty       no empty card / blank frame / empty verse page
-  per_line    every line brings a new drawing and new clip-box content (or its verse card)
+  per_line    every line brings a new drawing; the hook line also clip-box content (later lines may be the
+              drawings' and the guide's alone: the previous clip stays up)
   box_media   at least one real clip or meme in the clip box
   verses      every scripture reference / quote in the script is a typed verse card
   alignment   the script matches the recording (>= 85% of the script words heard)
@@ -110,8 +111,8 @@ def run(work: Path, scene: dict, plan: dict, lines: list[str], cat: dict, align_
             if e.get("type") in ("frame", "popup") and not e.get("text"):
                 empty.append(f"line {b + 1}: empty {e['type']} card")
         has_box = any("box" in e for e in beat["events"])
-        if not new_draw or not has_box:
-            per_line.append(f"line {b + 1}: " + ("no new drawing" if not new_draw else "no new clip-box content"))
+        if not new_draw or (b == 0 and not has_box):         # later lines may be the drawings' and guide's alone
+            per_line.append(f"line {b + 1}: " + ("no new drawing" if not new_draw else "the hook has no clip-box content"))
     gate("doodles", not small, small, "drawings too small: " + "; ".join(small))
     segs = json.loads((work / "box_segments.json").read_text()) if (work / "box_segments.json").exists() else []
     for s in segs:
@@ -120,7 +121,7 @@ def run(work: Path, scene: dict, plan: dict, lines: list[str], cat: dict, align_
         if s["kind"] == "off":
             empty.append("the clip box goes empty")
     gate("empty", not empty, empty, "; ".join(empty))
-    gate("per_line", not per_line, per_line, "; ".join(per_line) + ": every line needs a new drawing and new box media")
+    gate("per_line", not per_line, per_line, "; ".join(per_line) + ": every line needs a new drawing, and the hook line clip-box media")
     media = [s for s in segs if s["kind"] in ("clip", "media", "split")]
     gate("box_media", bool(media), f"{len(media)} clip/meme segment(s)", "no footage or memes reached the clip box")
     want = [(i + 1, r) for i, t in enumerate(lines) for r in scripture_refs(t)] + \

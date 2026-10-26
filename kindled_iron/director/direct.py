@@ -124,13 +124,13 @@ def attempt(p: dict, lines, words, cat, lib, meta, work: Path, rec: dict) -> dic
     Returns the result when every gate passed, else None with the errors in rec["errors"] (no AI call here)."""
     line_keys = [[planmod.key(w["word"]) for w in ws] for ws in words]
     rec["plan"] = p
-    notes = planmod.repair(p, lines, line_keys, cat)
+    notes = planmod.repair(p, lines, line_keys, cat, lib)
     if notes:
         log("plan repaired in code: " + "; ".join(notes))
         rec["repairs"] = notes
     errs = planmod.validate(p, lines, line_keys, lib, cat)
     if not errs:
-        per_line, records, errs = media.resolve(p, lib, log)
+        per_line, records, errs = media.resolve(p, lib, log, lines)
     if not errs:
         try:
             scene, frames = compiler.compile_scene(p, lines, words, cat, per_line, meta, measure=_measure)
@@ -337,6 +337,10 @@ def main() -> None:
         miss = planmod.misses(res["plan"], cat)                 # concepts the doodle library did not have
         (a.out / "doodle_misses.json").write_text(json.dumps(miss, indent=1, ensure_ascii=False), encoding="utf-8")
         status["doodle_misses"] = len(miss)
+        acts = res["scene"].get("director", {}).get("actions", [])      # guide actions asked for, performed or not
+        (a.out / "guide_actions.json").write_text(json.dumps(acts, indent=1, ensure_ascii=False), encoding="utf-8")
+        status["guide_actions"] = {"performed": sum(1 for x in acts if x.get("performed")),
+                                   "not_performed": [f"line {x['line']}: {x['action']} ({x['status']})" for x in acts if not x.get("performed")]}
         used = [d.get("type") for L in res["plan"]["lines"] for d in L.get("drawings", [])]
         status["drawings"] = {"library": sum(1 for t in used if cat["objects"].get(t, {}).get("doodle")), "built_in":
                               sum(1 for t in used if not cat["objects"].get(t, {}).get("doodle"))}

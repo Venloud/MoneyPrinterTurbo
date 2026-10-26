@@ -70,7 +70,7 @@ jobs:
           set -euo pipefail
           d="$RUNNER_TEMP/ki-private"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/${VOICE_REPO}.git" "$d"
-          git -C "$d" sparse-checkout set approved_audio movie_reference reactions music previews
+          git -C "$d" sparse-checkout set approved_audio movie_reference reactions music previews sfx
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::error::$VOICE_REPO is not private"; exit 1; }
           echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
 
@@ -125,7 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m kindled_iron.director.catalog
-          for t in 'test_director*.py' 'test_llm*.py' 'test_direct_budget*.py'; do python -m unittest discover -s test/kindled_iron -p "$t" -v; done
+          for t in 'test_director*.py' 'test_llm*.py' 'test_direct_budget*.py' 'test_media_library*.py' 'test_import_media*.py'; do python -m unittest discover -s test/kindled_iron -p "$t" -v; done
 
       - name: Direct, render, gate, review
         id: direct

@@ -21,13 +21,16 @@ import re
 from pathlib import Path
 
 from kindled_iron import scripture
+from kindled_iron.director import actions
+
+GESTURES = set(actions.ACTED)
 
 HERE = Path(__file__).resolve().parent
 KI = HERE.parent
 GOLDEN = ("where-did-god-come-from.json", "love-of-money-v3.json")
-GESTURES = {"point", "shrug", "present", "look", "wave", "none"}
 REF = re.compile(r"\b((?:[1-3]\s)?[A-Z][a-z]+)\s(\d{1,3}):(\d{1,3})(?:\s?[-–]\s?(\d{1,3}))?")
 MAX_POPS = 3
+MAX_MEMES = 4           # memes in one video (clip box + pop-ups): a meme is for a laugh or a feeling, never filler
 LABEL_MAX = 28
 LIB_COMPACT = 60
 STRIP = 2.6                          # a built-in drawing this many times wider than tall is a thin strip: not used
@@ -127,16 +130,27 @@ RULES = [
     "Compose from the built-in diagrams (entries without tags: flow, timeline, scales, venn, crossout...) only when no library illustration fits the idea; then also set 'miss': the concept you could not find in the library (it is logged so the library can grow).",
     "Abstract ideas become diagrams: cause/effect -> 'flow'; two options -> 'signpost' or 'scales'; overlap -> 'venn'; a rejected idea -> 'crossout'; past/future -> 'timeline'; a question -> 'question'; control -> 'puppet'.",
     "Words appear only as LABELS inside a drawing (labels, title, center, label, text fields), short and in CAPS (max 28 characters).",
-    "EVERY line gets clip-box media in 'box' (1-3 items): kind 'stock' with a concrete 2-4 word footage search query that literally shows the line's meaning (real things a camera can film), or kind 'meme' with a file from the meme library whose tags fit the line's meaning.",
+    "Read the WHOLE script first: know its argument, its turns and its feeling before picking anything for a line.",
+    "'box' (0-3 items): kind 'stock' with a concrete 2-4 word footage search query that literally shows the line's meaning (real things a camera can film), or kind 'meme' with a 'file' from media_library. Line 1 (the hook) always has box media; any other line may leave 'box' empty when its drawings and the guide's action carry it (the previous clip stays up). Never add media just to fill the box.",
+    "media_library has two roles: 'still' = a real-looking picture of a subject (use it like stock when it shows what the line is about); 'meme' = a reaction. Use a meme ONLY where it genuinely adds humor or emotional emphasis to what is said (its description/purpose must fit the line); at most 4 memes in the whole video, and each meme (with its look-alikes) once. Most lines need no meme.",
     "Stock queries must name filmable things (e.g. 'earthquake rubble street', 'hospital patient bed', 'person praying'), never abstract words alone. No God depicted as a person, no occult imagery.",
     "No identical box media twice in a row; no file or query used more than twice in the video.",
     "A line that quotes scripture word for word, or names a reference like 'Revelation 21:4', gets 'verse': {ref, word (the first word of the quote or the reference), quoted: true|false}. That line's box shows the typed verse card, so give it no other box media.",
     "'pop' (optional): a meme from the library that pops up beside the guide on a reaction word; at most 3 in the video, at least 3 lines apart, never on line 1 (the hook), never on a verse line, never on the word 'God'.",
-    "'gesture': point at the drawing being named (word = that drawing's word), or shrug on a question, present/look/wave otherwise. Use a gesture on at least every second line.",
+    "'gesture': the guide ACTS the line (word = the word the action lands on; for point, the drawing's word). Pick from guide_actions: point at the drawing being named, shrug on a question, think, realize on a twist, confused, celebrate good news, choose_path between two options, frustrated_at_screen... Use an action on at least every second line; a line may be the guide's moment alone (a strong action, no meme).",
     "'expression' every line, from the catalog's expressions, matching the line's emotion.",
     "'freeze': exactly one, on the line with the biggest twist or surprise, on its key word (a record-scratch freeze-frame).",
     "If fix_errors is not empty, your previous plan failed these checks: fix every one of them.",
 ]
+
+
+def _lib_entry(m: dict, compact: bool) -> dict:
+    e = {"file": m["file"], "role": m.get("role", "meme"), "tags": m.get("tags", [])[:6]}
+    if not compact:
+        e.update({k: m[k] for k in ("description", "tone", "purpose", "note") if m.get(k)})
+    elif m.get("description"):
+        e["what"] = m["description"][:70]
+    return e
 
 
 def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], words_heard: list[list[str]],
@@ -169,7 +183,8 @@ def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], 
                          for i, (t, w) in enumerate(zip(lines, words_heard))],
         "drawing_catalog": types,
         "expressions": cat["expressions"],
-        "meme_library": [{"file": m["file"], "tags": m.get("tags", [])[:6]} for m in memes] if compact else memes,
+        "media_library": [_lib_entry(m, compact) for m in memes],
+        "guide_actions": actions.for_prompt(),
         "golden_examples": [{"name": g["name"], "per_line": g["per_line"]} for g in golden_examples()][:1 if compact else 2]
                            if compact else golden_examples(),
         "fix_errors": feedback,
@@ -238,10 +253,13 @@ def misses(plan: dict, cat: dict) -> list[dict]:
     return out
 
 
-def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict) -> list[str]:
+def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict, lib: list[dict] | None = None) -> list[str]:
     """Fix in code what needs no new idea (no Gemini call is spent on it); returns notes of what was changed.
     Two drawings in the wrong order are swapped; an unknown expression becomes the closest listed one (else
-    neutral); an unknown gesture becomes none; pop-ups that break a pop rule are dropped."""
+    neutral); a guide action the rig cannot perform is reported (plan['unsupported_actions']) and becomes a point;
+    an unknown gesture becomes none; pop-ups that break a pop rule are dropped. With the library (lib): a meme or
+    still that has nothing to do with its line, a meme already shown (or its look-alike), and memes beyond
+    MAX_MEMES are dropped."""
     import difflib
     notes: list[str] = []
     if shape_errors(plan):
@@ -267,7 +285,14 @@ def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict) 
             L["expression"] = close[0] if close else "neutral"
             notes.append(f"line {n}: expression {e!r} -> {L['expression']!r}")
         g = L.get("gesture")
-        if isinstance(g, dict) and g.get("do") not in GESTURES:
+        if isinstance(g, dict) and g.get("do") in actions.UNSUPPORTED:
+            a = actions.ACTIONS[g["do"]]
+            plan.setdefault("unsupported_actions", []).append(
+                {"line": n, "action": g["do"], "status": "unsupported", "performed": False, "why": "the rig cannot " + a["cannot"],
+                 "instead": "point"})
+            notes.append(f"line {n}: guide action {g['do']!r} is not supported by the rig (reported) -> point")
+            L["gesture"] = {"do": "point", "word": g.get("word")}
+        elif isinstance(g, dict) and g.get("do") not in GESTURES:
             notes.append(f"line {n}: gesture {g.get('do')!r} -> none")
             L["gesture"] = {"do": "none"}
         p = L.get("pop")
@@ -281,6 +306,39 @@ def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict) 
                 notes.append(f"line {n}: pop-up dropped ({why})")
             else:
                 pops.append(i)
+    if lib is not None:
+        notes += _repair_media(plan, lines, lib)
+    return notes
+
+
+def _repair_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
+    from kindled_iron.director.media import relevance
+    by_file = {m["file"]: m for m in lib}
+    notes, groups, memes = [], set(), 0
+
+    def keep(i: int, f, where: str, expression) -> bool:
+        nonlocal memes
+        m = by_file.get(f)
+        if not m:
+            return True                                # validate reports unknown files
+        why = ("it has nothing to do with the line" if not relevance(m, lines[i], expression)
+               else "it (or a look-alike) is already in the video" if m.get("group", f) in groups
+               else f"more than {MAX_MEMES} memes" if m.get("role", "meme") == "meme" and memes >= MAX_MEMES else "")
+        if why:
+            notes.append(f"line {i + 1}: {where} {f!r} dropped ({why})")
+            return False
+        groups.add(m.get("group", f))
+        memes += m.get("role", "meme") == "meme"
+        return True
+
+    for i, L in enumerate(plan["lines"]):
+        if i >= len(lines):
+            break
+        box = L.get("box") or []
+        L["box"] = [b for b in box if b.get("kind") != "meme" or keep(i, b.get("file"), "box", L.get("expression"))]
+        p = L.get("pop")
+        if isinstance(p, dict) and not keep(i, p.get("file"), "pop-up", L.get("expression")):
+            L["pop"] = None
     return notes
 
 
@@ -315,7 +373,7 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
             errs.append(f"line {n}: expression {L.get('expression')!r} is not one of {sorted(exprs)}")
         g = L.get("gesture") or {"do": "none"}
         if g.get("do") not in GESTURES:
-            errs.append(f"line {n}: gesture {g.get('do')!r} is not one of {sorted(GESTURES)}")
+            errs.append(f"line {n}: gesture {g.get('do')!r} is not one of the guide_actions {sorted(GESTURES)}")
         elif g.get("do") != "none":
             word_ok(i, g.get("word"), "gesture")
         dr = L.get("drawings") or []
@@ -362,12 +420,12 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
                 if not ok:
                     errs.append(f"line {n}: verse marked quoted but the line has no quote that matches {v.get('ref')} in the WEB; set quoted false")
         box = L.get("box") or []
-        if not box and not v:
-            errs.append(f"line {n}: no clip-box media; give 1-3 'box' items (stock query or meme file)")
+        if not box and not v and i == 0:
+            errs.append(f"line {n}: the hook line needs clip-box media; give 1-3 'box' items (stock query or a media_library file)")
         for b in box:
             word_ok(i, b.get("word"), "box")
             if b.get("kind") == "meme" and b.get("file") not in files:
-                errs.append(f"line {n}: meme file {b.get('file')!r} is not in the meme library")
+                errs.append(f"line {n}: file {b.get('file')!r} is not in media_library")
             elif b.get("kind") == "stock" and len(str(b.get("query", "")).split()) < 2:
                 errs.append(f"line {n}: stock query {b.get('query')!r} needs 2-4 concrete words")
             elif b.get("kind") not in ("stock", "meme"):
@@ -377,7 +435,7 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
             pops += 1
             word_ok(i, p.get("word"), "pop")
             if p.get("file") not in files:
-                errs.append(f"line {n}: pop file {p.get('file')!r} is not in the meme library")
+                errs.append(f"line {n}: pop file {p.get('file')!r} is not in media_library")
             if v:
                 errs.append(f"line {n}: no pop on a verse line")
             if key(p.get("word", "")) == "god":

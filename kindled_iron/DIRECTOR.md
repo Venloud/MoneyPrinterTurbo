@@ -27,7 +27,7 @@ script.txt + narration.mp3
             media (stock search words or a meme from your library), a typed verse card, an optional meme
             pop-up, the guide's expression and gesture, and ONE record-scratch freeze. Meaning only, no
             coordinates. The prompt carries both golden scenes in full (Where Did God Come From?, Love of Money
-            v3), their per-line summary, the drawing catalog, the meme library and the rules below.
+            v3), their per-line summary, the drawing catalog, the media library (memes + stills), the guide actions and the rules below.
  3 check    plan.py rejects anything off-script or off-catalog; media.py finds the footage; compile.py turns the
             plan into a scene: every coordinate comes from the fixed zones and each drawing's measured size
  4 render   the existing renderer: first 8 stills + the every-frame audit, then the full MP4
@@ -106,18 +106,60 @@ red run). The workflow's daily schedule (07:17 UTC, after the Gemini reset) resu
 gets an alert only if one is still stuck after 24 h. (GitHub runs schedules from the default branch's copy of the
 workflow, so the automatic retry starts once this is merged to main.)
 
-## Adding memes and clips
+## Adding memes, stills and clips
 
-Put the file in `kindled-iron-voice/movie_reference/` (jpg, png, webp, gif, mp4, mov). The file name's words are
-its tags (`suspicious-fry-futurama.webp` -> suspicious, fry, futurama). Optional extra tags in
-`movie_reference/index.json`:
+The library is `kindled-iron-voice/movie_reference/` and `kindled-iron-voice/reactions/` (jpg, png, webp, gif, mp4,
+mov). Every top-level file there is offered to the planner; the file name's words are its tags
+(`suspicious-fry-futurama.webp` -> suspicious, fry, futurama). Optional metadata in that folder's `index.json`:
 
 ```json
-{"file": "suspicious-fry-futurama.webp", "tags": ["suspicious", "doubt", "not sure"], "note": "doubting someone"}
+{"file": "confused_question_marks.png", "type": "meme", "tags": ["confusion", "question", "disbelief"],
+ "description": "man smiling in confusion with question marks around his head", "tone": "comic confusion",
+ "purpose": "react to a claim that makes no sense", "same_meme_as": ["movie_reference/confused-nick-young.jpeg"],
+ "show": true, "source": "...", "license": "..."}
 ```
 
-Rules the code enforces: at most 3 pop-ups per video, at least 2 lines apart, never on a verse line or on the word
-"God", 380 px wide, 1.2 s; no file twice in a row and no file more than twice per video.
+`type: "still"` = a real-looking picture of a subject (used like stock footage); anything else is a meme.
+`show: false` (guide-action references in `movie_reference/guide_actions/`) is never shown: the guide acts it out.
+A missing or broken `index.json` only loses the extra tags; the files are still found by name.
+
+Import a curated pack (a ZIP with `catalog.json`) without touching what is there:
+`python kindled_iron/tools/import_media.py --zip pack.zip --private ../kindled-iron-voice [--meta extra.json] [--dry-run]`
+(sha256 duplicates skipped, taken names get `_2`, nothing overwritten, index entries only appended, licences copied
+as given, a report of what was imported / skipped / renamed / looks alike).
+
+Rules the code enforces (plan.repair, no AI call):
+- a meme or still is kept only when it fits its line: a shared word, or the same reaction family ("crazy" ~ "wait
+  what", "earthquake" ~ "collapsed house"; the line's expression counts too). Dropped otherwise (logged).
+- each meme once per video, look-alikes (`same_meme_as`) included; at most 4 memes per video (box + pop-ups).
+- the hook line always has clip-box media; any other line may be the drawings' and the guide's alone (the previous
+  clip stays up), so the bot never adds a meme just to fill the box.
+- pop-ups: at most 3 per video, at least 2 lines apart, never on a verse line or on the word "God", 380 px wide,
+  1.2 s; no file twice in a row and no file more than twice per video.
+
+### Guide actions (director/actions.py)
+
+The plan's `gesture` is an action the approved guide performs with his existing rig (never a stand-in figure):
+
+| Action | Status | What he does |
+|---|---|---|
+| point, point_explain, shrug, present, look, wave | supported | as named |
+| think | supported | looks up, thinking |
+| realize | supported | "wait what" double take, then mind blown |
+| confused | supported | shrug with a confused face (a puzzled head tilt where his arms have no room) |
+| celebrate | supported | both arms up, hops (only where his arms have room) |
+| choose_path | partial | turns to one side, the other, then points at the drawing; cannot walk a path |
+| frustrated_at_screen | partial | shakes his head, then a side-eye; holds no screen |
+| help_up, carry | unsupported | reported in `guide_actions.json`, the guide points instead |
+
+An action that does not fit (a walk, a meme card or the next line in the way, no room for his arms) falls back to a
+look up and is logged as not performed.
+
+### The record-scratch freeze
+
+The freeze plays `kindled-iron-voice/sfx/record_scratch.mp3` (the owner's recording, silence trimmed in code, at the
+record_scratch level; the sound library has no record-scratch variants, so without this file the freeze is silent) and the whole frame goes grey while it holds
+(`"grey": true` on the freeze event; scenes without it keep the colour freeze).
 
 ## Gates (the bot fails instead of shipping)
 
@@ -129,7 +171,7 @@ Rules the code enforces: at most 3 pop-ups per video, at least 2 lines apart, ne
 | coverage | at least 60 % of the usable frame (safe box minus the button column) is covered at every half second (from 0.25 s, skipping the freeze zoom and its redraw), and no single empty rectangle is larger than 20 % of it |
 | doodles | every drawing is at least 250 px on its long side (measured on the page) |
 | empty | no empty card, no empty verse page, the clip box never empties |
-| per_line | every line brings a new drawing and new clip-box content (or its verse card) |
+| per_line | every line brings a new drawing; the hook line also clip-box content (later lines may be drawings + guide only) |
 | box_media | at least one real clip or meme in the clip box |
 | verses | every reference / quote in the script is on a typed verse card |
 | alignment | at least 85 % of the script's words are heard in the MP3 |
@@ -142,7 +184,7 @@ fix_errors in the next round. Typical causes and what to do:
 
 - `script.txt does not match narration.mp3`: the script is not the recording's text. Fix script.txt.
 - `no stock video matches 'x'`: the planner's footage idea found nothing that really shows it; it is retried
-  with another query automatically. If it keeps failing, add a fitting meme/clip to movie_reference/.
+  with another query automatically. If it keeps failing, add a fitting still or meme to movie_reference/ or reactions/.
 - `cannot be drawn 250 px or larger here`: the line's two drawings were both tall; the planner is told to make
   the first one wide.
 - `the frame looks empty` (coverage): a line's drawings are small for their slots; retried automatically.
@@ -153,7 +195,7 @@ fix_errors in the next round. Typical causes and what to do:
 `<id>.mp4` (private preview), `<id>-8-frames.jpg`, `scene.json` (what was rendered), `plan.json` (the AI's plan),
 `media.json` (every clip/meme pick, its source, page and why it matched), `gates.json`, `review.json` (vision
 verdict per still + the AI calls by provider), `ai_calls.json` (every AI call: provider, model, tokens, seconds),
-`doodle_misses.json`, `rounds.json`, `checkpoint.json`, `status.json` (state: done | failed | waiting_quota), and
+`doodle_misses.json`, `guide_actions.json` (each action asked for: performed or why not), `rounds.json`, `checkpoint.json`, `status.json` (state: done | failed | waiting_quota), and
 `fail_report.md` only when it failed.
 
 ## Secrets (MoneyPrinterTurbo repo settings, names only)

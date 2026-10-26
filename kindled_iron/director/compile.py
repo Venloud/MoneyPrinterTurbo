@@ -15,6 +15,7 @@ import math
 import re
 
 from kindled_iron import scripture
+from kindled_iron.director import actions
 from kindled_iron.director.plan import director_types, key, quoted_spans
 
 WALK_SPEED = 280                # px/s, the guide's natural pace at this size
@@ -24,6 +25,7 @@ FACE_OF = {"happy": "crying_laughing", "curious": "thinking", "thinking": "think
            "puzzled": "puzzled", "confused_math": "confused_math", "side_eye": "side_eye", "wait_what": "wait_what",
            "crying_laughing": "crying_laughing"}
 POP_CARD = {"w": 380, "dur": 1.2}
+SCRATCH = "sfx/record_scratch.mp3"        # the owner's record scratch (private repo); the sound library has none
 FREEZE = {"dur": 1.0, "zoom": 1.45, "after": 0.45}   # the camera needs ~0.35 s to come back after the freeze
 SHOULDER_Y = 1110               # set from the measured guide (his top + 122) in compile_scene
 FILL = 0.97                     # a drawing fills its slot to this share (the measured size includes its strokes)
@@ -271,6 +273,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     slot_of: dict[str, tuple] = {}
     old_lane_side = None
     last_gesture_line = -2
+    acted_log: list[dict] = []                  # the guide actions asked for and whether the rig performed them
     for i, (L, text) in enumerate(zip(P, lines)):
         W = words[i]
         t_start, t_last = W[0]["start"], W[-1]["end"]
@@ -442,19 +445,33 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         if want != "none":
             target = next((d for d, p in draw_pos.items() if p[2] == key(g.get("word", ""))), ids[0] if ids else None)
             tg = draw_pos.get(target) if target else None
-            t_g = max(_occ(W, g.get("word", first))[1]["start"], (tg[3] + 0.35) if tg else 0)
+            waits = want in ("point", "shrug", "wave", "present", "look") or actions.ACTIONS.get(want, {}).get("points")
+            t_g = max(_occ(W, g.get("word", first))[1]["start"], (tg[3] + 0.35) if tg and waits else 0)
             if any(a <= t_g <= b for a, b in busy):
                 t_g = max(b for a, b in busy if a <= t_g <= b) + 0.1
             if t_g < t_last - 0.3:
                 at = _at_time(W, t_g)
                 lanes = [slot_of[d] for d in set(prev_lane + shown["lane"] + [d for d in ids if draw_pos[d][4] == "lane"])]
                 tip = _arm_tip(spot, tg[:2], reach) if tg else None
-                if want == "point" and tg and tg[4] == "lane":
+                room = spot in shrug_ok and not any(
+                    r[0] - 18 <= x <= r[2] + 18 for r in lanes for x in (spot - G["shrug_half_width"], spot + G["shrug_half_width"]))
+                can_point = bool(tg) and tg[4] != "lane" and _tip_ok(spot, tg[:2], reach) and not any(_inside(tip, r) for r in lanes)
+                acted = actions.rig(want, {"expression": L["expression"], "room": room, "target": target if tg else None,
+                                           "can_point": can_point}) if want in actions.ACTED - {"point", "shrug", "wave", "present", "look"} else None
+                if acted and (t_g + actions.span(acted) > t_last + 0.4 or
+                              any(a < t_g + actions.span(acted) and b > t_g for a, b in busy)):
+                    acted = None                      # the acted moment would run into a walk, a meme card or the next line
+                if want not in ("point", "shrug", "wave", "present", "look"):
+                    acted_log.append({"line": i + 1, "action": want, "status": actions.ACTIONS[want]["status"],
+                                      "performed": bool(acted), **({} if acted else {"instead": "look up"})})
+                if acted:
+                    for dt, e in acted:
+                        ev.append({"at": _at_time(W, t_g + dt), **e})
+                elif want == "point" and tg and tg[4] == "lane":
                     ev.append({"at": at, "do": "look", "who": "guide", "dir": "down", "expression": L["expression"], "hold": 0.7})
                 elif want == "point" and tg and _tip_ok(spot, tg[:2], reach) and not any(_inside(tip, r) for r in lanes):
                     ev.append({"at": at, "do": "point", "who": "guide", "toward": target, "hold": 0.6, "respond": False})
-                elif want == "shrug" and spot in shrug_ok and not any(
-                        r[0] - 18 <= x <= r[2] + 18 for r in lanes for x in (spot - G["shrug_half_width"], spot + G["shrug_half_width"])):
+                elif want == "shrug" and room:
                     ev.append({"at": at, "do": "shrug", "who": "guide"})
                 elif want == "wave" and spot + 150 <= 775:
                     ev.append({"at": at, "do": "wave", "who": "guide"})
@@ -468,7 +485,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 ev.append({"at": _anchor(W, freeze["word"], -0.12)[0], "do": "fade", "ids": sorted(set(on_screen)),
                            "opacity": 0, "dur": 0.1})
             ev.append({"at": _anchor(W, freeze["word"])[0], "do": "freeze", "who": "guide", "dur": FREEZE["dur"],
-                       "zoom": FREEZE["zoom"], "focus": {"x": spot, "y": 1150}, "sound": "record_scratch"})
+                       "zoom": FREEZE["zoom"], "focus": {"x": spot, "y": 1150}, "grey": True,
+                       "sound": "record_scratch", "sound_file": SCRATCH})
 
         # ---------------- the clip box
         if L.get("verse"):
@@ -486,7 +504,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 continue
             a = 0 if (i == 0 and not used_media) else _anchor(W, b["word"], -0.15)[0]
             if b["kind"] == "meme":
-                ev.append({"at": a, "box": "media", "file": "movie_reference/" + b["file"]})
+                ev.append({"at": a, "box": "media", "file": b.get("path") or "movie_reference/" + b["file"]})
             else:
                 ck = f"s_{b['source']}_{b['id']}"
                 scene_clips.setdefault(ck, {b["source"]: b["id"], "label": b.get("title", "")[:80]})
@@ -501,7 +519,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 raise CompileError(f"line {i + 1}: no room for the pop-up beside the guide")
             cx = (ls[0] + ls[2]) / 2
             ev.append({"at": _anchor(W, p["word"])[0], "reaction": FACE_OF.get(L["expression"], "surprised"),
-                       "face": FACE_OF.get(L["expression"], "surprised"), "file": "movie_reference/" + p["file"],
+                       "face": FACE_OF.get(L["expression"], "surprised"), "file": p.get("path") or "movie_reference/" + p["file"],
                        "dur": POP_CARD["dur"], "card": {"x": cx, "y": Z["pop"]["y"], "w": Z["pop"]["w"], "rotate": 0}})
         beat = {"id": f"l{i + 1}", "panel": 0, "narration": text, "events": ev,
                 "camera_start": {"x": 540, "y": 960, "zoom": 1.0, "dur": 0.01} if i == 0 else False}
@@ -539,7 +557,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",
                     "frames": [{"beat": f["beat"], "at": f["at"]} for f in pv]},
         "post": {"title": meta.get("title") or meta["id"].replace("-", " ").title()},
-        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}, "notes": scene_notes},
+        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}, "notes": scene_notes,
+                     "actions": acted_log + list(plan.get("unsupported_actions") or [])},
         "beats": beats,
     }
     return scene, pv

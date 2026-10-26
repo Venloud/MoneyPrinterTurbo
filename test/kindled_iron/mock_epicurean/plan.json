@@ -1,0 +1,301 @@
+{
+ "freeze": {
+  "line": 3,
+  "word": "will"
+ },
+ "lines": [
+  {
+   "line": 1,
+   "expression": "curious",
+   "gesture": {
+    "do": "point",
+    "word": "graph"
+   },
+   "box": [
+    {
+     "word": "seen",
+     "kind": "stock",
+     "query": "chalkboard diagram classroom"
+    },
+    {
+     "word": "crazy",
+     "kind": "meme",
+     "file": "Wait-What-meme-kevin-hart.jpg"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "graph",
+     "type": "triangle",
+     "fields": {
+      "labels": [
+       "ALL POWERFUL",
+       "ALL KNOWING",
+       "ALL GOOD"
+      ],
+      "center": "EVIL?"
+     }
+    },
+    {
+     "word": "exist",
+     "type": "crossout",
+     "fields": {
+      "text": "GOD EXISTS"
+     }
+    }
+   ]
+  },
+  {
+   "line": 2,
+   "expression": "focused",
+   "gesture": {
+    "do": "shrug",
+    "word": "why"
+   },
+   "box": [
+    {
+     "word": "powerful",
+     "kind": "stock",
+     "query": "lightning storm sky"
+    },
+    {
+     "word": "evil",
+     "kind": "stock",
+     "query": "dark storm clouds"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "powerful",
+     "type": "bolt",
+     "fields": {
+      "label": "CAN STOP IT"
+     }
+    },
+    {
+     "word": "good",
+     "type": "heart",
+     "fields": {
+      "label": "WANTS TO"
+     }
+    }
+   ]
+  },
+  {
+   "line": 3,
+   "expression": "surprised",
+   "gesture": {
+    "do": "point",
+    "word": "choice"
+   },
+   "box": [
+    {
+     "word": "graph",
+     "kind": "meme",
+     "file": "Ideas_Surprised_Pikachu_HD.webp"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "will",
+     "type": "signpost",
+     "fields": {
+      "labels": [
+       "GOOD",
+       "EVIL"
+      ]
+     }
+    },
+    {
+     "word": "controlled",
+     "type": "puppet",
+     "fields": {
+      "label": "NO CHOICE"
+     }
+    }
+   ]
+  },
+  {
+   "line": 4,
+   "expression": "thinking",
+   "gesture": {
+    "do": "point",
+    "word": "good"
+   },
+   "box": [
+    {
+     "word": "lie",
+     "kind": "stock",
+     "query": "person crossing fingers behind back"
+    }
+   ],
+   "pop": {
+    "word": "stop",
+    "file": "suspisious-fry-futurama.webp"
+   },
+   "drawings": [
+    {
+     "word": "lie",
+     "type": "flow",
+     "fields": {
+      "labels": [
+       "LIE",
+       "GOD STOPS",
+       "NO CHOICE"
+      ]
+     }
+    },
+    {
+     "word": "choosing",
+     "type": "person",
+     "fields": {
+      "label": "YOUR CHOICE"
+     }
+    }
+   ]
+  },
+  {
+   "line": 5,
+   "expression": "sad",
+   "gesture": {
+    "do": "look",
+    "word": "chooses"
+   },
+   "box": [
+    {
+     "word": "earthquakes",
+     "kind": "stock",
+     "query": "earthquake damaged buildings"
+    },
+    {
+     "word": "diseases",
+     "kind": "stock",
+     "query": "hospital patient bed"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "earthquakes",
+     "type": "ground",
+     "fields": {
+      "label": "EARTHQUAKE"
+     }
+    },
+    {
+     "word": "diseases",
+     "type": "germ",
+     "fields": {
+      "label": "DISEASE"
+     }
+    }
+   ]
+  },
+  {
+   "line": 6,
+   "expression": "focused",
+   "gesture": {
+    "do": "point",
+    "word": "broken"
+   },
+   "box": [
+    {
+     "word": "creation",
+     "kind": "stock",
+     "query": "cracked dry earth"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "broken",
+     "type": "openbook",
+     "fields": {
+      "left": "CREATION",
+      "right": "BROKEN",
+      "label": "THE BIBLE"
+     }
+    },
+    {
+     "word": "punishment",
+     "type": "crossout",
+     "fields": {
+      "text": "PUNISHMENT"
+     }
+    }
+   ]
+  },
+  {
+   "line": 7,
+   "expression": "happy",
+   "gesture": {
+    "do": "point",
+    "word": "forever"
+   },
+   "verse": {
+    "ref": "Revelation 21:4",
+    "word": "Revelation",
+    "quoted": false
+   },
+   "box": [],
+   "drawings": [
+    {
+     "word": "forever",
+     "type": "timeline",
+     "fields": {
+      "labels": [
+       "NOW",
+       "SUFFERING",
+       "NO MORE PAIN"
+      ]
+     }
+    },
+    {
+     "word": "death",
+     "type": "heart",
+     "fields": {
+      "label": "NO MORE PAIN"
+     }
+    }
+   ]
+  },
+  {
+   "line": 8,
+   "expression": "thinking",
+   "gesture": {
+    "do": "shrug",
+    "word": "why"
+   },
+   "box": [
+    {
+     "word": "allowing",
+     "kind": "stock",
+     "query": "person praying"
+    },
+    {
+     "word": "question",
+     "kind": "meme",
+     "file": "doglookingatphoneshocked.jpg"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "allowing",
+     "type": "scales",
+     "fields": {
+      "labels": [
+       "POWER",
+       "FREEDOM"
+      ],
+      "tilt": 0
+     }
+    },
+    {
+     "word": "question",
+     "type": "question",
+     "fields": {
+      "label": "STILL ASKING"
+     }
+    }
+   ]
+  }
+ ]
+}

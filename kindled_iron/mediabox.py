@@ -55,14 +55,26 @@ def verse_segment(ev: dict, words: list[dict], box: dict, beat_id) -> dict:
     want = _norm(card["text"])
     said = [(_norm(w["word"]) or [""])[0] for w in words]
     hit = next((i for i in range(len(said) - len(want) + 1) if said[i:i + len(want)] == want), None)
-    if hit is None:
+    if hit is None and not ev.get("paced"):
         raise SystemExit(f"FAIL: beat {beat_id}: the verse {card['text']!r} is not spoken word for word in this beat")
-    # every card token -> the spoken word it belongs to
-    tok_word, k = [], hit
-    for tok in tokens:
-        n = len(_norm(tok))
-        tok_word.append(words[k] if n else words[min(k, hit + len(want) - 1)])
-        k += n
+    if hit is None:
+        # "paced": the line names the reference but does not quote it (a paraphrase): the WEB text types across the
+        # spoken words from the first word after "from" (a word of the beat) to the beat's last word.
+        k0 = next((i for i, w in enumerate(said) if ev.get("from") and w == (_norm(ev["from"]) or [""])[0]), 0)
+        span = words[k0:] or words
+        t0, t1 = span[0]["start"], max(span[0]["start"] + 1.0, span[-1]["end"] - 0.25)
+        n_tok = max(1, len(tokens))
+        tok_word = [{"start": round(t0 + (t1 - t0) * i / n_tok, 3), "end": round(t0 + (t1 - t0) * (i + 1) / n_tok, 3)}
+                    for i in range(n_tok)]
+        hit, want = 0, [None]
+        quote_word = {"end": t1}
+    else:
+        tok_word, k = [], hit
+        for tok in tokens:
+            n = len(_norm(tok))
+            tok_word.append(words[k] if n else words[min(k, hit + len(want) - 1)])
+            k += n
+        quote_word = words[hit + len(want) - 1]
     def times_of(tok: str, w: dict) -> list[float]:
         ts, te = w["start"], w["start"] + TYPE_SHARE * max(0.05, w["end"] - w["start"])
         return [round(ts + (te - ts) * j / len(tok), 3) for j in range(len(tok))]
@@ -92,7 +104,7 @@ def verse_segment(ev: dict, words: list[dict], box: dict, beat_id) -> dict:
                 times.append(tt[-1])
         # lines are wrapped in the page with the real font (runtime); every letter keeps its own time
         pages.append({"t": round(min(times), 3), "text": text, "times": times})
-    quote_end = words[hit + len(want) - 1]["end"]
+    quote_end = quote_word["end"]
     first = pages[0]["t"]
     return {"kind": "verse", "ref": canonical(card["ref"]), "text": card["text"], "pages": pages,
             "first_letter": first, "ref_t": round(quote_end + 0.05, 3), "hold_until": round(quote_end + 0.05 + HOLD, 3),
@@ -288,9 +300,10 @@ def media_frames(s: dict, seconds: float, w: int, h: int, work: Path, n: int, lo
 def _source(spec: dict, key: str, got: dict, log):
     if key in got:
         return got[key]
-    pin = spec.get("pexels")                # a pinned Pexels ID, or "query": the first Pexels search hit (logged by ID)
+    pin = spec.get("pexels") or spec.get("pixabay")   # a pinned Pexels / Pixabay ID, or "query": the first Pexels hit
+    search = insets_mod._pixabay if spec.get("pixabay") and not spec.get("pexels") else insets_mod._pexels
     try:
-        cands = insets_mod._pexels(spec.get("query", ""), pin)
+        cands = search(spec.get("query", ""), pin)
     except Exception as e:  # noqa: BLE001
         raise SystemExit(f"FAIL: required clip {key} (Pexels {pin}) could not be fetched: {type(e).__name__}: {e}")
     if not cands:
@@ -320,7 +333,7 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
             out_dir = work / "box" / f"{key}_{n}{side}"
             return _placeholder(key, max(1.0, want), w, h, out_dir), {}
         c, f, length = _source(spec, key, got, log)
-        pin = spec.get("pexels") or c["id"]
+        pin = spec.get("pexels") or spec.get("pixabay") or c["id"]
         st = float(start) if start is not None else cursor.get(pin, float(spec.get("start", 0.3)))
         dur = min(want, length - 0.1)
         if st + dur > length - 0.05:
@@ -340,8 +353,8 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
         frames = insets_mod._frames(f, st, dur, w, h, 30, work / "box" / f"{key}_{key_h}", crop)
         if len(frames) < 20:
             raise SystemExit(f"FAIL: required clip {key} (Pexels {pin}) gave only {len(frames)} frames")
-        return frames, {"clip": key, "source": "pexels", "id": c["id"], "page": c["page"], "file_url": c["file_url"],
-                        "license": insets_mod.LICENSES["pexels"], "start": rng[0], "end": rng[1], "crop": crop}
+        return frames, {"clip": key, "source": c.get("source", "pexels"), "id": c["id"], "page": c["page"], "file_url": c["file_url"],
+                        "license": insets_mod.LICENSES[c.get("source", "pexels")], "start": rng[0], "end": rng[1], "crop": crop}
     for n, s in enumerate(segs):
         seconds = s["t1"] - s["t0"]
         if s["kind"] == "clip":

@@ -434,6 +434,114 @@
       for (var i = 1; i <= n; i++) d += ' L' + (-w + 2 * w * i / n).toFixed(0) + ',' + ((i % 2 ? -h : h) * 0.9).toFixed(0);
       return p(d, { c: 'accent', w: 12 }) + p('M' + (-w) + ',' + (h * 0.5) + ' L' + w + ',' + (-h * 0.6), { c: 'accent', w: 10 });
     },
+    // ---- labeled diagrams and everyday objects (director catalog). Each one is about 360-420 x 220-280 at scale 1;
+    // labels are part of the drawing (max ~14 characters per line, two lines), so text never sits on other text.
+    bars: function (o) {        // a bar graph: axes, 2-5 labeled bars (values 0-1), optional title on top
+      var L = o.labels || ['A', 'B', 'C'], V = o.values || [], n = L.length, W = 340, H = 170, bw = W / n * 0.55, s = '';
+      s += p('M-170,-110 L-170,80 L180,80', { w: 7 }) + p('M-178,-98 L-170,-112 L-162,-98', { w: 6 });
+      for (var i = 0; i < n; i++) {
+        var v = V[i] == null ? 0.35 + 0.6 * ((i * 37) % 10) / 10 : Math.max(0.08, Math.min(1, V[i])), x = -170 + W / n * (i + 0.5), h = H * v;
+        s += p('M' + (x - bw / 2).toFixed(0) + ',80 L' + (x - bw / 2).toFixed(0) + ',' + (80 - h).toFixed(0) + ' L' + (x + bw / 2).toFixed(0) + ',' + (80 - h).toFixed(0) + ' L' + (x + bw / 2).toFixed(0) + ',80',
+          { w: 6, c: i % 2 ? 'waterLine' : 'accent', fill: i % 2 ? 'water' : 'accent', fo: i % 2 ? 1 : 0.35 });
+        s += lbl(x, 108, L[i], 30);
+      }
+      return s + (o.title ? lbl(10, -128, o.title, 36, 'accent') : '');
+    },
+    triangle: function (o) {    // a triangle diagram: a label at each corner (top, bottom-left, bottom-right) and one in the middle
+      var L = o.labels || ['A', 'B', 'C'];
+      return p('M0,-95 L150,95 L-150,95 Z', { w: 8, c: 'accent', fill: 'accent', fo: 0.12 }) +
+        p(circlePath(0, -95, 9) + ' ' + circlePath(150, 95, 9) + ' ' + circlePath(-150, 95, 9), { w: 5, fill: 'ink', fo: 1 }) +
+        lbl(0, -128, L[0], 34) + lbl(-150, 128, L[1], 34) + lbl(150, 128, L[2], 34) + (o.center ? lbl(0, 40, o.center, 38, 'waterLine') : '');
+    },
+    venn: function (o) {        // two overlapping circles: left label, right label, and what they share in the middle
+      var L = o.labels || ['A', 'B'];
+      return p(wobbleCircle(-70, 0, 110, 3, 0.03), { w: 7, c: 'accent', fill: 'accent', fo: 0.15 }) +
+        p(wobbleCircle(70, 0, 110, 8, 0.03), { w: 7, c: 'waterLine', fill: 'water', fo: 0.45 }) +
+        lbl(-115, 0, L[0], 32) + lbl(115, 0, L[1], 32) + (o.center ? lbl(0, 0, o.center, 26, 'accent') : '');
+    },
+    scales: function (o) {      // a balance scale: two labeled pans; tilt -1 (left heavier) .. 1 (right heavier)
+      var L = o.labels || ['A', 'B'], t = Math.max(-1, Math.min(1, o.tilt || 0)) * 30, a = t * Math.PI / 180;
+      var lx = -150 * Math.cos(a), ly = -60 + 150 * Math.sin(a), rx = 150 * Math.cos(a), ry = -60 - 150 * Math.sin(a);
+      var pan = function (x, y) { return p('M' + (x - 55).toFixed(0) + ',' + (y + 50).toFixed(0) + ' Q' + x.toFixed(0) + ',' + (y + 95).toFixed(0) + ' ' + (x + 55).toFixed(0) + ',' + (y + 50).toFixed(0) + ' Z', { w: 6, fill: 'starFill', fo: 1 }) +
+        p('M' + x.toFixed(0) + ',' + y.toFixed(0) + ' L' + (x - 50).toFixed(0) + ',' + (y + 50).toFixed(0) + ' M' + x.toFixed(0) + ',' + y.toFixed(0) + ' L' + (x + 50).toFixed(0) + ',' + (y + 50).toFixed(0), { w: 4, c: 'inkSoft' }); };
+      return p('M0,-60 L0,110 M-60,110 L60,110', { w: 9, c: 'trunk' }) + p('M' + lx.toFixed(0) + ',' + ly.toFixed(0) + ' L' + rx.toFixed(0) + ',' + ry.toFixed(0), { w: 8 }) +
+        pan(lx, ly) + pan(rx, ry) + p(circlePath(0, -60, 10), { w: 5, fill: 'accent', fo: 1 }) +
+        lbl(lx, ly + 112, L[0], 30) + lbl(rx, ry + 112, L[1], 30);
+    },
+    flow: function (o) {        // 2-4 labeled boxes joined by arrows: cause -> effect, step -> step
+      var L = o.labels || ['A', 'B', 'C'], n = L.length, gap = 400 / n, s = '';
+      for (var i = 0; i < n; i++) {
+        var x = -200 + gap * (i + 0.5), w = gap * 0.78;
+        s += p('M' + (x - w / 2).toFixed(0) + ',-55 L' + (x + w / 2).toFixed(0) + ',-55 L' + (x + w / 2).toFixed(0) + ',55 L' + (x - w / 2).toFixed(0) + ',55 Z', { w: 6, c: i === n - 1 ? 'accent' : 'ink', fill: 'page', fo: 1 }) +
+          lbl(x, 0, L[i], 28);
+        if (i < n - 1) s += p('M' + (x + w / 2 + 4).toFixed(0) + ',0 L' + (x + gap - w / 2 - 6).toFixed(0) + ',0 M' + (x + gap - w / 2 - 18).toFixed(0) + ',-10 L' + (x + gap - w / 2 - 6).toFixed(0) + ',0 L' + (x + gap - w / 2 - 18).toFixed(0) + ',10', { w: 6, c: 'accent' });
+      }
+      return s + (o.title ? lbl(0, -92, o.title, 34, 'accent') : '');
+    },
+    crossout: function (o) {    // a phrase written in a box and crossed out in orange ("not this")
+      var t = o.text || 'NOT THIS', w = Math.max(260, Math.min(420, 22 * t.length + 60));
+      return p('M' + (-w / 2) + ',-60 L' + (w / 2) + ',-56 L' + (w / 2 - 4) + ',60 L' + (-w / 2 + 4) + ',56 Z', { w: 6, c: 'inkSoft', fill: 'page', fo: 1 }) +
+        lbl(0, 0, t, 40) + p('M' + (-w / 2 + 20) + ',-40 L' + (w / 2 - 20) + ',40 M' + (w / 2 - 20) + ',-40 L' + (-w / 2 + 20) + ',40', { w: 11, c: 'accent' });
+    },
+    ground: function (o) {      // cracked ground (earthquake, broken world): a split landscape with falling rocks
+      return p('M-200,20 L-60,10 L-30,40 L-10,5 L200,15', { w: 8 }) + f('M-200,20 L-60,10 L-30,40 L-10,5 L200,15 L200,110 L-200,110 Z', '#C9A57A', 1, false) +
+        p('M-30,40 L-15,70 L-35,95 L-20,110 M-15,70 L10,85', { w: 6, c: 'ink' }) +
+        p('M-120,-40 L-100,-55 L-85,-35 Z M60,-70 L80,-80 L90,-60 Z M130,-30 L145,-45 L155,-25 Z', { w: 5, c: 'trunk', fill: '#A07850', fo: 1 }) +
+        p('M-150,-90 q20,-10 40,0 M100,-110 q20,-10 40,0', { w: 4, c: 'inkSoft' }) + (o.label ? lbl(0, 140, o.label, 34, 'accent') : '');
+    },
+    germ: function (o) {        // a germ / virus (disease, sickness): spiky round cell
+      var s = p(wobbleCircle(0, 0, 80, 4, 0.08), { w: 7, c: 'greenLine', fill: 'green', fo: 1 });
+      for (var i = 0; i < 10; i++) { var a = i / 10 * Math.PI * 2, x1 = Math.cos(a) * 80, y1 = Math.sin(a) * 80, x2 = Math.cos(a) * 118, y2 = Math.sin(a) * 118;
+        s += p('M' + x1.toFixed(0) + ',' + y1.toFixed(0) + ' L' + x2.toFixed(0) + ',' + y2.toFixed(0), { w: 6, c: 'greenLine' }) + p(circlePath(x2, y2, 9), { w: 4, c: 'greenLine', fill: 'accent', fo: 0.8 }); }
+      return s + p(circlePath(-25, -15, 14) + ' ' + circlePath(30, 20, 10) + ' ' + circlePath(10, -40, 8), { w: 4, c: 'greenLine' }) + (o.label ? lbl(0, 150, o.label, 34, 'accent') : '');
+    },
+    person: function (o) {      // a simple standing person; kid: true draws a small child; label under it
+      var k = o.kid ? 0.62 : 1, P = function (d) { return d.replace(/-?[\d.]+/g, function (n) { return (parseFloat(n) * k).toFixed(1); }); };
+      return p(P(circlePath(0, -150, 32)), { w: 6, fill: 'skin', fo: 1 }) + p(P('M-40,-108 L40,-108 L48,10 L-48,10 Z'), { w: 6, fill: o.kid ? 'water' : '#4A6C8F', fo: 1 }) +
+        p(P('M-40,-100 L-70,-20 M40,-100 L70,-20 M-22,10 L-28,110 M22,10 L28,110'), { w: 7 }) + p(P('M-10,-155 L-10,-145 M10,-155 L10,-145 M-12,-132 Q0,-124 12,-132'), { w: 4 }) +
+        (o.label ? lbl(0, 110 * k + 30, o.label, 32, 'accent') : '');
+    },
+    people: function (o) {      // a group: an adult and a child side by side (family, innocent people)
+      return '<g transform="translate(-75,0)">' + OBJ.person({}) + '</g><g transform="translate(80,40)">' + OBJ.person({ kid: true }) + '</g>' +
+        (o.label ? lbl(0, 150, o.label, 34, 'accent') : '');
+    },
+    openbook: function (o) {    // an open book (the Bible, a law, a story) with a short line written on each page
+      return OBJ.book({ blank: true }) + (o.left ? lbl(-95, -10, o.left, 30) : '') + (o.right ? lbl(95, -10, o.right, 30) : '') +
+        (o.label ? lbl(0, 115, o.label, 34, 'accent') : '');
+    },
+    question: function (o) {    // a big question mark (why? an open question)
+      return p('M-60,-80 C-60,-150 70,-150 70,-80 C70,-30 0,-20 0,30 L0,55', { w: 22, c: 'accent' }) + p(circlePath(0, 105, 14), { w: 8, fill: 'accent', fo: 1 }) +
+        (o.label ? lbl(0, 160, o.label, 34) : '');
+    },
+    puppet: function (o) {      // strings from a hand-held cross bar moving a figure (control, no choice)
+      return p('M-110,-140 L110,-140 M0,-170 L0,-110', { w: 9, c: 'trunk' }) +
+        p('M-100,-140 L-70,-10 M100,-140 L70,-10 M0,-110 L0,-75 M-50,-140 L-25,30 M50,-140 L25,30', { w: 3, c: 'inkSoft' }) +
+        '<g transform="translate(0,95) scale(0.7)">' + OBJ.person({}) + '</g>' + (o.label ? lbl(0, 190, o.label, 34, 'accent') : '');
+    },
+    signpost: function (o) {    // a signpost with two arrows (a choice between two ways)
+      var L = o.labels || ['THIS WAY', 'THAT WAY'];
+      return p('M0,-130 L0,130 M-40,130 L40,130', { w: 10, c: 'trunk' }) +
+        p('M-10,-110 L150,-110 L185,-80 L150,-50 L-10,-50 Z', { w: 6, fill: 'page', fo: 1 }) + lbl(80, -80, L[0], 28) +
+        p('M10,-20 L-150,-20 L-185,10 L-150,40 L10,40 Z', { w: 6, c: 'accent', fill: 'page', fo: 1 }) + lbl(-80, 10, L[1], 28, 'accent');
+    },
+    timeline: function (o) {    // a time line with labeled moments (past -> now -> future); the last one is highlighted
+      var L = o.labels || ['THEN', 'NOW', 'LATER'], n = L.length, s = p('M-200,20 L200,20 M186,8 L200,20 L186,32', { w: 7 });
+      for (var i = 0; i < n; i++) { var x = -170 + 340 * i / Math.max(1, n - 1);
+        s += p(circlePath(x, 20, i === n - 1 ? 16 : 11), { w: 6, c: i === n - 1 ? 'accent' : 'ink', fill: i === n - 1 ? 'accent' : 'page', fo: 1 }) + lbl(x, i % 2 ? 70 : -30, L[i], 30, i === n - 1 ? 'accent' : 'ink'); }
+      return s + (o.title ? lbl(0, -95, o.title, 34, 'accent') : '');
+    },
+    heart: function (o) {       // a heart (love, good, care); broken: true cracks it in two
+      var s = p('M0,95 C-170,-10 -110,-150 0,-70 C110,-150 170,-10 0,95 Z', { c: 'accent', w: 10, fill: 'accent', fo: 0.3 });
+      if (o.broken) s += p('M0,-70 L-20,-30 L15,0 L-15,35 L0,95', { w: 8 });
+      return s + (o.label ? lbl(0, 135, o.label, 34) : '');
+    },
+    bolt: function (o) {        // a lightning bolt (power, all-powerful, sudden)
+      return p('M30,-130 L-60,15 L5,15 L-30,130 L80,-30 L15,-30 L60,-130 Z', { w: 8, c: 'accent', fill: 'starFill', fo: 1 }) + (o.label ? lbl(0, 165, o.label, 34) : '');
+    },
+    eye_check: function (o) {   // a magnifying glass over a page (knowing, seeing everything, examining)
+      return p('M-120,-100 L60,-100 L60,110 L-120,110 Z', { w: 6, fill: 'page', fo: 1 }) + p('M-95,-60 L30,-60 M-95,-25 L30,-25 M-95,10 L10,10 M-95,45 L20,45', { w: 4, c: 'inkSoft' }) +
+        p(wobbleCircle(55, 20, 62, 2, 0.03), { w: 9, c: 'waterLine', fill: 'water', fo: 0.35 }) + p('M100,65 L160,130', { w: 16, c: 'trunk' }) + (o.label ? lbl(0, 160, o.label, 34, 'accent') : '');
+    },
     check: function (o) { var k = o.k || 1; return p('M' + (-110 * k) + ',' + (-5 * k) + ' L' + (-35 * k) + ',' + (75 * k) + ' L' + (130 * k) + ',' + (-110 * k), { c: 'accent', w: 22 }); },
     arrow: function (o) {
       var x = o.dx == null ? 200 : o.dx, y = o.dy || 0, bend = o.bend == null ? 40 : o.bend, mx = x / 2 - y * bend / 200, my = y / 2 + x * bend / 200;
@@ -443,6 +551,18 @@
     }
   };
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  // a handwritten label centred on (x, y); long labels wrap onto two lines (director catalog drawings)
+  function lbl(x, y, text, size, color) {
+    var t = String(text == null ? '' : text).toUpperCase(), lines = [t];
+    if (t.length > 14 && t.indexOf(' ') > 0) { var m = t.length / 2, cut = -1;
+      for (var i = 0; i < t.length; i++) if (t[i] === ' ' && (cut < 0 || Math.abs(i - m) < Math.abs(cut - m))) cut = i;
+      lines = [t.slice(0, cut), t.slice(cut + 1)]; }
+    var sz = size || 32, out = '';
+    lines.forEach(function (ln, k) {
+      out += '<text x="' + x + '" y="' + (y + (k - (lines.length - 1) / 2) * sz * 0.95).toFixed(0) + '" text-anchor="middle" dominant-baseline="central" font-family="Caveat" font-weight="700" font-size="' + sz +
+        '" fill="' + col(color || 'ink') + '">' + esc(ln) + '</text>'; });
+    return out;
+  }
 
   // ---------------------------------------------------------------- stickman rig
   // Local units: hip at (0,0), y down. Feet touch y = LEG*2 + 6.

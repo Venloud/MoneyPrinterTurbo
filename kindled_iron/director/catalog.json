@@ -1,0 +1,1300 @@
+{
+ "box_kinds": [
+  "clip",
+  "heart",
+  "media",
+  "off",
+  "split",
+  "verse"
+ ],
+ "events": {
+  "camera": {
+   "fields": [
+    "dur",
+    "ease",
+    "rotate",
+    "x",
+    "y",
+    "zoom"
+   ]
+  },
+  "camera_zoom_out_of": {
+   "fields": [
+    "dur",
+    "zoom"
+   ]
+  },
+  "cheer": {
+   "fields": [
+    "hold"
+   ]
+  },
+  "climb": {
+   "fields": [
+    "dur",
+    "dx",
+    "dy",
+    "endY"
+   ]
+  },
+  "counter": {
+   "fields": [
+    "day"
+   ]
+  },
+  "draw": {
+   "fields": []
+  },
+  "drift": {
+   "fields": [
+    "dur",
+    "to"
+   ]
+  },
+  "drop": {
+   "fields": [
+    "dur",
+    "height",
+    "id"
+   ]
+  },
+  "enter": {
+   "fields": [
+    "dur"
+   ]
+  },
+  "exit": {
+   "fields": [
+    "dur"
+   ]
+  },
+  "express": {
+   "fields": [
+    "expression"
+   ]
+  },
+  "face": {
+   "fields": [
+    "facing"
+   ]
+  },
+  "fade": {
+   "fields": [
+    "dur",
+    "id",
+    "ids",
+    "opacity"
+   ]
+  },
+  "fall": {
+   "fields": [
+    "dur",
+    "height",
+    "hold"
+   ]
+  },
+  "float": {
+   "fields": [
+    "hold",
+    "y"
+   ]
+  },
+  "freeze": {
+   "fields": [
+    "dur",
+    "focus",
+    "who",
+    "zoom"
+   ]
+  },
+  "ghost": {
+   "fields": [
+    "dur",
+    "value"
+   ]
+  },
+  "jump": {
+   "fields": [
+    "height"
+   ]
+  },
+  "kneel": {
+   "fields": [
+    "hold"
+   ]
+  },
+  "lean_on": {
+   "fields": [
+    "hold",
+    "side",
+    "toward"
+   ]
+  },
+  "lie_down": {
+   "fields": [
+    "hold"
+   ]
+  },
+  "light_burst": {
+   "fields": [
+    "dur",
+    "hold",
+    "x",
+    "y"
+   ]
+  },
+  "look": {
+   "fields": [
+    "dir",
+    "expression",
+    "hold"
+   ]
+  },
+  "look_viewer": {
+   "fields": []
+  },
+  "move": {
+   "fields": [
+    "dur",
+    "dx",
+    "dy",
+    "ease",
+    "g",
+    "id"
+   ]
+  },
+  "paper": {
+   "fields": [
+    "dark",
+    "dur"
+   ]
+  },
+  "parachute": {
+   "fields": [
+    "dur",
+    "from",
+    "y"
+   ]
+  },
+  "peek": {
+   "fields": [
+    "hold",
+    "side",
+    "toward"
+   ]
+  },
+  "pet": {
+   "fields": [
+    "hold"
+   ]
+  },
+  "place": {
+   "fields": [
+    "facing",
+    "hidden",
+    "x",
+    "y"
+   ]
+  },
+  "point": {
+   "fields": [
+    "expression",
+    "hold",
+    "who"
+   ]
+  },
+  "pop_up": {
+   "fields": []
+  },
+  "present": {
+   "fields": [
+    "hold"
+   ]
+  },
+  "pulse": {
+   "fields": [
+    "id"
+   ]
+  },
+  "reach": {
+   "fields": [
+    "expression",
+    "hold",
+    "who"
+   ]
+  },
+  "react": {
+   "fields": [
+    "expression",
+    "hold"
+   ]
+  },
+  "reaction": {
+   "fields": [
+    "dur",
+    "face"
+   ]
+  },
+  "ride": {
+   "fields": [
+    "dx",
+    "dy",
+    "hold",
+    "offX",
+    "on"
+   ]
+  },
+  "rise": {
+   "fields": [
+    "dur",
+    "id"
+   ]
+  },
+  "shake": {
+   "fields": []
+  },
+  "shield_eyes": {
+   "fields": [
+    "hold"
+   ]
+  },
+  "shrug": {
+   "fields": [
+    "hold"
+   ]
+  },
+  "sit": {
+   "fields": [
+    "against",
+    "facing",
+    "hold",
+    "who"
+   ]
+  },
+  "size": {
+   "fields": [
+    "dur",
+    "value"
+   ]
+  },
+  "splash": {
+   "fields": []
+  },
+  "stand": {
+   "fields": [
+    "dur"
+   ]
+  },
+  "swim": {
+   "fields": [
+    "dur",
+    "dx",
+    "hold",
+    "in",
+    "snorkel",
+    "y"
+   ]
+  },
+  "swing": {
+   "fields": [
+    "dur",
+    "id",
+    "n",
+    "smash"
+   ]
+  },
+  "touch": {
+   "fields": [
+    "expression",
+    "hold",
+    "who"
+   ]
+  },
+  "walk": {
+   "fields": [
+    "camX",
+    "camY",
+    "camZoom",
+    "camera",
+    "dur",
+    "face",
+    "fromX",
+    "to",
+    "turn"
+   ]
+  },
+  "wave": {
+   "fields": []
+  },
+  "wiggle": {
+   "fields": [
+    "id"
+   ]
+  },
+  "wipe": {
+   "fields": [
+    "dur"
+   ]
+  }
+ },
+ "expressions": [
+  "awe",
+  "confused_math",
+  "crying_laughing",
+  "curious",
+  "focused",
+  "happy",
+  "look_up",
+  "mind_blown",
+  "neutral",
+  "puzzled",
+  "sad",
+  "shocked",
+  "side_eye",
+  "speaking",
+  "surprised",
+  "thinking",
+  "wait_what"
+ ],
+ "guide": {
+  "half_width": 102,
+  "reach_side": 232,
+  "reach_up": 41,
+  "rest": [
+   439,
+   988,
+   642,
+   1487
+  ],
+  "shrug_half_width": 193,
+  "size": 0.85,
+  "top": 988,
+  "x": 540
+ },
+ "objects": {
+  "animal": {
+   "center": [
+    21,
+    5
+   ],
+   "director": true,
+   "doc": "a sheep: woolly body, head, four legs",
+   "params": [],
+   "size": [
+    237,
+    174
+   ]
+  },
+  "arrow": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "bend",
+    "color",
+    "dx",
+    "dy"
+   ]
+  },
+  "bag": {
+   "center": [
+    2,
+    -8
+   ],
+   "director": true,
+   "doc": "a grocery bag with a baguette and greens",
+   "params": [],
+   "size": [
+    134,
+    181
+   ]
+  },
+  "bars": {
+   "center": [
+    1,
+    -12
+   ],
+   "director": true,
+   "doc": "a bar graph: axes, 2-5 labeled bars (values 0-1), optional title on top",
+   "params": [
+    "labels",
+    "title",
+    "values"
+   ],
+   "size": [
+    358,
+    278
+   ]
+  },
+  "birds": {
+   "center": [
+    16,
+    -21
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "n"
+   ],
+   "size": [
+    250,
+    44
+   ]
+  },
+  "blob": {
+   "director": false,
+   "doc": "\"formless\": an unclosed wandering squiggle",
+   "params": [
+    "r"
+   ]
+  },
+  "blockfolk": {
+   "director": false,
+   "doc": "a generic blocky villager: box head, robe, folded arms",
+   "params": [
+    "k"
+   ]
+  },
+  "bolt": {
+   "center": [
+    12,
+    28
+   ],
+   "director": true,
+   "doc": "a lightning bolt (power, all-powerful, sudden)",
+   "params": [
+    "label"
+   ],
+   "size": [
+    144,
+    316
+   ]
+  },
+  "book": {
+   "center": [
+    2,
+    25
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "blank",
+    "ribbon"
+   ],
+   "size": [
+    384,
+    197
+   ]
+  },
+  "chair": {
+   "center": [
+    5,
+    -29
+   ],
+   "director": true,
+   "doc": "",
+   "params": [],
+   "size": [
+    102,
+    178
+   ]
+  },
+  "check": {
+   "center": [
+    10,
+    -18
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "k"
+   ],
+   "size": [
+    243,
+    189
+   ]
+  },
+  "circle": {
+   "director": false,
+   "doc": "",
+   "params": []
+  },
+  "clock": {
+   "center": [
+    3,
+    2
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "r"
+   ],
+   "size": [
+    182,
+    183
+   ]
+  },
+  "cloud": {
+   "center": [
+    1,
+    -16
+   ],
+   "director": true,
+   "doc": "",
+   "params": [],
+   "size": [
+    313,
+    118
+   ]
+  },
+  "clowncard": {
+   "center": [
+    4,
+    2
+   ],
+   "director": true,
+   "doc": "a playing card with a clown: devious grin, hat, red nose",
+   "params": [],
+   "size": [
+    237,
+    313
+   ]
+  },
+  "coinhand": {
+   "center": [
+    6,
+    -17
+   ],
+   "director": true,
+   "doc": "a palm holding one coin",
+   "params": [],
+   "size": [
+    192,
+    181
+   ]
+  },
+  "coins": {
+   "director": false,
+   "doc": "a few coins (they fall from the opening hand)",
+   "params": []
+  },
+  "controller": {
+   "center": [
+    2,
+    14
+   ],
+   "director": true,
+   "doc": "a generic game controller",
+   "params": [
+    "k"
+   ],
+   "size": [
+    331,
+    168
+   ]
+  },
+  "cracks": {
+   "director": false,
+   "doc": "broken window glass on the house (no people)",
+   "params": [
+    "k"
+   ]
+  },
+  "cross": {
+   "director": false,
+   "doc": "",
+   "params": []
+  },
+  "crossout": {
+   "center": [
+    2,
+    2
+   ],
+   "director": true,
+   "doc": "a phrase written in a box and crossed out in orange (\"not this\")",
+   "params": [
+    "text"
+   ],
+   "size": [
+    328,
+    123
+   ]
+  },
+  "cursor": {
+   "director": false,
+   "doc": "a mouse pointer (\"the player\")",
+   "params": [
+    "k"
+   ]
+  },
+  "darkness": {
+   "director": false,
+   "doc": "dense charcoal hatching inside an ellipse",
+   "params": [
+    "h",
+    "rows",
+    "w"
+   ]
+  },
+  "dot": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "color",
+    "r"
+   ]
+  },
+  "eye_check": {
+   "center": [
+    20,
+    41
+   ],
+   "director": true,
+   "doc": "a magnifying glass over a page (knowing, seeing everything, examining)",
+   "params": [
+    "label"
+   ],
+   "size": [
+    280,
+    282
+   ]
+  },
+  "figure": {
+   "center": [
+    -3,
+    -24
+   ],
+   "director": true,
+   "doc": "tiny static person icon",
+   "params": [
+    "color"
+   ],
+   "size": [
+    54,
+    130
+   ]
+  },
+  "fish": {
+   "center": [
+    4,
+    -2
+   ],
+   "director": true,
+   "doc": "",
+   "params": [],
+   "size": [
+    165,
+    63
+   ]
+  },
+  "fist": {
+   "center": [
+    7,
+    4
+   ],
+   "director": true,
+   "doc": "a closed hand gripping tight",
+   "params": [],
+   "size": [
+    154,
+    158
+   ]
+  },
+  "flow": {
+   "center": [
+    2,
+    -28
+   ],
+   "director": true,
+   "doc": "2-4 labeled boxes joined by arrows: cause -> effect, step -> step",
+   "params": [
+    "labels",
+    "title"
+   ],
+   "size": [
+    374,
+    172
+   ]
+  },
+  "frame": {
+   "director": false,
+   "doc": "an empty page / canvas",
+   "params": [
+    "h",
+    "w"
+   ]
+  },
+  "germ": {
+   "center": [
+    2,
+    25
+   ],
+   "director": true,
+   "doc": "a germ / virus (disease, sickness): spiky round cell",
+   "params": [
+    "label"
+   ],
+   "size": [
+    258,
+    293
+   ]
+  },
+  "globe": {
+   "center": [
+    1,
+    1
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "r"
+   ],
+   "size": [
+    196,
+    198
+   ]
+  },
+  "ground": {
+   "center": [
+    0,
+    23
+   ],
+   "director": true,
+   "doc": "cracked ground (earthquake, broken world): a split landscape with falling rocks",
+   "params": [
+    "label"
+   ],
+   "size": [
+    400,
+    276
+   ]
+  },
+  "hammer": {
+   "director": false,
+   "doc": "pivot at the bottom of the handle (0,0): rotate to swing",
+   "params": []
+  },
+  "heart": {
+   "center": [
+    2,
+    31
+   ],
+   "director": true,
+   "doc": "a heart (love, good, care); broken: true cracks it in two",
+   "params": [
+    "broken",
+    "label"
+   ],
+   "size": [
+    216,
+    250
+   ]
+  },
+  "heartdollar": {
+   "center": [
+    2,
+    2
+   ],
+   "director": true,
+   "doc": "a heart with a $ in it",
+   "params": [],
+   "size": [
+    216,
+    192
+   ]
+  },
+  "hill": {
+   "center": [
+    2,
+    -75
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "fill",
+    "grass",
+    "h",
+    "w"
+   ],
+   "size": [
+    424,
+    157
+   ]
+  },
+  "house": {
+   "center": [
+    0,
+    -1
+   ],
+   "director": true,
+   "doc": "a little house, two windows, a door",
+   "params": [
+    "k"
+   ],
+   "size": [
+    180,
+    178
+   ]
+  },
+  "inset": {
+   "director": false,
+   "doc": "a real clip in a hand-drawn, tilted frame (frames swapped per video frame)",
+   "params": [
+    "frames",
+    "h",
+    "w"
+   ]
+  },
+  "light": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "r"
+   ]
+  },
+  "line": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "color",
+    "w",
+    "weight"
+   ]
+  },
+  "lockdollar": {
+   "center": [
+    0,
+    -10
+   ],
+   "director": true,
+   "doc": "a $ wrapped in a chain, locked",
+   "params": [],
+   "size": [
+    293,
+    239
+   ]
+  },
+  "mediabox": {
+   "director": false,
+   "doc": "ONE framed box for the whole video: real clips, or a verse typed on in it",
+   "params": [
+    "h",
+    "max_lines",
+    "pad_x",
+    "verse_size",
+    "w"
+   ]
+  },
+  "moon": {
+   "center": [
+    -25,
+    0
+   ],
+   "director": true,
+   "doc": "",
+   "params": [],
+   "size": [
+    106,
+    140
+   ]
+  },
+  "openbook": {
+   "center": [
+    2,
+    31
+   ],
+   "director": true,
+   "doc": "an open book (the Bible, a law, a story) with a short line written on each page",
+   "params": [
+    "label",
+    "left",
+    "right"
+   ],
+   "size": [
+    384,
+    210
+   ]
+  },
+  "openhand": {
+   "center": [
+    6,
+    -17
+   ],
+   "director": true,
+   "doc": "an open hand, palm up, fingers relaxed",
+   "params": [],
+   "size": [
+    192,
+    181
+   ]
+  },
+  "people": {
+   "center": [
+    -11,
+    8
+   ],
+   "director": true,
+   "doc": "a group: an adult and a child side by side (family, innocent people)",
+   "params": [
+    "label"
+   ],
+   "size": [
+    268,
+    326
+   ]
+  },
+  "person": {
+   "center": [
+    0,
+    3
+   ],
+   "director": true,
+   "doc": "a simple standing person; kid: true draws a small child; label under it",
+   "params": [
+    "kid",
+    "label"
+   ],
+   "size": [
+    140,
+    316
+   ]
+  },
+  "plane": {
+   "center": [
+    6,
+    -4
+   ],
+   "director": true,
+   "doc": "a small plane flying home",
+   "params": [],
+   "size": [
+    196,
+    133
+   ]
+  },
+  "plant": {
+   "center": [
+    3,
+    -5
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "flower"
+   ],
+   "size": [
+    82,
+    94
+   ]
+  },
+  "popup": {
+   "director": false,
+   "doc": "a game-style notification: rounded box with a short label",
+   "params": [
+    "h",
+    "size",
+    "text",
+    "w"
+   ]
+  },
+  "puppet": {
+   "center": [
+    0,
+    21
+   ],
+   "director": true,
+   "doc": "strings from a hand-held cross bar moving a figure (control, no choice)",
+   "params": [
+    "label"
+   ],
+   "size": [
+    220,
+    382
+   ]
+  },
+  "question": {
+   "center": [
+    5,
+    24
+   ],
+   "director": true,
+   "doc": "a big question mark (why? an open question)",
+   "params": [
+    "label"
+   ],
+   "size": [
+    130,
+    314
+   ]
+  },
+  "rays": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "color",
+    "n",
+    "r",
+    "rx"
+   ]
+  },
+  "scales": {
+   "center": [
+    2,
+    20
+   ],
+   "director": true,
+   "doc": "a balance scale: two labeled pans; tilt -1 (left heavier) .. 1 (right heavier)",
+   "params": [
+    "labels",
+    "tilt"
+   ],
+   "size": [
+    414,
+    180
+   ]
+  },
+  "scribble": {
+   "director": false,
+   "doc": "an orange scratch-out over text",
+   "params": [
+    "h",
+    "w"
+   ]
+  },
+  "scripture": {
+   "director": false,
+   "doc": "the channel's signature: quote in handwriting, reference in burnt orange",
+   "params": [
+    "lines",
+    "ref",
+    "size",
+    "text",
+    "w"
+   ]
+  },
+  "shards": {
+   "director": false,
+   "doc": "glass bits flying out (pops in and fades)",
+   "params": [
+    "n"
+   ]
+  },
+  "signpost": {
+   "center": [
+    2,
+    0
+   ],
+   "director": true,
+   "doc": "a signpost with two arrows (a choice between two ways)",
+   "params": [
+    "labels"
+   ],
+   "size": [
+    374,
+    260
+   ]
+  },
+  "sparkle": {
+   "director": false,
+   "doc": "a burst of little stars that pops in and fades",
+   "params": [
+    "n",
+    "r"
+   ]
+  },
+  "splash": {
+   "director": false,
+   "doc": "drops flying up and out (water) or clods (dirt); pops in and fades",
+   "params": [
+    "dirt",
+    "n",
+    "r"
+   ]
+  },
+  "star": {
+   "center": [
+    2,
+    2
+   ],
+   "director": true,
+   "doc": "",
+   "params": [
+    "color",
+    "r"
+   ],
+   "size": [
+    48,
+    47
+   ]
+  },
+  "stars": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "h",
+    "n",
+    "w"
+   ]
+  },
+  "strike": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "sw"
+   ]
+  },
+  "sun": {
+   "center": [
+    0,
+    0
+   ],
+   "director": true,
+   "doc": "",
+   "params": [],
+   "size": [
+    286,
+    286
+   ]
+  },
+  "timeline": {
+   "center": [
+    3,
+    -14
+   ],
+   "director": true,
+   "doc": "a time line with labeled moments (past -> now -> future); the last one is highlighted",
+   "params": [
+    "labels",
+    "title"
+   ],
+   "size": [
+    410,
+    206
+   ]
+  },
+  "tree": {
+   "center": [
+    11,
+    -2
+   ],
+   "director": true,
+   "doc": "",
+   "params": [],
+   "size": [
+    195,
+    278
+   ]
+  },
+  "triangle": {
+   "center": [
+    9,
+    0
+   ],
+   "director": true,
+   "doc": "a triangle diagram: a label at each corner (top, bottom-left, bottom-right) and one in the middle",
+   "params": [
+    "center",
+    "labels"
+   ],
+   "size": [
+    381,
+    299
+   ]
+  },
+  "venn": {
+   "center": [
+    2,
+    2
+   ],
+   "director": true,
+   "doc": "two overlapping circles: left label, right label, and what they share in the middle",
+   "params": [
+    "center",
+    "labels"
+   ],
+   "size": [
+    361,
+    223
+   ]
+  },
+  "voice": {
+   "director": false,
+   "doc": "sound arcs for \"God speaks\" (no figure is drawn for God)",
+   "params": []
+  },
+  "voxel": {
+   "director": false,
+   "doc": "a generic blocky world (our own drawing: no game textures, logo or UI)",
+   "params": [
+    "block",
+    "cols",
+    "heights"
+   ]
+  },
+  "waves": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "color",
+    "rows",
+    "w"
+   ]
+  },
+  "word": {
+   "director": false,
+   "doc": "",
+   "params": [
+    "color",
+    "letterSpacing",
+    "size",
+    "text",
+    "underline"
+   ]
+  }
+ },
+ "runtime_sha256": "933764b0d35c3cf23428747856af56c020df01796ebef91401529d5eeb784bf8",
+ "zones": {
+  "box": {
+   "h": 340,
+   "use": "clip box: footage, memes, verse cards",
+   "w": 820,
+   "x": 540,
+   "y": 350
+  },
+  "caption": {
+   "h": 110,
+   "size": 88,
+   "use": "one caption line, 1-3 words, spoken word orange",
+   "w": 720,
+   "x": 180,
+   "y": 546
+  },
+  "draw": {
+   "use": "drawing area: illustrations and diagrams",
+   "x0": 125,
+   "x1": 775,
+   "y0": 662,
+   "y1": 934
+  },
+  "guide": {
+   "ground": 1490,
+   "size": 0.85,
+   "spots": [
+    230,
+    340,
+    560,
+    650
+   ],
+   "use": "guide lane: the guide walks between spots"
+  },
+  "lane": {
+   "use": "the second drawing of a line: in the guide lane, on the side away from the guide",
+   "y0": 1005,
+   "y1": 1430
+  },
+  "pop": {
+   "use": "meme pop-up card in the guide lane beside the guide (guide at an outer spot)",
+   "w": 380,
+   "y": 1215
+  }
+ }
+}

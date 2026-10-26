@@ -214,11 +214,16 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 if i in pop_t and dest not in outer:
                     dest = min(outer, key=lambda s: abs(s - cur))
             dur = max(1.0, abs(dest - cur) / WALK_SPEED) + 0.25      # the renderer's walks last at least 1 s
-            t_end = t0 + 0.1 + dur
+            ws = t0 + 0.1
+            for j in sorted(pop_t):                   # never walk while any meme card is up (also the last line's)
+                c0, c1 = pop_t[j] - 0.3, pop_t[j] + POP_CARD["dur"] + 0.3
+                if ws < c1 and ws + dur > c0 and j != i:
+                    ws = c1 + 0.05
+            t_end = ws + dur
             blocked = (i in verse_t and t_end > verse_t[i][0]) or (i in pop_t and t_end > pop_t[i] - 0.2) or \
                 (freeze_t and freeze_t[0] == i and t0 <= freeze_t[1] + FREEZE["dur"] + FREEZE["after"] and t_end >= freeze_t[1] - 0.2)
             if dest != cur and not blocked:
-                walks[i] = (cur, dest, t0 + 0.1, t_end)
+                walks[i] = (cur, dest, ws, t_end)
                 cur = dest
                 k += 1
                 nxt = i + WALK_EVERY[k % 2]
@@ -245,7 +250,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             ev += [{"at": 0, "do": "place", "who": "guide", "x": spot, "facing": -1 if spot > 540 else 1},
                    {"at": 0, "do": "size", "who": "guide", "value": Z["guide"]["size"], "dur": 0}]
         if i in walks:
-            ev.append({"at": _anchor(W, first, 0.1)[0], "do": "walk", "who": "guide", "to": walks[i][1]})
+            ev.append({"at": _at_time(W, walks[i][2]), "do": "walk", "who": "guide", "to": walks[i][1]})
         if i == n_lines - 1:
             ev.append({"at": _anchor(W, first, 0.05)[0], "do": "look_viewer", "who": "guide"})
         ev.append({"at": _anchor(W, first, 0.08)[0], "do": "express", "who": "guide", "expression": L["expression"]})
@@ -314,7 +319,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 t = pop_t[i] + POP_CARD["dur"] + 0.25
                 a = _at_time(W, t)
             k0 = 1 if zone == "lane" else j              # a lane drawing waits until the guide stands on his spot
-            if i == 0 and t - t_start > 0.1 * k0:       # the first frame is already full (the hook)
+            if i == 0 and t - t_start > 0.1 * k0 and not (zone == "lane" and i in pop_t):   # first frame full (the hook)
                 t = round(0.1 * k0, 3)
                 a = t
             if fz and zone == "lane" and t > fz[1] + FREEZE["dur"] + FREEZE["after"] + 1.5:

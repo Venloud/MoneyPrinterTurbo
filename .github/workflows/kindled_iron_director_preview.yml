@@ -71,6 +71,12 @@ jobs:
           python -m spacy download en_core_web_sm
           python -m playwright install chromium
 
+      - name: Validate director before requesting Gemini
+        run: |
+          set -euo pipefail
+          python -m compileall -q kindled_iron/director
+          python -m unittest discover -s test/kindled_iron -p 'test_director.py' -v
+
       - name: Direct visuals using owner script and audio
         shell: bash
         env:

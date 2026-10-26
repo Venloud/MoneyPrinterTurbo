@@ -7,6 +7,7 @@
   "split",
   "verse"
  ],
+ "doodles_sha256": "f67abcfac0a5d99256949bf65c7265e14e2268164b7e3d978bd4454fe684625b",
  "events": {
   "camera": {
    "fields": [
@@ -358,20 +359,92 @@
  ],
  "guide": {
   "half_width": 102,
-  "reach_side": 232,
+  "reach_side": 234,
   "reach_up": 41,
   "rest": [
    439,
-   988,
+   1068,
    642,
-   1487
+   1567
   ],
   "shrug_half_width": 193,
   "size": 0.85,
-  "top": 988,
+  "top": 1068,
   "x": 540
  },
  "objects": {
+  "airplane": {
+   "center": [
+    2,
+    72
+   ],
+   "director": true,
+   "doc": "a plane flying",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    345,
+    324
+   ],
+   "tags": [
+    "plane",
+    "fly",
+    "travel",
+    "trip",
+    "far away",
+    "vacation"
+   ]
+  },
+  "anchor": {
+   "center": [
+    0,
+    33
+   ],
+   "director": true,
+   "doc": "a ship's anchor",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    320,
+    402
+   ],
+   "tags": [
+    "anchor",
+    "hope",
+    "steady",
+    "secure",
+    "stable",
+    "hold on"
+   ]
+  },
+  "angry_face": {
+   "center": [
+    -4,
+    10
+   ],
+   "director": true,
+   "doc": "an angry red face with steam",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    291,
+    449
+   ],
+   "tags": [
+    "angry",
+    "anger",
+    "mad",
+    "rage",
+    "frustrated",
+    "wrath"
+   ]
+  },
   "animal": {
    "center": [
     21,
@@ -385,6 +458,31 @@
     174
    ]
   },
+  "animal_lamb": {
+   "center": [
+    21,
+    58
+   ],
+   "director": true,
+   "doc": "a little woolly lamb",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    286,
+    351
+   ],
+   "tags": [
+    "lamb",
+    "sheep",
+    "innocent",
+    "sacrifice",
+    "flock",
+    "gentle",
+    "jesus lamb of god"
+   ]
+  },
   "arrow": {
    "director": false,
    "doc": "",
@@ -393,6 +491,83 @@
     "color",
     "dx",
     "dy"
+   ]
+  },
+  "arrow_down": {
+   "center": [
+    2,
+    30
+   ],
+   "director": true,
+   "doc": "a bold arrow pointing down",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    264,
+    409
+   ],
+   "tags": [
+    "down",
+    "fall",
+    "decrease",
+    "less",
+    "worse",
+    "decline",
+    "drop",
+    "lose"
+   ]
+  },
+  "arrow_up": {
+   "center": [
+    2,
+    32
+   ],
+   "director": true,
+   "doc": "a bold arrow pointing up",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    264,
+    404
+   ],
+   "tags": [
+    "up",
+    "rise",
+    "increase",
+    "grow",
+    "more",
+    "better",
+    "improve",
+    "go up"
+   ]
+  },
+  "baby": {
+   "center": [
+    2,
+    57
+   ],
+   "director": true,
+   "doc": "a baby wrapped in a blanket",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    182,
+    354
+   ],
+   "tags": [
+    "baby",
+    "newborn",
+    "birth",
+    "new life",
+    "infant",
+    "beginning",
+    "jesus born"
    ]
   },
   "bag": {
@@ -406,6 +581,60 @@
    "size": [
     134,
     181
+   ]
+  },
+  "ballot": {
+   "center": [
+    2,
+    42
+   ],
+   "director": true,
+   "doc": "a ballot going into a box",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    284,
+    384
+   ],
+   "tags": [
+    "vote",
+    "choose",
+    "decision",
+    "election",
+    "democracy",
+    "voice"
+   ]
+  },
+  "bar_chart": {
+   "center": [
+    0,
+    -18
+   ],
+   "director": true,
+   "doc": "a bar chart on axes with three bars",
+   "doodle": true,
+   "params": [
+    "a",
+    "b",
+    "c",
+    "label"
+   ],
+   "size": [
+    340,
+    406
+   ],
+   "tags": [
+    "graph",
+    "chart",
+    "statistics",
+    "data",
+    "numbers",
+    "bar chart",
+    "growth",
+    "compare",
+    "results"
    ]
   },
   "bars": {
@@ -423,6 +652,109 @@
    "size": [
     358,
     292
+   ]
+  },
+  "battery": {
+   "center": [
+    2,
+    80
+   ],
+   "director": true,
+   "doc": "a battery running low",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    304,
+    309
+   ],
+   "tags": [
+    "energy",
+    "battery",
+    "tired",
+    "empty",
+    "recharge",
+    "power",
+    "strength",
+    "rest"
+   ]
+  },
+  "bed_sick": {
+   "center": [
+    2,
+    77
+   ],
+   "director": true,
+   "doc": "a person lying sick in bed",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    314
+   ],
+   "tags": [
+    "sick",
+    "illness",
+    "bed",
+    "patient",
+    "disease",
+    "weak",
+    "rest",
+    "recover"
+   ]
+  },
+  "bell": {
+   "center": [
+    0,
+    47
+   ],
+   "director": true,
+   "doc": "a ringing bell",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    320,
+    374
+   ],
+   "tags": [
+    "bell",
+    "call",
+    "alarm",
+    "wake up",
+    "announce",
+    "church bell"
+   ]
+  },
+  "bible": {
+   "center": [
+    8,
+    42
+   ],
+   "director": true,
+   "doc": "a closed Bible with a cross on the cover",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    245,
+    384
+   ],
+   "tags": [
+    "bible",
+    "scripture",
+    "word of god",
+    "book",
+    "verse",
+    "gospel",
+    "god's word",
+    "holy book"
    ]
   },
   "birds": {
@@ -452,6 +784,31 @@
    "doc": "a generic blocky villager: box head, robe, folded arms",
    "params": [
     "k"
+   ]
+  },
+  "boat": {
+   "center": [
+    0,
+    32
+   ],
+   "director": true,
+   "doc": "a sailboat on waves",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    360,
+    404
+   ],
+   "tags": [
+    "boat",
+    "ship",
+    "storm at sea",
+    "ark",
+    "journey",
+    "fishermen",
+    "sail"
    ]
   },
   "bolt": {
@@ -485,6 +842,265 @@
     197
    ]
   },
+  "book_open": {
+   "center": [
+    2,
+    42
+   ],
+   "director": true,
+   "doc": "an open book with lines of text",
+   "doodle": true,
+   "params": [
+    "label",
+    "left",
+    "right"
+   ],
+   "size": [
+    344,
+    318
+   ],
+   "tags": [
+    "book",
+    "read",
+    "learn",
+    "study",
+    "story",
+    "knowledge",
+    "law",
+    "history"
+   ]
+  },
+  "brain": {
+   "center": [
+    4,
+    43
+   ],
+   "director": true,
+   "doc": "a brain",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    328,
+    381
+   ],
+   "tags": [
+    "brain",
+    "mind",
+    "think",
+    "intelligence",
+    "knowledge",
+    "smart",
+    "logic",
+    "reason",
+    "memory"
+   ]
+  },
+  "bread": {
+   "center": [
+    2,
+    94
+   ],
+   "director": true,
+   "doc": "a loaf of bread with slashes on top",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    279
+   ],
+   "tags": [
+    "bread",
+    "food",
+    "daily bread",
+    "provision",
+    "hunger",
+    "meal",
+    "loaf"
+   ]
+  },
+  "bridge": {
+   "center": [
+    0,
+    83
+   ],
+   "director": true,
+   "doc": "an arched bridge over water",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    360,
+    302
+   ],
+   "tags": [
+    "bridge",
+    "connection",
+    "gap",
+    "cross over",
+    "reconcile",
+    "link",
+    "path"
+   ]
+  },
+  "broken_chain": {
+   "center": [
+    0,
+    82
+   ],
+   "director": true,
+   "doc": "a chain snapped in the middle with a spark",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    380,
+    304
+   ],
+   "tags": [
+    "broken chain",
+    "freedom",
+    "free",
+    "set free",
+    "breaking free",
+    "deliverance",
+    "redeemed"
+   ]
+  },
+  "broken_heart": {
+   "center": [
+    7,
+    61
+   ],
+   "director": true,
+   "doc": "a heart broken in two",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    314,
+    347
+   ],
+   "tags": [
+    "broken heart",
+    "hurt",
+    "grief",
+    "pain",
+    "loss",
+    "heartbreak",
+    "sorrow",
+    "betrayal"
+   ]
+  },
+  "calendar": {
+   "center": [
+    2,
+    34
+   ],
+   "director": true,
+   "doc": "a calendar page with one day circled",
+   "doodle": true,
+   "params": [
+    "label",
+    "top"
+   ],
+   "size": [
+    304,
+    369
+   ],
+   "tags": [
+    "calendar",
+    "day",
+    "date",
+    "week",
+    "schedule",
+    "plan",
+    "sabbath",
+    "rest day"
+   ]
+  },
+  "candle": {
+   "center": [
+    0,
+    37
+   ],
+   "director": true,
+   "doc": "a lit candle",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    160,
+    394
+   ],
+   "tags": [
+    "candle",
+    "light",
+    "hope",
+    "darkness",
+    "remember",
+    "prayer",
+    "shine"
+   ]
+  },
+  "car": {
+   "center": [
+    2,
+    74
+   ],
+   "director": true,
+   "doc": "a little car side view",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    319
+   ],
+   "tags": [
+    "car",
+    "drive",
+    "travel",
+    "commute",
+    "road trip",
+    "vehicle",
+    "accident"
+   ]
+  },
+  "chain": {
+   "center": [
+    0,
+    101
+   ],
+   "director": true,
+   "doc": "a heavy chain of links",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    350,
+    266
+   ],
+   "tags": [
+    "chain",
+    "chains",
+    "slavery",
+    "bondage",
+    "addiction",
+    "trapped",
+    "sin",
+    "bound"
+   ]
+  },
   "chair": {
    "center": [
     5,
@@ -496,6 +1112,30 @@
    "size": [
     102,
     178
+   ]
+  },
+  "chair_big": {
+   "center": [
+    2,
+    32
+   ],
+   "director": true,
+   "doc": "a wooden chair",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    204,
+    404
+   ],
+   "tags": [
+    "chair",
+    "sit",
+    "rest",
+    "waiting",
+    "empty chair",
+    "alone"
    ]
   },
   "check": {
@@ -511,6 +1151,83 @@
    "size": [
     243,
     189
+   ]
+  },
+  "check_big": {
+   "center": [
+    2,
+    47
+   ],
+   "director": true,
+   "doc": "a big green check mark in a box",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    284,
+    374
+   ],
+   "tags": [
+    "yes",
+    "correct",
+    "true",
+    "right",
+    "done",
+    "approved",
+    "good",
+    "agree"
+   ]
+  },
+  "child": {
+   "center": [
+    8,
+    46
+   ],
+   "director": true,
+   "doc": "a small child waving",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    205,
+    386
+   ],
+   "tags": [
+    "child",
+    "kid",
+    "children",
+    "innocent",
+    "boy",
+    "girl",
+    "young",
+    "son",
+    "daughter"
+   ]
+  },
+  "church": {
+   "center": [
+    0,
+    24
+   ],
+   "director": true,
+   "doc": "a small church with a steeple and a cross",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    220,
+    419
+   ],
+   "tags": [
+    "church",
+    "worship",
+    "congregation",
+    "faith",
+    "sunday",
+    "believers"
    ]
   },
   "circle": {
@@ -531,6 +1248,32 @@
    "size": [
     182,
     183
+   ]
+  },
+  "clock_wall": {
+   "center": [
+    1,
+    47
+   ],
+   "director": true,
+   "doc": "a round wall clock",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    280,
+    375
+   ],
+   "tags": [
+    "clock",
+    "time",
+    "hour",
+    "late",
+    "waiting",
+    "deadline",
+    "minutes",
+    "how long"
    ]
   },
   "cloud": {
@@ -559,6 +1302,30 @@
     313
    ]
   },
+  "coin_pile": {
+   "center": [
+    -3,
+    74
+   ],
+   "director": true,
+   "doc": "a pile of gold coins",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    274,
+    320
+   ],
+   "tags": [
+    "coins",
+    "money",
+    "change",
+    "savings",
+    "pennies",
+    "small amount"
+   ]
+  },
   "coinhand": {
    "center": [
     6,
@@ -576,6 +1343,32 @@
    "director": false,
    "doc": "a few coins (they fall from the opening hand)",
    "params": []
+  },
+  "compass": {
+   "center": [
+    0,
+    12
+   ],
+   "director": true,
+   "doc": "a compass",
+   "doodle": true,
+   "params": [
+    "label",
+    "top"
+   ],
+   "size": [
+    281,
+    406
+   ],
+   "tags": [
+    "compass",
+    "direction",
+    "guidance",
+    "lost",
+    "find the way",
+    "north",
+    "purpose"
+   ]
   },
   "controller": {
    "center": [
@@ -599,6 +1392,32 @@
     "k"
    ]
   },
+  "credit_card": {
+   "center": [
+    2,
+    44
+   ],
+   "director": true,
+   "doc": "a credit card with a chip",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    344,
+    299
+   ],
+   "tags": [
+    "credit card",
+    "debt",
+    "card",
+    "buy",
+    "spend",
+    "payment",
+    "loan"
+   ]
+  },
   "cross": {
    "director": false,
    "doc": "",
@@ -619,11 +1438,115 @@
     123
    ]
   },
+  "crowd": {
+   "center": [
+    2,
+    67
+   ],
+   "director": true,
+   "doc": "a crowd of people",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    334
+   ],
+   "tags": [
+    "crowd",
+    "people",
+    "everyone",
+    "many",
+    "society",
+    "nations",
+    "humanity",
+    "world"
+   ]
+  },
+  "crown": {
+   "center": [
+    2,
+    52
+   ],
+   "director": true,
+   "doc": "a royal crown with jewels",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    364
+   ],
+   "tags": [
+    "crown",
+    "king",
+    "kingdom",
+    "royal",
+    "power",
+    "rule",
+    "authority",
+    "reign",
+    "glory"
+   ]
+  },
+  "cup": {
+   "center": [
+    26,
+    32
+   ],
+   "director": true,
+   "doc": "a steaming mug",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    251,
+    404
+   ],
+   "tags": [
+    "cup",
+    "drink",
+    "coffee",
+    "tea",
+    "morning",
+    "communion"
+   ]
+  },
   "cursor": {
    "director": false,
    "doc": "a mouse pointer (\"the player\")",
    "params": [
     "k"
+   ]
+  },
+  "cycle": {
+   "center": [
+    0,
+    57
+   ],
+   "director": true,
+   "doc": "two arrows chasing each other in a circle",
+   "doodle": true,
+   "params": [
+    "label",
+    "center"
+   ],
+   "size": [
+    280,
+    354
+   ],
+   "tags": [
+    "cycle",
+    "repeat",
+    "again",
+    "loop",
+    "pattern",
+    "habit",
+    "forever",
+    "endless"
    ]
   },
   "darkness": {
@@ -635,12 +1558,267 @@
     "w"
    ]
   },
+  "desert": {
+   "center": [
+    2,
+    52
+   ],
+   "director": true,
+   "doc": "a desert with dunes, a cactus and the sun",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    364
+   ],
+   "tags": [
+    "desert",
+    "wilderness",
+    "dry",
+    "lonely",
+    "wandering",
+    "drought",
+    "trial"
+   ]
+  },
+  "diamond": {
+   "center": [
+    2,
+    62
+   ],
+   "director": true,
+   "doc": "a cut diamond",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    244,
+    344
+   ],
+   "tags": [
+    "diamond",
+    "jewel",
+    "valuable",
+    "precious",
+    "treasure",
+    "worth"
+   ]
+  },
+  "doctor": {
+   "center": [
+    2,
+    38
+   ],
+   "director": true,
+   "doc": "a doctor with a stethoscope",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    194,
+    392
+   ],
+   "tags": [
+    "doctor",
+    "hospital",
+    "medicine",
+    "healing",
+    "nurse",
+    "sick",
+    "health"
+   ]
+  },
+  "doodle": {
+   "director": false,
+   "doc": "a library illustration (kindled_iron/doodles): o.parts [[d, style]], o.slots {name: [x, y, size, color]}, o.labels {name: text}",
+   "params": [
+    "labels",
+    "parts",
+    "slots"
+   ]
+  },
+  "door": {
+   "center": [
+    32,
+    50
+   ],
+   "director": true,
+   "doc": "a door, slightly open, light coming out",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    255,
+    429
+   ],
+   "tags": [
+    "door",
+    "opportunity",
+    "open door",
+    "way in",
+    "choice",
+    "enter",
+    "closed"
+   ]
+  },
   "dot": {
    "director": false,
    "doc": "",
    "params": [
     "color",
     "r"
+   ]
+  },
+  "dove": {
+   "center": [
+    32,
+    42
+   ],
+   "director": true,
+   "doc": "a white dove flying with an olive branch",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    365,
+    384
+   ],
+   "tags": [
+    "dove",
+    "peace",
+    "holy spirit",
+    "hope",
+    "spirit",
+    "gentle"
+   ]
+  },
+  "earthquake": {
+   "center": [
+    2,
+    54
+   ],
+   "director": true,
+   "doc": "cracked ground split open with falling rocks",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    359
+   ],
+   "tags": [
+    "earthquake",
+    "crack",
+    "disaster",
+    "natural disaster",
+    "shaking",
+    "broken ground",
+    "suffering",
+    "destruction"
+   ]
+  },
+  "elder": {
+   "center": [
+    22,
+    40
+   ],
+   "director": true,
+   "doc": "an old person with a cane",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    194,
+    389
+   ],
+   "tags": [
+    "old",
+    "elderly",
+    "grandparent",
+    "age",
+    "wisdom",
+    "years",
+    "ancestor"
+   ]
+  },
+  "empty_tomb": {
+   "center": [
+    8,
+    42
+   ],
+   "director": true,
+   "doc": "a cave tomb with the stone rolled away and light inside",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    356,
+    384
+   ],
+   "tags": [
+    "empty tomb",
+    "resurrection",
+    "risen",
+    "easter",
+    "victory over death",
+    "alive"
+   ]
+  },
+  "envelope": {
+   "center": [
+    2,
+    67
+   ],
+   "director": true,
+   "doc": "a sealed envelope",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    324,
+    334
+   ],
+   "tags": [
+    "letter",
+    "message",
+    "mail",
+    "invitation",
+    "news",
+    "send"
+   ]
+  },
+  "exclamation": {
+   "center": [
+    2,
+    32
+   ],
+   "director": true,
+   "doc": "a warning triangle with an exclamation mark",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    404
+   ],
+   "tags": [
+    "important",
+    "warning",
+    "alert",
+    "danger",
+    "attention",
+    "surprise"
    ]
   },
   "eye_check": {
@@ -658,6 +1836,32 @@
     289
    ]
   },
+  "family": {
+   "center": [
+    4,
+    42
+   ],
+   "director": true,
+   "doc": "a family: two parents and a child holding hands",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    329,
+    384
+   ],
+   "tags": [
+    "family",
+    "parents",
+    "children",
+    "home",
+    "marriage",
+    "together",
+    "household",
+    "love"
+   ]
+  },
   "figure": {
    "center": [
     -3,
@@ -673,6 +1877,33 @@
     130
    ]
   },
+  "fire": {
+   "center": [
+    0,
+    32
+   ],
+   "director": true,
+   "doc": "a campfire flame on logs",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    300,
+    404
+   ],
+   "tags": [
+    "fire",
+    "flame",
+    "burn",
+    "passion",
+    "destruction",
+    "trial",
+    "anger",
+    "hell",
+    "heat"
+   ]
+  },
   "fish": {
    "center": [
     4,
@@ -684,6 +1915,30 @@
    "size": [
     165,
     63
+   ]
+  },
+  "fishing": {
+   "center": [
+    12,
+    37
+   ],
+   "director": true,
+   "doc": "a fish on a hook",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    324,
+    394
+   ],
+   "tags": [
+    "fish",
+    "fishermen",
+    "catch",
+    "follow me",
+    "net",
+    "provision"
    ]
   },
   "fist": {
@@ -715,12 +1970,141 @@
     186
    ]
   },
+  "flow_arrows": {
+   "center": [
+    2,
+    43
+   ],
+   "director": true,
+   "doc": "three boxes joined by arrows",
+   "doodle": true,
+   "params": [
+    "a",
+    "b",
+    "c",
+    "label"
+   ],
+   "size": [
+    354,
+    186
+   ],
+   "tags": [
+    "steps",
+    "process",
+    "then",
+    "cause and effect",
+    "sequence",
+    "leads to",
+    "because"
+   ]
+  },
+  "flower": {
+   "center": [
+    0,
+    42
+   ],
+   "director": true,
+   "doc": "a flower with petals and leaves",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    201,
+    384
+   ],
+   "tags": [
+    "flower",
+    "beauty",
+    "spring",
+    "bloom",
+    "grow",
+    "gift",
+    "life"
+   ]
+  },
+  "footprints": {
+   "center": [
+    12,
+    30
+   ],
+   "director": true,
+   "doc": "a trail of footprints",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    300,
+    409
+   ],
+   "tags": [
+    "footprints",
+    "walk",
+    "journey",
+    "follow",
+    "path",
+    "steps",
+    "follow jesus"
+   ]
+  },
   "frame": {
    "director": false,
    "doc": "an empty page / canvas",
    "params": [
     "h",
     "w"
+   ]
+  },
+  "garden": {
+   "center": [
+    2,
+    47
+   ],
+   "director": true,
+   "doc": "a garden: flowers, grass and a tree",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    374
+   ],
+   "tags": [
+    "garden",
+    "eden",
+    "paradise",
+    "creation",
+    "plants",
+    "growth",
+    "beginning"
+   ]
+  },
+  "gavel": {
+   "center": [
+    0,
+    37
+   ],
+   "director": true,
+   "doc": "a judge's gavel striking its block",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    320,
+    394
+   ],
+   "tags": [
+    "gavel",
+    "judge",
+    "court",
+    "verdict",
+    "law",
+    "judgment",
+    "trial",
+    "guilty"
    ]
   },
   "germ": {
@@ -738,6 +2122,56 @@
     300
    ]
   },
+  "germ_big": {
+   "center": [
+    2,
+    37
+   ],
+   "director": true,
+   "doc": "a spiky germ",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    340,
+    394
+   ],
+   "tags": [
+    "germ",
+    "virus",
+    "disease",
+    "sickness",
+    "infection",
+    "pandemic",
+    "illness"
+   ]
+  },
+  "gift": {
+   "center": [
+    2,
+    55
+   ],
+   "director": true,
+   "doc": "a wrapped gift box with a bow",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    304,
+    359
+   ],
+   "tags": [
+    "gift",
+    "present",
+    "grace",
+    "free gift",
+    "give",
+    "generosity",
+    "blessing"
+   ]
+  },
   "globe": {
    "center": [
     1,
@@ -751,6 +2185,57 @@
    "size": [
     196,
     198
+   ]
+  },
+  "gold_bars": {
+   "center": [
+    2,
+    87
+   ],
+   "director": true,
+   "doc": "three stacked gold bars",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    324,
+    294
+   ],
+   "tags": [
+    "gold",
+    "gold bars",
+    "wealth",
+    "treasure",
+    "riches",
+    "vault"
+   ]
+  },
+  "grave": {
+   "center": [
+    0,
+    31
+   ],
+   "director": true,
+   "doc": "a gravestone with grass",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    340,
+    346
+   ],
+   "tags": [
+    "death",
+    "grave",
+    "die",
+    "dead",
+    "mortality",
+    "loss",
+    "funeral",
+    "tomb"
    ]
   },
   "ground": {
@@ -773,6 +2258,84 @@
    "doc": "pivot at the bottom of the handle (0,0): rotate to swing",
    "params": []
   },
+  "hammer_big": {
+   "center": [
+    -9,
+    47
+   ],
+   "director": true,
+   "doc": "a hammer",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    266,
+    374
+   ],
+   "tags": [
+    "hammer",
+    "build",
+    "work",
+    "fix",
+    "break",
+    "carpenter",
+    "judgment",
+    "smash"
+   ]
+  },
+  "hand_open": {
+   "center": [
+    -16,
+    31
+   ],
+   "director": true,
+   "doc": "an open hand, palm out",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    201,
+    406
+   ],
+   "tags": [
+    "hand",
+    "help",
+    "give",
+    "offer",
+    "receive",
+    "open hand",
+    "generous",
+    "stop"
+   ]
+  },
+  "handshake": {
+   "center": [
+    2,
+    92
+   ],
+   "director": true,
+   "doc": "two hands shaking",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    284
+   ],
+   "tags": [
+    "handshake",
+    "agreement",
+    "deal",
+    "covenant",
+    "promise",
+    "partnership",
+    "peace",
+    "trust"
+   ]
+  },
   "heart": {
    "center": [
     2,
@@ -787,6 +2350,32 @@
    "size": [
     216,
     258
+   ]
+  },
+  "heart_big": {
+   "center": [
+    2,
+    56
+   ],
+   "director": true,
+   "doc": "a big heart",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    292,
+    337
+   ],
+   "tags": [
+    "heart",
+    "love",
+    "care",
+    "compassion",
+    "feelings",
+    "kindness",
+    "god's love"
    ]
   },
   "heartdollar": {
@@ -820,6 +2409,57 @@
     157
    ]
   },
+  "hospital": {
+   "center": [
+    2,
+    47
+   ],
+   "director": true,
+   "doc": "a hospital building with a red cross",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    304,
+    374
+   ],
+   "tags": [
+    "hospital",
+    "sick",
+    "illness",
+    "disease",
+    "healing",
+    "doctor",
+    "emergency",
+    "suffering"
+   ]
+  },
+  "hourglass": {
+   "center": [
+    0,
+    42
+   ],
+   "director": true,
+   "doc": "an hourglass with sand running down",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    220,
+    384
+   ],
+   "tags": [
+    "hourglass",
+    "time",
+    "running out",
+    "patience",
+    "waiting",
+    "eternity",
+    "life short"
+   ]
+  },
   "house": {
    "center": [
     0,
@@ -835,6 +2475,79 @@
     178
    ]
   },
+  "house_big": {
+   "center": [
+    0,
+    42
+   ],
+   "director": true,
+   "doc": "a house with a roof, door, windows and chimney",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    320,
+    384
+   ],
+   "tags": [
+    "house",
+    "home",
+    "family home",
+    "mortgage",
+    "rent",
+    "household"
+   ]
+  },
+  "houses_city": {
+   "center": [
+    2,
+    52
+   ],
+   "director": true,
+   "doc": "a little city skyline",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    364
+   ],
+   "tags": [
+    "city",
+    "town",
+    "society",
+    "neighborhood",
+    "people",
+    "community",
+    "world"
+   ]
+  },
+  "idol": {
+   "center": [
+    0,
+    27
+   ],
+   "director": true,
+   "doc": "a golden statue on a pedestal, crossed out",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    300,
+    414
+   ],
+   "tags": [
+    "idol",
+    "false god",
+    "worship things",
+    "golden calf",
+    "priorities",
+    "money god"
+   ]
+  },
   "inset": {
    "director": false,
    "doc": "a real clip in a hand-drawn, tilted frame (frames swapped per video frame)",
@@ -844,11 +2557,163 @@
     "w"
    ]
   },
+  "key": {
+   "center": [
+    -2,
+    86
+   ],
+   "director": true,
+   "doc": "an old key",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    324,
+    296
+   ],
+   "tags": [
+    "key",
+    "answer",
+    "unlock",
+    "secret",
+    "solution",
+    "access",
+    "freedom"
+   ]
+  },
+  "king_person": {
+   "center": [
+    2,
+    22
+   ],
+   "director": true,
+   "doc": "a king with a crown and a cape",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    224,
+    424
+   ],
+   "tags": [
+    "king",
+    "ruler",
+    "leader",
+    "power",
+    "authority",
+    "president",
+    "boss"
+   ]
+  },
+  "ladder": {
+   "center": [
+    10,
+    32
+   ],
+   "director": true,
+   "doc": "a ladder leaning up",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    240,
+    404
+   ],
+   "tags": [
+    "ladder",
+    "climb",
+    "success",
+    "progress",
+    "step by step",
+    "career",
+    "rise"
+   ]
+  },
+  "lamp": {
+   "center": [
+    3,
+    70
+   ],
+   "director": true,
+   "doc": "an oil lamp with a flame",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    381,
+    329
+   ],
+   "tags": [
+    "lamp",
+    "light",
+    "guide",
+    "lamp unto my feet",
+    "truth",
+    "darkness",
+    "shine"
+   ]
+  },
+  "laptop": {
+   "center": [
+    2,
+    24
+   ],
+   "director": true,
+   "doc": "an open laptop",
+   "doodle": true,
+   "params": [
+    "label",
+    "screen"
+   ],
+   "size": [
+    354,
+    309
+   ],
+   "tags": [
+    "laptop",
+    "computer",
+    "work",
+    "internet",
+    "online",
+    "screen",
+    "study"
+   ]
+  },
   "light": {
    "director": false,
    "doc": "",
    "params": [
     "r"
+   ]
+  },
+  "lightbulb": {
+   "center": [
+    0,
+    30
+   ],
+   "director": true,
+   "doc": "a glowing lightbulb with rays",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    300,
+    409
+   ],
+   "tags": [
+    "lightbulb",
+    "idea",
+    "realize",
+    "understand",
+    "insight",
+    "think",
+    "invention",
+    "aha"
    ]
   },
   "line": {
@@ -858,6 +2723,106 @@
     "color",
     "w",
     "weight"
+   ]
+  },
+  "line_graph": {
+   "center": [
+    5,
+    20
+   ],
+   "director": true,
+   "doc": "a line graph going up and down on axes",
+   "doodle": true,
+   "params": [
+    "label",
+    "top"
+   ],
+   "size": [
+    330,
+    381
+   ],
+   "tags": [
+    "graph",
+    "trend",
+    "over time",
+    "line graph",
+    "rise and fall",
+    "history",
+    "progress"
+   ]
+  },
+  "lion": {
+   "center": [
+    1,
+    38
+   ],
+   "director": true,
+   "doc": "a lion's head with a big mane",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    304,
+    392
+   ],
+   "tags": [
+    "lion",
+    "strength",
+    "courage",
+    "king",
+    "bold",
+    "fearless",
+    "pride"
+   ]
+  },
+  "lock": {
+   "center": [
+    2,
+    43
+   ],
+   "director": true,
+   "doc": "a padlock",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    234,
+    382
+   ],
+   "tags": [
+    "lock",
+    "locked",
+    "trapped",
+    "security",
+    "closed",
+    "can't",
+    "protect"
+   ]
+  },
+  "lock_heart": {
+   "center": [
+    2,
+    41
+   ],
+   "director": true,
+   "doc": "a heart-shaped padlock",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    261,
+    386
+   ],
+   "tags": [
+    "love locked",
+    "commitment",
+    "faithful",
+    "marriage",
+    "loyal",
+    "covenant"
    ]
   },
   "lockdollar": {
@@ -873,6 +2838,132 @@
     239
    ]
   },
+  "magnet": {
+   "center": [
+    0,
+    17
+   ],
+   "director": true,
+   "doc": "a horseshoe magnet pulling",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    300,
+    434
+   ],
+   "tags": [
+    "attract",
+    "magnet",
+    "pull",
+    "temptation",
+    "drawn to",
+    "attraction"
+   ]
+  },
+  "magnifier": {
+   "center": [
+    3,
+    44
+   ],
+   "director": true,
+   "doc": "a magnifying glass",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    293,
+    380
+   ],
+   "tags": [
+    "search",
+    "look closer",
+    "investigate",
+    "find",
+    "examine",
+    "evidence",
+    "truth",
+    "detail"
+   ]
+  },
+  "map": {
+   "center": [
+    2,
+    47
+   ],
+   "director": true,
+   "doc": "a folded treasure map with a dotted path and an X",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    374
+   ],
+   "tags": [
+    "map",
+    "plan",
+    "journey",
+    "route",
+    "where",
+    "find",
+    "travel"
+   ]
+  },
+  "mask": {
+   "center": [
+    15,
+    53
+   ],
+   "director": true,
+   "doc": "a theater mask held on a stick",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    270,
+    362
+   ],
+   "tags": [
+    "mask",
+    "pretend",
+    "hide",
+    "fake",
+    "hypocrite",
+    "identity",
+    "theater",
+    "two faces"
+   ]
+  },
+  "medal": {
+   "center": [
+    2,
+    17
+   ],
+   "director": true,
+   "doc": "a medal on a ribbon",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    174,
+    374
+   ],
+   "tags": [
+    "medal",
+    "award",
+    "first place",
+    "honor",
+    "achievement",
+    "prize"
+   ]
+  },
   "mediabox": {
    "director": false,
    "doc": "ONE framed box for the whole video: real clips, or a verse typed on in it",
@@ -882,6 +2973,135 @@
     "pad_x",
     "verse_size",
     "w"
+   ]
+  },
+  "megaphone": {
+   "center": [
+    23,
+    62
+   ],
+   "director": true,
+   "doc": "a megaphone with sound lines",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    346,
+    344
+   ],
+   "tags": [
+    "announce",
+    "shout",
+    "tell everyone",
+    "share",
+    "preach",
+    "loud",
+    "spread the word"
+   ]
+  },
+  "mirror": {
+   "center": [
+    0,
+    27
+   ],
+   "director": true,
+   "doc": "an oval hand mirror with a shine",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    200,
+    414
+   ],
+   "tags": [
+    "mirror",
+    "reflection",
+    "self",
+    "identity",
+    "look at yourself",
+    "vanity",
+    "honest"
+   ]
+  },
+  "money": {
+   "center": [
+    12,
+    82
+   ],
+   "director": true,
+   "doc": "a stack of dollar bills with a $ on top",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    324,
+    304
+   ],
+   "tags": [
+    "money",
+    "cash",
+    "dollar",
+    "wealth",
+    "rich",
+    "pay",
+    "price",
+    "greed",
+    "bills"
+   ]
+  },
+  "money_bag": {
+   "center": [
+    2,
+    47
+   ],
+   "director": true,
+   "doc": "a bulging money bag tied with a rope, $ on it",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    219,
+    334
+   ],
+   "tags": [
+    "money bag",
+    "riches",
+    "greed",
+    "treasure",
+    "bank",
+    "wealth",
+    "fortune"
+   ]
+  },
+  "money_vs_heart": {
+   "center": [
+    -1,
+    38
+   ],
+   "director": true,
+   "doc": "a heart and a dollar sign on two sides of a line",
+   "doodle": true,
+   "params": [
+    "left",
+    "right",
+    "label"
+   ],
+   "size": [
+    302,
+    376
+   ],
+   "tags": [
+    "money or love",
+    "priorities",
+    "what matters",
+    "compare",
+    "choose",
+    "treasure"
    ]
   },
   "moon": {
@@ -895,6 +3115,55 @@
    "size": [
     106,
     140
+   ]
+  },
+  "moon_stars": {
+   "center": [
+    3,
+    42
+   ],
+   "director": true,
+   "doc": "a crescent moon with stars",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    280,
+    384
+   ],
+   "tags": [
+    "night",
+    "moon",
+    "stars",
+    "dark",
+    "sleep",
+    "evening"
+   ]
+  },
+  "mountain": {
+   "center": [
+    2,
+    32
+   ],
+   "director": true,
+   "doc": "a mountain with a snowy peak and a flag",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    404
+   ],
+   "tags": [
+    "mountain",
+    "obstacle",
+    "challenge",
+    "goal",
+    "summit",
+    "hard",
+    "faith moves mountains"
    ]
   },
   "openbook": {
@@ -958,6 +3227,133 @@
     354
    ]
   },
+  "person_tired": {
+   "center": [
+    18,
+    46
+   ],
+   "director": true,
+   "doc": "a bent-over person carrying a heavy sack",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    226,
+    377
+   ],
+   "tags": [
+    "tired",
+    "weary",
+    "burden",
+    "heavy",
+    "exhausted",
+    "stress",
+    "struggle",
+    "carry"
+   ]
+  },
+  "phone": {
+   "center": [
+    2,
+    40
+   ],
+   "director": true,
+   "doc": "a smartphone with app squares on the screen",
+   "doodle": true,
+   "params": [
+    "label",
+    "screen"
+   ],
+   "size": [
+    174,
+    409
+   ],
+   "tags": [
+    "phone",
+    "smartphone",
+    "social media",
+    "screen",
+    "scroll",
+    "text message",
+    "call",
+    "notifications"
+   ]
+  },
+  "pie_chart": {
+   "center": [
+    12,
+    34
+   ],
+   "director": true,
+   "doc": "a pie chart with a slice pulled out",
+   "doodle": true,
+   "params": [
+    "label",
+    "slice"
+   ],
+   "size": [
+    304,
+    369
+   ],
+   "tags": [
+    "pie chart",
+    "share",
+    "percent",
+    "portion",
+    "part of",
+    "majority",
+    "statistics"
+   ]
+  },
+  "piggy_bank": {
+   "center": [
+    16,
+    46
+   ],
+   "director": true,
+   "doc": "a piggy bank with a coin going in",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    273,
+    375
+   ],
+   "tags": [
+    "piggy bank",
+    "savings",
+    "save",
+    "budget",
+    "money"
+   ]
+  },
+  "pill": {
+   "center": [
+    2,
+    50
+   ],
+   "director": true,
+   "doc": "a capsule pill",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    270,
+    367
+   ],
+   "tags": [
+    "medicine",
+    "pill",
+    "cure",
+    "treatment",
+    "heal",
+    "quick fix",
+    "drug"
+   ]
+  },
   "plane": {
    "center": [
     6,
@@ -969,6 +3365,31 @@
    "size": [
     196,
     133
+   ]
+  },
+  "planet_earth": {
+   "center": [
+    2,
+    44
+   ],
+   "director": true,
+   "doc": "the planet Earth with continents",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    308,
+    381
+   ],
+   "tags": [
+    "earth",
+    "world",
+    "planet",
+    "globe",
+    "everyone",
+    "nations",
+    "creation"
    ]
   },
   "plant": {
@@ -996,6 +3417,57 @@
     "w"
    ]
   },
+  "praying_hands": {
+   "center": [
+    2,
+    42
+   ],
+   "director": true,
+   "doc": "two hands pressed together in prayer",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    164,
+    384
+   ],
+   "tags": [
+    "prayer",
+    "pray",
+    "praying",
+    "ask god",
+    "worship",
+    "faith",
+    "thank"
+   ]
+  },
+  "prison_bars": {
+   "center": [
+    2,
+    42
+   ],
+   "director": true,
+   "doc": "a barred prison window",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    304,
+    384
+   ],
+   "tags": [
+    "prison",
+    "jail",
+    "bars",
+    "trapped",
+    "captive",
+    "locked up",
+    "guilty",
+    "sin"
+   ]
+  },
   "puppet": {
    "center": [
     0,
@@ -1009,6 +3481,57 @@
    "size": [
     220,
     389
+   ]
+  },
+  "puppet_strings": {
+   "center": [
+    0,
+    17
+   ],
+   "director": true,
+   "doc": "a puppet hanging on strings from a cross bar",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    220,
+    434
+   ],
+   "tags": [
+    "puppet",
+    "control",
+    "controlled",
+    "no choice",
+    "robot",
+    "manipulate",
+    "forced",
+    "free will"
+   ]
+  },
+  "puzzle": {
+   "center": [
+    -8,
+    62
+   ],
+   "director": true,
+   "doc": "two puzzle pieces fitting together",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    304,
+    344
+   ],
+   "tags": [
+    "puzzle",
+    "problem",
+    "solve",
+    "missing piece",
+    "fit",
+    "understand",
+    "pieces"
    ]
   },
   "question": {
@@ -1026,6 +3549,81 @@
     322
    ]
   },
+  "question_big": {
+   "center": [
+    5,
+    41
+   ],
+   "director": true,
+   "doc": "a big question mark",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    170,
+    385
+   ],
+   "tags": [
+    "question",
+    "why",
+    "mystery",
+    "unknown",
+    "doubt",
+    "wonder",
+    "how"
+   ]
+  },
+  "rain_cloud": {
+   "center": [
+    3,
+    47
+   ],
+   "director": true,
+   "doc": "a grey cloud with rain",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    356,
+    373
+   ],
+   "tags": [
+    "rain",
+    "storm",
+    "sad",
+    "cloud",
+    "gloomy",
+    "trouble",
+    "weather",
+    "tears"
+   ]
+  },
+  "rainbow": {
+   "center": [
+    2,
+    76
+   ],
+   "director": true,
+   "doc": "a rainbow between two clouds",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    404,
+    316
+   ],
+   "tags": [
+    "rainbow",
+    "promise",
+    "covenant",
+    "hope",
+    "after the storm",
+    "god's promise"
+   ]
+  },
   "rays": {
    "director": false,
    "doc": "",
@@ -1034,6 +3632,232 @@
     "n",
     "r",
     "rx"
+   ]
+  },
+  "receipt": {
+   "center": [
+    2,
+    34
+   ],
+   "director": true,
+   "doc": "a long paper receipt",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    184,
+    369
+   ],
+   "tags": [
+    "receipt",
+    "bill",
+    "cost",
+    "invoice",
+    "list",
+    "pay"
+   ]
+  },
+  "road_fork": {
+   "center": [
+    0,
+    24
+   ],
+   "director": true,
+   "doc": "a road splitting into two paths",
+   "doodle": true,
+   "params": [
+    "left",
+    "right",
+    "label"
+   ],
+   "size": [
+    360,
+    440
+   ],
+   "tags": [
+    "fork in the road",
+    "choice",
+    "decision",
+    "two paths",
+    "choose",
+    "free will",
+    "crossroads",
+    "options"
+   ]
+  },
+  "robot": {
+   "center": [
+    0,
+    6
+   ],
+   "director": true,
+   "doc": "a boxy robot",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    300,
+    456
+   ],
+   "tags": [
+    "robot",
+    "machine",
+    "ai",
+    "programmed",
+    "no free will",
+    "automatic",
+    "technology"
+   ]
+  },
+  "rock": {
+   "center": [
+    0,
+    57
+   ],
+   "director": true,
+   "doc": "a big solid rock",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    380,
+    355
+   ],
+   "tags": [
+    "rock",
+    "foundation",
+    "firm",
+    "solid",
+    "strong",
+    "stand",
+    "unshakable"
+   ]
+  },
+  "rocket": {
+   "center": [
+    2,
+    32
+   ],
+   "director": true,
+   "doc": "a rocket taking off",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    204,
+    404
+   ],
+   "tags": [
+    "rocket",
+    "launch",
+    "fast",
+    "future",
+    "space",
+    "ambition",
+    "take off"
+   ]
+  },
+  "runner": {
+   "center": [
+    -25,
+    34
+   ],
+   "director": true,
+   "doc": "a person running",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    270,
+    399
+   ],
+   "tags": [
+    "run",
+    "race",
+    "hurry",
+    "busy",
+    "chase",
+    "escape",
+    "fast",
+    "rush"
+   ]
+  },
+  "sand_castle": {
+   "center": [
+    5,
+    57
+   ],
+   "director": true,
+   "doc": "a crumbling sand castle",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    330,
+    354
+   ],
+   "tags": [
+    "sand",
+    "castle",
+    "weak foundation",
+    "temporary",
+    "falls apart",
+    "pride"
+   ]
+  },
+  "scale_tipping_coin": {
+   "center": [
+    2,
+    42
+   ],
+   "director": true,
+   "doc": "a balance with a coin outweighing a heart",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    424,
+    384
+   ],
+   "tags": [
+    "corruption",
+    "bribe",
+    "unfair",
+    "injustice",
+    "rigged"
+   ]
+  },
+  "scale_weight": {
+   "center": [
+    2,
+    46
+   ],
+   "director": true,
+   "doc": "a heavy iron weight",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    244,
+    348
+   ],
+   "tags": [
+    "heavy",
+    "weight",
+    "burden",
+    "pressure",
+    "ton",
+    "load"
    ]
   },
   "scales": {
@@ -1050,6 +3874,34 @@
    "size": [
     574,
     180
+   ]
+  },
+  "scales_big": {
+   "center": [
+    2,
+    26
+   ],
+   "director": true,
+   "doc": "balance scales of justice",
+   "doodle": true,
+   "params": [
+    "left",
+    "right",
+    "label"
+   ],
+   "size": [
+    424,
+    416
+   ],
+   "tags": [
+    "justice",
+    "fair",
+    "balance",
+    "judge",
+    "weigh",
+    "unfair",
+    "law",
+    "compare"
    ]
   },
   "scribble": {
@@ -1071,11 +3923,164 @@
     "w"
    ]
   },
+  "scroll": {
+   "center": [
+    2,
+    38
+   ],
+   "director": true,
+   "doc": "an unrolled ancient scroll",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    304,
+    376
+   ],
+   "tags": [
+    "scroll",
+    "law",
+    "old testament",
+    "ancient",
+    "record",
+    "command",
+    "prophecy"
+   ]
+  },
+  "seed_sprout": {
+   "center": [
+    2,
+    32
+   ],
+   "director": true,
+   "doc": "a sprout growing from a seed in the soil",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    404
+   ],
+   "tags": [
+    "seed",
+    "plant",
+    "sprout",
+    "grow",
+    "small start",
+    "faith like a mustard seed",
+    "new life",
+    "begin"
+   ]
+  },
+  "seesaw": {
+   "center": [
+    0,
+    46
+   ],
+   "director": true,
+   "doc": "a seesaw tipped to one side",
+   "doodle": true,
+   "params": [
+    "left",
+    "right",
+    "label"
+   ],
+   "size": [
+    360,
+    350
+   ],
+   "tags": [
+    "unbalanced",
+    "balance",
+    "tip",
+    "outweigh",
+    "trade off",
+    "more than"
+   ]
+  },
   "shards": {
    "director": false,
    "doc": "glass bits flying out (pops in and fades)",
    "params": [
     "n"
+   ]
+  },
+  "sheep_flock": {
+   "center": [
+    2,
+    73
+   ],
+   "director": true,
+   "doc": "three sheep in a flock",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    322
+   ],
+   "tags": [
+    "flock",
+    "sheep",
+    "shepherd",
+    "lost sheep",
+    "follow",
+    "crowd",
+    "church"
+   ]
+  },
+  "shepherd_staff": {
+   "center": [
+    25,
+    42
+   ],
+   "director": true,
+   "doc": "a shepherd's crook",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    170,
+    384
+   ],
+   "tags": [
+    "shepherd",
+    "staff",
+    "guide",
+    "lead",
+    "pastor",
+    "lord is my shepherd"
+   ]
+  },
+  "shield": {
+   "center": [
+    2,
+    37
+   ],
+   "director": true,
+   "doc": "a knight's shield with a cross",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    264,
+    394
+   ],
+   "tags": [
+    "shield",
+    "protection",
+    "safe",
+    "defend",
+    "faith",
+    "armor",
+    "guard",
+    "security"
    ]
   },
   "signpost": {
@@ -1093,12 +4098,164 @@
     260
    ]
   },
+  "signpost_big": {
+   "center": [
+    2,
+    33
+   ],
+   "director": true,
+   "doc": "a signpost with two arrows",
+   "doodle": true,
+   "params": [
+    "right",
+    "left",
+    "label"
+   ],
+   "size": [
+    334,
+    406
+   ],
+   "tags": [
+    "direction",
+    "which way",
+    "choice",
+    "options",
+    "guidance",
+    "decision"
+   ]
+  },
+  "smile_face": {
+   "center": [
+    2,
+    45
+   ],
+   "director": true,
+   "doc": "a big smiling face",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    279,
+    377
+   ],
+   "tags": [
+    "happy",
+    "joy",
+    "smile",
+    "glad",
+    "good news",
+    "content",
+    "hope"
+   ]
+  },
+  "snake": {
+   "center": [
+    8,
+    49
+   ],
+   "director": true,
+   "doc": "a coiled snake with a forked tongue",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    335,
+    370
+   ],
+   "tags": [
+    "snake",
+    "serpent",
+    "temptation",
+    "lie",
+    "deceive",
+    "danger",
+    "sin"
+   ]
+  },
+  "snowflake": {
+   "center": [
+    0,
+    52
+   ],
+   "director": true,
+   "doc": "a snowflake",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    300,
+    364
+   ],
+   "tags": [
+    "cold",
+    "winter",
+    "frozen",
+    "pure",
+    "unique",
+    "white"
+   ]
+  },
+  "soldier": {
+   "center": [
+    30,
+    40
+   ],
+   "director": true,
+   "doc": "a soldier with a helmet and shield",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    209,
+    389
+   ],
+   "tags": [
+    "soldier",
+    "army",
+    "war",
+    "fight",
+    "battle",
+    "duty",
+    "enemy"
+   ]
+  },
   "sparkle": {
    "director": false,
    "doc": "a burst of little stars that pops in and fades",
    "params": [
     "n",
     "r"
+   ]
+  },
+  "speech_bubble": {
+   "center": [
+    2,
+    36
+   ],
+   "director": true,
+   "doc": "a speech bubble",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    324,
+    368
+   ],
+   "tags": [
+    "said",
+    "speak",
+    "words",
+    "say",
+    "message",
+    "talk",
+    "promise",
+    "voice"
    ]
   },
   "splash": {
@@ -1108,6 +4265,31 @@
     "dirt",
     "n",
     "r"
+   ]
+  },
+  "stairs": {
+   "center": [
+    2,
+    20
+   ],
+   "director": true,
+   "doc": "a staircase going up",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    429
+   ],
+   "tags": [
+    "steps",
+    "stairs",
+    "progress",
+    "level",
+    "climb",
+    "stages",
+    "step by step"
    ]
   },
   "star": {
@@ -1126,6 +4308,32 @@
     47
    ]
   },
+  "starry_sky": {
+   "center": [
+    0,
+    40
+   ],
+   "director": true,
+   "doc": "a sky full of stars",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    330,
+    389
+   ],
+   "tags": [
+    "stars",
+    "universe",
+    "sky",
+    "heaven",
+    "space",
+    "galaxy",
+    "countless",
+    "promise"
+   ]
+  },
   "stars": {
    "director": false,
    "doc": "",
@@ -1133,6 +4341,32 @@
     "h",
     "n",
     "w"
+   ]
+  },
+  "storm": {
+   "center": [
+    3,
+    37
+   ],
+   "director": true,
+   "doc": "a dark storm cloud with a lightning bolt",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    356,
+    393
+   ],
+   "tags": [
+    "storm",
+    "lightning",
+    "thunder",
+    "disaster",
+    "chaos",
+    "trouble",
+    "danger",
+    "power"
    ]
   },
   "strike": {
@@ -1155,6 +4389,258 @@
     286
    ]
   },
+  "sun_big": {
+   "center": [
+    0,
+    34
+   ],
+   "director": true,
+   "doc": "a smiling-free plain sun with rays",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    330,
+    399
+   ],
+   "tags": [
+    "sun",
+    "day",
+    "light",
+    "warm",
+    "morning",
+    "summer",
+    "joy",
+    "creation"
+   ]
+  },
+  "sword": {
+   "center": [
+    2,
+    42
+   ],
+   "director": true,
+   "doc": "a sword pointing up",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    174,
+    454
+   ],
+   "tags": [
+    "sword",
+    "fight",
+    "battle",
+    "war",
+    "word of god",
+    "conflict",
+    "weapon"
+   ]
+  },
+  "tablets": {
+   "center": [
+    2,
+    53
+   ],
+   "director": true,
+   "doc": "two stone tablets",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    324,
+    362
+   ],
+   "tags": [
+    "commandments",
+    "law",
+    "rules",
+    "ten commandments",
+    "moses",
+    "covenant"
+   ]
+  },
+  "target": {
+   "center": [
+    5,
+    32
+   ],
+   "director": true,
+   "doc": "a target with an arrow in the bullseye",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    330,
+    404
+   ],
+   "tags": [
+    "goal",
+    "target",
+    "aim",
+    "purpose",
+    "focus",
+    "mission",
+    "bullseye"
+   ]
+  },
+  "tears": {
+   "center": [
+    3,
+    45
+   ],
+   "director": true,
+   "doc": "a sad face shedding tears",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    277,
+    377
+   ],
+   "tags": [
+    "cry",
+    "tears",
+    "sad",
+    "grief",
+    "mourning",
+    "sorrow",
+    "weep",
+    "pain"
+   ]
+  },
+  "tent": {
+   "center": [
+    2,
+    30
+   ],
+   "director": true,
+   "doc": "a camping tent",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    409
+   ],
+   "tags": [
+    "tent",
+    "camp",
+    "shelter",
+    "temporary",
+    "wilderness",
+    "tabernacle"
+   ]
+  },
+  "thinker": {
+   "center": [
+    22,
+    27
+   ],
+   "director": true,
+   "doc": "a person sitting, chin on hand, thinking, with a thought bubble",
+   "doodle": true,
+   "params": [
+    "label",
+    "thought"
+   ],
+   "size": [
+    224,
+    434
+   ],
+   "tags": [
+    "think",
+    "thinking",
+    "wonder",
+    "question",
+    "philosopher",
+    "doubt",
+    "consider",
+    "reason"
+   ]
+  },
+  "thought_cloud": {
+   "center": [
+    13,
+    43
+   ],
+   "director": true,
+   "doc": "a thought cloud",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    353,
+    365
+   ],
+   "tags": [
+    "think",
+    "imagine",
+    "dream",
+    "idea",
+    "believe",
+    "wonder",
+    "thought"
+   ]
+  },
+  "throne": {
+   "center": [
+    2,
+    17
+   ],
+   "director": true,
+   "doc": "an empty royal throne",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    244,
+    434
+   ],
+   "tags": [
+    "throne",
+    "king",
+    "reign",
+    "authority",
+    "seat",
+    "power",
+    "sovereign"
+   ]
+  },
+  "time_money": {
+   "center": [
+    12,
+    48
+   ],
+   "director": true,
+   "doc": "a clock and coins",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    325,
+    372
+   ],
+   "tags": [
+    "time is money",
+    "busy",
+    "work",
+    "wages",
+    "hours",
+    "career"
+   ]
+  },
   "timeline": {
    "center": [
     1,
@@ -1171,6 +4657,30 @@
     220
    ]
   },
+  "treasure_chest": {
+   "center": [
+    2,
+    74
+   ],
+   "director": true,
+   "doc": "an open treasure chest with gold",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    304,
+    319
+   ],
+   "tags": [
+    "treasure",
+    "riches",
+    "heaven treasure",
+    "valuable",
+    "hidden",
+    "reward"
+   ]
+  },
   "tree": {
    "center": [
     11,
@@ -1182,6 +4692,32 @@
    "size": [
     195,
     278
+   ]
+  },
+  "tree_big": {
+   "center": [
+    8,
+    24
+   ],
+   "director": true,
+   "doc": "a big leafy tree",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    287,
+    419
+   ],
+   "tags": [
+    "tree",
+    "life",
+    "growth",
+    "roots",
+    "nature",
+    "family tree",
+    "garden",
+    "eden"
    ]
   },
   "triangle": {
@@ -1200,6 +4736,111 @@
     314
    ]
   },
+  "triangle_diagram": {
+   "center": [
+    1,
+    -15
+   ],
+   "director": true,
+   "doc": "a triangle diagram with a label at each corner",
+   "doodle": true,
+   "params": [
+    "top",
+    "left",
+    "right",
+    "center"
+   ],
+   "size": [
+    366,
+    405
+   ],
+   "tags": [
+    "triangle",
+    "three things",
+    "trilemma",
+    "paradox",
+    "three ideas",
+    "trinity of ideas",
+    "all powerful all good all knowing"
+   ]
+  },
+  "trophy": {
+   "center": [
+    0,
+    37
+   ],
+   "director": true,
+   "doc": "a winner's cup",
+   "doodle": true,
+   "params": [
+    "label",
+    "on"
+   ],
+   "size": [
+    266,
+    354
+   ],
+   "tags": [
+    "trophy",
+    "win",
+    "winner",
+    "success",
+    "victory",
+    "prize",
+    "achievement",
+    "reward"
+   ]
+  },
+  "tv": {
+   "center": [
+    2,
+    20
+   ],
+   "director": true,
+   "doc": "an old TV with antennas",
+   "doodle": true,
+   "params": [
+    "label",
+    "screen"
+   ],
+   "size": [
+    324,
+    369
+   ],
+   "tags": [
+    "tv",
+    "television",
+    "news",
+    "media",
+    "screen",
+    "show",
+    "entertainment"
+   ]
+  },
+  "umbrella": {
+   "center": [
+    -5,
+    30
+   ],
+   "director": true,
+   "doc": "an umbrella sheltering from rain",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    350,
+    409
+   ],
+   "tags": [
+    "umbrella",
+    "protection",
+    "covered",
+    "shelter",
+    "storm",
+    "safe"
+   ]
+  },
   "venn": {
    "center": [
     2,
@@ -1216,10 +4857,60 @@
     257
    ]
   },
+  "venn_big": {
+   "center": [
+    2,
+    35
+   ],
+   "director": true,
+   "doc": "two overlapping circles",
+   "doodle": true,
+   "params": [
+    "left",
+    "right",
+    "label"
+   ],
+   "size": [
+    382,
+    312
+   ],
+   "tags": [
+    "venn",
+    "overlap",
+    "both",
+    "common ground",
+    "compare",
+    "in between"
+   ]
+  },
   "voice": {
    "director": false,
    "doc": "sound arcs for \"God speaks\" (no figure is drawn for God)",
    "params": []
+  },
+  "volcano": {
+   "center": [
+    2,
+    27
+   ],
+   "director": true,
+   "doc": "a volcano erupting",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    414
+   ],
+   "tags": [
+    "volcano",
+    "eruption",
+    "disaster",
+    "anger",
+    "explosion",
+    "danger"
+   ]
   },
   "voxel": {
    "director": false,
@@ -1230,6 +4921,82 @@
     "heights"
    ]
   },
+  "wall": {
+   "center": [
+    2,
+    52
+   ],
+   "director": true,
+   "doc": "a brick wall",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    344,
+    364
+   ],
+   "tags": [
+    "wall",
+    "barrier",
+    "blocked",
+    "separation",
+    "divide",
+    "obstacle",
+    "can't"
+   ]
+  },
+  "water_drop": {
+   "center": [
+    2,
+    32
+   ],
+   "director": true,
+   "doc": "a big water drop",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    244,
+    404
+   ],
+   "tags": [
+    "drop",
+    "water",
+    "tear",
+    "thirst",
+    "rain",
+    "clean",
+    "living water"
+   ]
+  },
+  "water_waves": {
+   "center": [
+    2,
+    76
+   ],
+   "director": true,
+   "doc": "ocean waves",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    364,
+    316
+   ],
+   "tags": [
+    "water",
+    "sea",
+    "ocean",
+    "flood",
+    "waves",
+    "baptism",
+    "storm at sea",
+    "drown"
+   ]
+  },
   "waves": {
    "director": false,
    "doc": "",
@@ -1237,6 +5004,34 @@
     "color",
     "rows",
     "w"
+   ]
+  },
+  "wooden_cross": {
+   "center": [
+    0,
+    10
+   ],
+   "director": true,
+   "doc": "a simple wooden cross with light behind it",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    340,
+    449
+   ],
+   "tags": [
+    "cross",
+    "jesus",
+    "faith",
+    "christ",
+    "salvation",
+    "church",
+    "christian",
+    "gospel",
+    "crucifixion",
+    "sacrifice"
    ]
   },
   "word": {
@@ -1249,16 +5044,42 @@
     "text",
     "underline"
    ]
+  },
+  "x_mark": {
+   "center": [
+    2,
+    47
+   ],
+   "director": true,
+   "doc": "a big red X in a box",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    284,
+    374
+   ],
+   "tags": [
+    "no",
+    "wrong",
+    "false",
+    "never",
+    "reject",
+    "mistake",
+    "not",
+    "impossible"
+   ]
   }
  },
- "runtime_sha256": "4d48a40054ed79eac1dad0162e4f8598bb14d501af59f96155d28b53ebfeae22",
+ "runtime_sha256": "66425f8ee5c3828d4d8958fe899c67d635a58c7daac1ce3279fc6d0b611d5bcd",
  "zones": {
   "box": {
-   "h": 420,
+   "h": 380,
    "use": "clip box: footage, memes, verse cards",
    "w": 820,
    "x": 540,
-   "y": 390
+   "y": 370
   },
   "caption": {
    "h": 110,
@@ -1266,17 +5087,17 @@
    "use": "one caption line, 1-3 words, spoken word orange",
    "w": 720,
    "x": 180,
-   "y": 626
+   "y": 586
   },
   "draw": {
-   "use": "drawing area: a wide band for the line's main diagram",
+   "use": "drawing area: the band above the guide's head",
    "x0": 125,
    "x1": 775,
-   "y0": 742,
-   "y1": 934
+   "y0": 702,
+   "y1": 1020
   },
   "guide": {
-   "ground": 1490,
+   "ground": 1570,
    "size": 0.85,
    "spots": [
     230,
@@ -1287,14 +5108,14 @@
    "use": "guide lane: the guide walks between spots"
   },
   "lane": {
-   "use": "the second drawing of a line: in the guide lane, on the side away from the guide",
-   "y0": 1005,
-   "y1": 1430
+   "use": "the drawing area beside the guide, on the side away from him",
+   "y0": 1045,
+   "y1": 1432
   },
   "pop": {
    "use": "meme pop-up card in the guide lane beside the guide (guide at an outer spot)",
    "w": 380,
-   "y": 1215
+   "y": 1250
   }
  }
 }

@@ -28,7 +28,8 @@ GOLDEN = ("where-did-god-come-from.json", "love-of-money-v3.json")
 GESTURES = {"point", "shrug", "present", "look", "wave", "none"}
 REF = re.compile(r"\b((?:[1-3]\s)?[A-Z][a-z]+)\s(\d{1,3}):(\d{1,3})(?:\s?[-–]\s?(\d{1,3}))?")
 MAX_POPS = 3
-LABEL_MAX = 28                       # characters per label (it wraps onto two lines of ~14)
+LABEL_MAX = 28
+LIB_COMPACT = 60                     # library doodles listed in the compact prompt (the best matches to the script)                       # characters per label (it wraps onto two lines of ~14)
 
 
 def key(word: str) -> str:
@@ -50,7 +51,7 @@ def shapes(cat: dict) -> dict:
     from kindled_iron.director.compile import FILL, LANES, MIN_LABEL_SCALE
     dz = cat["zones"]["draw"]
     lx0, ly0, lx1, ly1 = LANES["left"]
-    slots = {"wide": (min(dz["x1"], 775) - dz["x0"], dz["y1"] - dz["y0"]), "tall": (lx1 - lx0, ly1 - ly0)}
+    slots = {"wide": (min(dz["x1"], 775) - dz["x0"], dz["y1"] - dz["y0"]), "tall": (lx1 - lx0, ly1 - dz["y0"])}   # tall: the full-height side slot
     out = {}
     for n, o in director_types(cat).items():
         w, h = o.get("size") or (1, 1)
@@ -111,8 +112,9 @@ RULES = [
     "Return ONLY JSON: {\"freeze\": {\"line\": n, \"word\": w}, \"lines\": [...]} with exactly one entry per script line, in order.",
     "Never change, add or drop narration words. Every 'word' you give must be a word spoken in THAT line (copy it exactly).",
     "Imitate the golden scenes' density and pacing: something new on screen every 2-3 seconds, the drawing appears on the word that names it.",
-    "EVERY line gets TWO new real illustrations in 'drawings': first the main diagram of the idea, shown in a WIDE band (650 x 270 px), so pick a wide type (see 'shape' in the catalog: flow, timeline, scales, signpost, crossout, bars, venn...); second a concrete object or person from the line, shown big beside the guide (a tall or square type). Pick types from the catalog only; fill their fields.",
-    "Concrete nouns become drawn objects: a graph -> 'bars' or 'triangle' with labeled parts; an earthquake -> 'ground'; a child -> 'person' with kid true; the Bible -> 'openbook'; a disease -> 'germ'.",
+    "EVERY line gets TWO new real illustrations in 'drawings': first the main illustration of the idea, shown in the band above the guide (650 x 340 px: a wide or square type, see 'shape' in the catalog); second a concrete object or person from the line, shown big beside the guide (a tall or square type, up to 285 x 750 px). Pick types from the catalog only; fill their fields.",
+    "Prefer the drawing library: the catalog entries with 'tags' are finished illustrations. For each drawing pick the one whose tags best match the thing or idea the line names (a graph -> bar_chart or line_graph, an earthquake -> earthquake, a child -> child, the Bible -> bible, money -> money, a choice -> road_fork). Put the idea it shows in 'concept' (1-3 words, e.g. 'free will').",
+    "Compose from the built-in diagrams (entries without tags: flow, timeline, scales, venn, crossout...) only when no library illustration fits the idea; then also set 'miss': the concept you could not find in the library (it is logged so the library can grow).",
     "Abstract ideas become diagrams: cause/effect -> 'flow'; two options -> 'signpost' or 'scales'; overlap -> 'venn'; a rejected idea -> 'crossout'; past/future -> 'timeline'; a question -> 'question'; control -> 'puppet'.",
     "Words appear only as LABELS inside a drawing (labels, title, center, label, text fields), short and in CAPS (max 28 characters).",
     "EVERY line gets clip-box media in 'box' (1-3 items): kind 'stock' with a concrete 2-4 word footage search query that literally shows the line's meaning (real things a camera can film), or kind 'meme' with a file from the meme library whose tags fit the line's meaning.",
@@ -132,7 +134,23 @@ def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], 
     """The planner prompt. compact=True (small-request providers): the golden scenes as their per-line summary
     only, the meme library without notes, and the script lines without the separate word lists."""
     sh = shapes(cat)
-    types = {n: {"what": o["doc"], "fields": o["params"], "shape": sh[n]} for n, o in director_types(cat).items() if n in sh}
+    def entry(n, o):
+        e = {"shape": sh[n], "fields": o["params"]}
+        if o.get("doodle"):                       # library illustrations: picked by tag
+            e["tags"] = o["tags"][:6] if compact else o["tags"]
+            if not compact:
+                e["what"] = o["doc"]
+        else:
+            e["what"] = o["doc"]
+        return e
+    types = {n: entry(n, o) for n, o in director_types(cat).items() if n in sh}
+    if compact:                       # small requests: the diagrams in full, the library as one line per doodle,
+        said = {key(w) for l in lines for w in l.split()}           # only the ones nearest to the script's words
+        lib = [(n, o) for n, o in director_types(cat).items() if o.get("doodle") and n in sh]
+        rel = lambda n, o: sum(1 for t in o["tags"] + [n.replace("_", " ")] for w in t.split() if key(w) in said)
+        lib = sorted(lib, key=lambda x: -rel(*x))[:LIB_COMPACT]
+        types = {n: e for n, e in types.items() if "tags" not in e}
+        types["library"] = [f"{n}: {', '.join(o['tags'][:4])} [{', '.join(o['params'])}] {sh[n]}" for n, o in lib]
     return json.dumps({
         "task": "You direct a Kindled Iron short: a hand-drawn whiteboard explainer with a guide character, a clip box at "
                 "the top, captions under it, drawings in the middle, the guide walking at the bottom. Write the shot plan.",
@@ -148,8 +166,9 @@ def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], 
         "output_example": {"freeze": {"line": 2, "word": "word"}, "lines": [{
             "line": 1, "expression": "curious", "gesture": {"do": "point", "word": "graph"},
             "box": [{"word": "graph", "kind": "stock", "query": "chalkboard diagram classroom"}],
-            "drawings": [{"word": "graph", "type": "flow", "fields": {"labels": ["ALL POWERFUL", "ALL GOOD", "EVIL?"]}},
-                         {"word": "evil", "type": "question", "fields": {"label": "WHY?"}}]}]},
+            "drawings": [{"word": "graph", "type": "triangle_diagram", "concept": "three claims",
+                          "fields": {"top": "ALL POWERFUL", "left": "ALL GOOD", "right": "ALL KNOWING", "center": "EVIL?"}},
+                         {"word": "evil", "type": "question_big", "concept": "why evil", "fields": {"label": "WHY?"}}]}]},
     }, ensure_ascii=False)
 
 
@@ -191,6 +210,22 @@ def shape_errors(plan) -> list[str]:
         if L.get("expression") is not None and not isinstance(L["expression"], str):
             errs.append(f"line {n}: 'expression' must be a string")
     return errs
+
+
+def misses(plan: dict, cat: dict) -> list[dict]:
+    """Drawings composed from built-in diagrams instead of a library doodle: the concept the planner wanted (its
+    'miss', else its 'concept' when no doodle tag mentions it). Logged per video so the library can grow."""
+    types = director_types(cat)
+    tags = {w for o in types.values() if o.get("doodle") for t in o["tags"] for w in [t.lower()]}
+    out = []
+    for i, L in enumerate(plan.get("lines") or []):
+        for d in L.get("drawings") or []:
+            if not isinstance(d, dict) or types.get(d.get("type"), {}).get("doodle"):
+                continue
+            c = str(d.get("miss") or d.get("concept") or "").strip().lower()
+            if d.get("miss") or (c and c not in tags):
+                out.append({"line": i + 1, "concept": c or d.get("word"), "used": d.get("type")})
+    return out
 
 
 def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict) -> list[str]:

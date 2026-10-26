@@ -75,7 +75,7 @@ class Director(unittest.TestCase):
     def test_drawing_shapes_follow_the_slots(self):
         sh = planmod.shapes(self.cat)
         self.assertEqual(sh["flow"], "wide")
-        self.assertEqual(sh["person"], "tall")
+        self.assertIn(sh["person"], ("tall", "both"))
         p = good_plan()
         p["lines"][0]["drawings"].reverse()                # tall first, wide second: rejected before any render
         errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))

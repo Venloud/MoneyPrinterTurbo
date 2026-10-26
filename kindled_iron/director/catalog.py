@@ -24,21 +24,24 @@ HERE = Path(__file__).resolve().parent
 KI = HERE.parent
 RUNTIME = KI / "runtime" / "runtime.js"
 OUT = HERE / "catalog.json"
+DOODLES = KI / "doodles" / "library.json"     # built once by kindled_iron/doodles/build.py
 
 # Fixed layout (1080x1920, inside the safe box x 120-960, y 160-1440; the right button column x >= 780 at y >= 840
 # stays free). The director picks zones and slots; only the compiler turns them into coordinates.
 ZONES = {
-    "box": {"x": 540, "y": 390, "w": 820, "h": 420, "use": "clip box: footage, memes, verse cards"},
-    "caption": {"x": 180, "y": 626, "w": 720, "h": 110, "size": 88, "use": "one caption line, 1-3 words, spoken word orange"},
-    "draw": {"x0": 125, "x1": 775, "y0": 742, "y1": 934, "use": "drawing area: a wide band for the line's main diagram"},
-    "guide": {"ground": 1490, "spots": [230, 340, 560, 650], "size": 0.85, "use": "guide lane: the guide walks between spots"},
-    "pop": {"y": 1215, "w": 380, "use": "meme pop-up card in the guide lane beside the guide (guide at an outer spot)"},
-    "lane": {"y0": 1005, "y1": 1430, "use": "the second drawing of a line: in the guide lane, on the side away from the guide"},
+    "box": {"x": 540, "y": 370, "w": 820, "h": 380, "use": "clip box: footage, memes, verse cards"},
+    "caption": {"x": 180, "y": 586, "w": 720, "h": 110, "size": 88, "use": "one caption line, 1-3 words, spoken word orange"},
+    # the drawing area is everything from under the caption to the bottom of the safe box (41% of the frame
+    # height): a tall band above the guide's head ("draw") plus the guide lane beside him ("lane")
+    "draw": {"x0": 125, "x1": 775, "y0": 702, "y1": 1020, "use": "drawing area: the band above the guide's head"},
+    "guide": {"ground": 1570, "spots": [230, 340, 560, 650], "size": 0.85, "use": "guide lane: the guide walks between spots"},
+    "pop": {"y": 1250, "w": 380, "use": "meme pop-up card in the guide lane beside the guide (guide at an outer spot)"},
+    "lane": {"y0": 1045, "y1": 1432, "use": "the drawing area beside the guide, on the side away from him"},
 }
 # Drawing primitives the director may use (the others are renderer internals: frames, media box, cards, effects).
 NOT_FOR_DIRECTOR = {"mediabox", "inset", "scripture", "strike", "circle", "cross", "rays", "darkness", "light", "sparkle",
                     "splash", "shards", "frame", "popup", "line", "dot", "word", "blob", "waves", "voice", "cracks",
-                    "cursor", "voxel", "blockfolk", "scribble", "stars", "hammer", "coins", "arrow"}
+                    "cursor", "voxel", "blockfolk", "scribble", "stars", "hammer", "coins", "arrow", "doodle"}
 
 
 def _block(src: str, start: int) -> str:
@@ -97,9 +100,14 @@ def parse_expressions(src: str) -> list[str]:
 
 def parse_part(src: str) -> dict:
     objs = parse_objects(src)
+    for name, d in json.loads(DOODLES.read_text(encoding="utf-8")).items():     # the doodle library
+        if name in objs:
+            raise SystemExit(f"FAIL: doodle {name!r} has the name of a runtime drawing")
+        objs[name] = {"director": True, "doodle": True, "doc": d["doc"], "tags": d["tags"], "params": list(d["slots"])}
     for name, o in objs.items():
         o["director"] = name not in NOT_FOR_DIRECTOR
     return {"runtime_sha256": hashlib.sha256(src.encode()).hexdigest(), "zones": ZONES, "objects": objs,
+            "doodles_sha256": hashlib.sha256(DOODLES.read_bytes()).hexdigest(),
             "events": parse_events(src), "box_kinds": parse_box_kinds(), "expressions": parse_expressions(src)}
 
 
@@ -110,6 +118,22 @@ SAMPLE = {"bars": {"labels": ["ONE", "TWO", "THREE"], "values": [0.4, 0.9, 0.6],
           "crossout": {"text": "A WRONG IDEA"}, "openbook": {"left": "PAGE ONE", "right": "PAGE TWO", "label": "LABEL"},
           "signpost": {"labels": ["THIS WAY", "THAT WAY"]}, "timeline": {"labels": ["THEN", "NOW", "LATER"], "title": "TITLE"}}
 LABELED = {"ground", "germ", "person", "people", "openbook", "question", "puppet", "heart", "bolt", "eye_check"}
+
+
+_LIB: dict = {}
+
+
+def _library() -> dict:
+    if not _LIB:
+        _LIB.update(json.loads(DOODLES.read_text(encoding="utf-8")))
+    return _LIB
+
+
+def doodle_spec(name: str, labels: dict, lib: dict | None = None) -> dict:
+    """The renderer's draw fields for a library doodle: its strokes, label slots and the labels to write."""
+    d = (lib or _library())[name]
+    return {"type": "doodle", "doodle": name, "parts": d["parts"], "slots": d["slots"],
+            "labels": {k: v for k, v in (labels or {}).items() if k in d["slots"]}}
 
 
 def measure_specs(specs: list[dict], chrome: str | None = None, guide: bool = False) -> tuple[dict, dict | None]:
@@ -168,7 +192,9 @@ def measure_specs(specs: list[dict], chrome: str | None = None, guide: bool = Fa
 def measure(objs: dict, chrome: str | None = None) -> tuple[dict, dict]:
     """Every director primitive at scale 1 with sample labels, plus the guide's geometry."""
     names = [n for n, o in objs.items() if o["director"]]
-    specs = [{"id": n, "type": n, **SAMPLE.get(n, {}), **({"label": "LABEL"} if n in LABELED else {})} for n in names]
+    lib = json.loads(DOODLES.read_text(encoding="utf-8"))
+    specs = [doodle_spec(n, {s: "LABEL" for s in lib[n]["slots"]}, lib) | {"id": n} if objs[n].get("doodle") else
+             {"id": n, "type": n, **SAMPLE.get(n, {}), **({"label": "LABEL"} if n in LABELED else {})} for n in names]
     sizes, guide = measure_specs(specs, chrome, guide=True)
     for n in names:
         if n in sizes:
@@ -192,6 +218,8 @@ def stale(existing: dict) -> list[str]:
     out = []
     if existing.get("runtime_sha256") != now["runtime_sha256"]:
         out.append("runtime.js changed since catalog.json was generated")
+    if existing.get("doodles_sha256") != now["doodles_sha256"]:
+        out.append("the doodle library changed since catalog.json was generated")
     for n, o in now["objects"].items():
         e = existing.get("objects", {}).get(n)
         if not e:

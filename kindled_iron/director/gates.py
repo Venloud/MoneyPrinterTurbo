@@ -3,7 +3,8 @@
 Run on the work dir of a render (preflight = 8 stills + the every-frame audit; final = the full MP4):
   render      the renderer itself succeeded (its every-frame audit fails it on overlaps, captions on the guide...)
   layout      zero layout warnings (safe box, button column, text under the guide, overlaps)
-  coverage    >= 60% of the usable frame (safe box minus the right button column) covered at every sample
+  coverage    >= 60% of the usable frame (safe box minus the right button column) covered at every sample, and no
+              single empty rectangle larger than 20% of it
   doodles     every drawing >= 250 px on its long side
   empty       no empty card / blank frame / empty verse page
   per_line    every line brings a new drawing and new clip-box content (or its verse card)
@@ -21,19 +22,38 @@ from pathlib import Path
 from kindled_iron.director.plan import director_types, quoted_spans, scripture_refs
 
 MIN_COVER, MIN_DOODLE, MIN_ALIGN = 0.60, 250, 0.85
+MAX_EMPTY = 0.20          # no single empty rectangle larger than 20% of the usable frame
+
+
+def largest_empty(empty: list[list[bool]]) -> int:
+    """Cells in the largest all-empty axis-aligned rectangle of a grid (histogram method)."""
+    best, h = 0, [0] * (len(empty[0]) if empty else 0)
+    for row in empty:
+        h = [h[j] + 1 if row[j] else 0 for j in range(len(row))]
+        stack: list[int] = []
+        for j in range(len(h) + 1):
+            cur = h[j] if j < len(h) else 0
+            while stack and h[stack[-1]] >= cur:
+                top = stack.pop()
+                width = j if not stack else j - stack[-1] - 1
+                best = max(best, h[top] * width)
+            stack.append(j)
+    return best
 
 
 def coverage(page_file: Path, duration: float, safe: dict, skip: list[tuple[float, float]], chrome=None,
              step: float = 0.5, sizes: dict | None = None) -> list[tuple[float, float]]:
-    """(t, covered fraction) every `step` s: union of the visible elements' boxes over the usable frame.
+    """(t, covered fraction, largest empty rectangle as a fraction) every `step` s: union of the visible elements'
+    boxes over the usable frame (the safe box minus the button column).
     sizes (optional) collects every object's largest measured side while fully drawn."""
     sizes = {} if sizes is None else sizes
     from playwright.sync_api import sync_playwright
     from kindled_iron import render
     x0, x1, y0, y1 = safe["x0"], safe["x1"], safe["y0"], safe["y1"]
     col = safe["column"]
-    grid = [(x, y) for x in range(x0 + 6, x1, 12) for y in range(y0 + 6, y1, 12)
-            if not (col["x0"] <= x <= col["x1"] and col["y0"] <= y <= col["y1"])]
+    xs, ys = list(range(x0 + 6, x1, 12)), list(range(y0 + 6, y1, 12))
+    in_col = lambda x, y: col["x0"] <= x <= col["x1"] and col["y0"] <= y <= col["y1"]
+    grid = [(x, y) for x in xs for y in ys if not in_col(x, y)]
     out = []
     with sync_playwright() as pw:
         b = pw.chromium.launch(executable_path=render.find_chrome(chrome), args=["--allow-file-access-from-files"])
@@ -56,8 +76,10 @@ def coverage(page_file: Path, duration: float, safe: dict, skip: list[tuple[floa
                       return el.getAttribute('visibility') !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0.9; })
                       .map(function (el) { var q = el.getBoundingClientRect(); return [el.id.slice(4), q.width, q.height]; })"""):
                     sizes[oid] = max(sizes.get(oid, 0), w, h)
-                hit = sum(1 for (x, y) in grid if any(r[0] <= x <= r[2] and r[1] <= y <= r[3] for r in rects))
-                out.append((round(t, 2), round(hit / len(grid), 3)))
+                cov = lambda x, y: any(r[0] <= x <= r[2] and r[1] <= y <= r[3] for r in rects)
+                hit = sum(1 for (x, y) in grid if cov(x, y))
+                empty = [[not in_col(x, y) and not cov(x, y) for x in xs] for y in ys]
+                out.append((round(t, 2), round(hit / len(grid), 3), round(largest_empty(empty) / len(grid), 3)))
             t = round(t + step, 3)
         b.close()
     return out
@@ -82,7 +104,7 @@ def run(work: Path, scene: dict, plan: dict, lines: list[str], cat: dict, align_
     small, empty, per_line = [], [], []
     for b, beat in enumerate(scene["beats"]):
         draws = [e for e in beat["events"] if e.get("do") == "draw"]
-        new_draw = [e for e in draws if e.get("type") in types]
+        new_draw = [e for e in draws if e.get("type") in types or e.get("doodle") in types]
         small += []                                   # sizes are measured on the page (coverage pass)
         for e in draws:
             if e.get("type") in ("frame", "popup") and not e.get("text"):
@@ -124,10 +146,15 @@ def run(work: Path, scene: dict, plan: dict, lines: list[str], cat: dict, align_
         cov = coverage(page, data["duration"], SAFE, fz, chrome, sizes=seen)
         tiny = [f"{oid} is {px:.0f} px" for oid, px in seen.items() if oid.split("_")[0][1:].isdigit() and px < MIN_DOODLE]
         gate("doodles", not small and not tiny, small + tiny, "drawings too small (under 250 px): " + "; ".join(small + tiny))
-        low = [(t, c) for t, c in cov if c < MIN_COVER]
-        gate("coverage", not low, {"min": min((c for _, c in cov), default=0), "low_samples": low[:60], "samples": len(cov)},
-             f"the frame is under {MIN_COVER:.0%} covered at " + ", ".join(f"{t:.1f}s ({c:.0%})" for t, c in low[:6]) +
-             ": add a second drawing to those lines or use wider diagrams")
+        low = [(t, c) for t, c, _ in cov if c < MIN_COVER]
+        holes = [(t, e) for t, _, e in cov if e > MAX_EMPTY]
+        gate("coverage", not low and not holes,
+             {"min": min((c for _, c, _ in cov), default=0), "max_empty": max((e for _, _, e in cov), default=0),
+              "low_samples": low[:60], "empty_samples": holes[:60], "samples": len(cov)},
+             (f"the frame is under {MIN_COVER:.0%} covered at " + ", ".join(f"{t:.1f}s ({c:.0%})" for t, c in low[:6]) + "; "
+              if low else "") +
+             (f"an empty region over {MAX_EMPTY:.0%} of the frame at " + ", ".join(f"{t:.1f}s ({e:.0%})" for t, e in holes[:6]) + "; "
+              if holes else "") + "use bigger drawings (a wide or square illustration above the guide, a tall one beside him)")
     if final:
         meta = json.loads(meta_path.read_text()) if meta_path and meta_path.exists() else {}
         music = (meta.get("music") or {}).get("source", "none")

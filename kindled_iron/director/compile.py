@@ -24,7 +24,7 @@ FACE_OF = {"happy": "crying_laughing", "curious": "thinking", "thinking": "think
            "crying_laughing": "crying_laughing"}
 POP_CARD = {"w": 380, "dur": 1.2}
 FREEZE = {"dur": 1.0, "zoom": 1.45, "after": 0.45}   # the camera needs ~0.35 s to come back after the freeze
-SHOULDER_Y = 1110
+SHOULDER_Y = 1110               # set from the measured guide (his top + 122) in compile_scene
 FILL = 0.97                     # a drawing fills its slot to this share (the measured size includes its strokes)
 MIN_LABEL_SCALE = 0.72          # a labeled drawing smaller than this makes its labels too small to read on a phone
 
@@ -71,7 +71,7 @@ def _verse_text(v: dict, line: str) -> tuple[str, bool]:
     return scripture.verse_text(v["ref"]).strip().strip("“”\"").strip(), False
 
 
-def _split_word(text: str, limit: int = 110) -> str | None:
+def _split_word(text: str, limit: int = 95) -> str | None:
     """Long verses go on two pages: split after the punctuation nearest the middle."""
     if len(text) <= limit:
         return None
@@ -100,26 +100,51 @@ def _fit(obj: dict, slot: tuple[float, float, float, float], strict: bool = True
     return round(s, 3), round((x0 + x1) / 2 - cx * s, 1), round((y0 + y1) / 2 - cy * s, 1)
 
 
+def _draw_fields(d: dict, types: dict) -> dict:
+    """The renderer fields of a planned drawing: a library doodle (kindled_iron/doodles) becomes the runtime's
+    `doodle` primitive with its strokes and the labels in its slots; a built-in drawing passes its fields."""
+    if types.get(d["type"], {}).get("doodle"):
+        from kindled_iron.director.catalog import doodle_spec
+        return doodle_spec(d["type"], d.get("fields") or {})
+    return {"type": d["type"], **(d.get("fields") or {})}
+
+
 def _tip_ok(spot: float, target: tuple[float, float], reach: float) -> bool:
     """Pointing: the hand ends ~reach px sideways toward the target; it must stay in the usable frame."""
     return 125 <= _arm_tip(spot, target, reach)[0] <= 775
 
 
-LANES = {"left": (125, 1005, 410, 1430), "right": (490, 1005, 775, 1430)}   # clear of his swinging arms at 340 / 560
+from kindled_iron.director.catalog import ZONES as _Z
+
+_LY = (_Z["lane"]["y0"], _Z["lane"]["y1"])
+LANES = {"left": (125, _LY[0], 410, _LY[1]), "right": (490, _LY[0], 775, _LY[1])}   # clear of his swinging arms at 340 / 560
 
 
-def _lane_slot(spot: float, G: dict) -> tuple[float, float, float, float] | None:
-    """The guide lane's drawing slot on the far side from the guide. The two lane slots are fixed, so a walk
-    between the two spots on one side never passes through the drawing on the other side."""
+def _lane_slot(spot: float, G: dict, full: bool = False) -> tuple[float, float, float, float] | None:
+    """The drawing slot beside the guide, on the far side from him. The two side slots are fixed, so a walk
+    between the two spots on one side never passes through the drawing on the other side. full=True: the whole
+    height from under the caption down to the safe box's bottom (a tall drawing beside him)."""
     slot = LANES["left"] if spot >= 540 else LANES["right"]
     body = (spot - G["half_width"] - 20, spot + G["half_width"] + 20)
-    return slot if body[1] < slot[0] or body[0] > slot[2] else None
+    if not (body[1] < slot[0] or body[0] > slot[2]):
+        return None
+    return (slot[0], _Z["draw"]["y0"], slot[2], slot[3]) if full else slot
+
+
+def _near_top(lane: tuple) -> tuple[float, float, float, float]:
+    """The band above the guide's head on his own side (next to a full-height side drawing)."""
+    d = _Z["draw"]
+    return (lane[2] + 12, d["y0"], 775, d["y1"]) if lane[0] < 300 else (125, d["y0"], lane[0] - 12, d["y1"])
+
+
+def _overlap(a, b) -> bool:
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
 
 def _pop_slot(spot: float, G: dict) -> tuple[float, float, float, float]:
     """A meme card beside the guide: he keeps his arms down while it is up, so only his body needs room."""
     half = G["half_width"] + 30
-    right, left = (spot + half, 1005, 775, 1430), (125, 1005, spot - half, 1430)
+    right, left = (spot + half, _LY[0], 775, _LY[1]), (125, _LY[0], spot - half, _LY[1])
     return max((right, left), key=lambda r: r[2] - r[0])
 
 
@@ -158,11 +183,13 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     measure(specs) -> {id: {size, center}}: the drawings' real boxes with their own labels (Chrome); without it
     the catalog's sample sizes are used (offline tests)."""
     Z, G = cat["zones"], cat["guide"]
+    global SHOULDER_Y
+    SHOULDER_Y = G["top"] + 122                 # measured: shoulders 122 px under the top of his head
     scene_notes = []
     types = director_types(cat)
     real = {}
     if measure:
-        specs = [{"id": f"l{i + 1}_{d['type']}{j}", "type": d["type"], **(d.get("fields") or {})}
+        specs = [{"id": f"l{i + 1}_{d['type']}{j}", **_draw_fields(d, types)}
                  for i, L in enumerate(plan["lines"]) for j, d in enumerate(L["drawings"][:2])]
         real = measure(specs)
     spots = Z["guide"]["spots"]
@@ -271,9 +298,14 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         lane = _lane_slot(spot, G)           # on a pop-up line the lane drawing waits until the card is gone
         objs = [dict(types[d["type"]], _name=d["type"], _labeled=bool(d.get("fields")),
                      **real.get(f"l{i + 1}_{d['type']}{j}", {})) for j, d in enumerate(dr)]
-        options = [[("area", slots1[0])]] if len(dr) == 1 else \
-            ([[("area", slots1[0]), ("lane", lane)], [("lane", lane), ("area", slots1[0])]] if lane else []) + \
-            [[("area", slots2[0]), ("area", slots2[1])]]
+        full = _lane_slot(spot, G, full=True)
+        near = _near_top(full) if full else None
+        if len(dr) == 1:
+            options = [[("area", slots1[0])]] + ([[("lane", full)]] if full else [])
+        else:                               # band above + side below, or full-height side + the band over him
+            options = ([[("area", slots1[0]), ("lane", lane)], [("lane", lane), ("area", slots1[0])]] if lane else []) + \
+                ([[("lane", full), ("area", near)], [("area", near), ("lane", full)]] if full else []) + \
+                [[("area", slots2[0]), ("area", slots2[1])]]
         best, best_area = None, -1.0
         for opt in options:                 # the arrangement that fills the most frame, every drawing >= 254 px
             area = 0.0
@@ -290,7 +322,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             # (the other slot keeps its previous drawing), instead of failing the whole plan
             single = None
             for k, o in enumerate(objs):
-                for zone, sl in [("area", slots1[0])] + ([("lane", lane)] if lane else []):
+                for zone, sl in [("area", slots1[0])] + ([("lane", lane)] if lane else []) + ([("lane", full)] if full else []):
                     f = _fit(o, sl, strict=False)
                     if f and (f[0] >= MIN_LABEL_SCALE or not o.get("_labeled")):
                         a_ = o["size"][0] * o["size"][1] * f[0] ** 2
@@ -333,9 +365,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 t = first_t + 0.35
                 a = _at_time(W, t)
             # drawn stroke by stroke (no pop-in overshoot, no idle sway): it never grows past its slot
-            ev.append({"at": a, "do": "draw", "id": did, "type": d["type"], "x": x, "y": y, "scale": s, "dur": 0.6,
+            ev.append({"at": a, "do": "draw", "id": did, "x": x, "y": y, "scale": s, "dur": 0.6,
                        "pop": False, "still": True, "main": True, **({"instant": True} if i == 0 and j == 0 and zone == "area" else {}),
-                       **(d.get("fields") or {})})
+                       **_draw_fields(d, types)})
             ids.append(did)
             draw_pos[did] = ((slot[0] + slot[2]) / 2, (slot[1] + slot[3]) / 2, key(d["word"]), t, zone)
             fw, fh = obj["size"][0] * s, obj["size"][1] * s
@@ -362,7 +394,15 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if t_new is None:
                 continue
             fades.setdefault(round(max(t_start - 0.4, t_new - 0.05), 3), []).extend(old)
+        # a new drawing whose slot covers an old drawing of the OTHER zone (a full-height side drawing after a
+        # band, or the reverse) clears that one just before it appears
+        for zone in ("area", "lane"):
+            for od in shown[zone]:
+                hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] != zone and _overlap(slot_of[od], slot_of[nd])]
+                if hits:
+                    fades.setdefault(round(max(t_start - 0.4, min(hits) - 0.05), 3), []).append(od)
         for ft, fids in sorted(fades.items()):
+            fids = sorted(set(fids))
             ev.append({"at": _at_time(W, ft) if ft >= t_start else _anchor(W, first, ft - t_start)[0], "do": "fade",
                        "ids": fids, "opacity": 0, "dur": 0.1})
         prev_old = shown["area"] + shown["lane"]
@@ -474,7 +514,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         "audit": {"max_words": 3, "one_line": True}, "caption_color": "ink", "caption_on": "accent",
         "require_memes": sum(1 for L in P if L.get("pop")), "max_media_uses": 2,
         "cast": {"guide": {"panel": 0, "x": route[0], "scale": 2.1, "facing": -1 if route[0] > 540 else 1, "accent": True}},
-        "mediabox": {"x": Z["box"]["x"], "y": Z["box"]["y"], "w": Z["box"]["w"], "h": Z["box"]["h"], "verse_size": 60, "pad_x": 48},
+        "mediabox": {"x": Z["box"]["x"], "y": Z["box"]["y"], "w": Z["box"]["w"], "h": Z["box"]["h"], "verse_size": round(60 * Z["box"]["h"] / 420), "pad_x": 48},
         "clips": scene_clips,
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",
                     "frames": [{"beat": f["beat"], "at": f["at"]} for f in pv]},

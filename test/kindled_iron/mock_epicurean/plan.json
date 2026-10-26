@@ -26,14 +26,16 @@
    "drawings": [
     {
      "word": "exist",
-     "type": "crossout",
+     "type": "x_mark",
+     "concept": "x mark",
      "fields": {
-      "text": "GOD EXISTS"
+      "label": "GOD EXISTS"
      }
     },
     {
      "word": "graph",
-     "type": "question",
+     "type": "question_big",
+     "concept": "question big",
      "fields": {
       "label": "EVIL?"
      }
@@ -62,18 +64,18 @@
    "drawings": [
     {
      "word": "powerful",
-     "type": "flow",
+     "type": "flow_arrows",
+     "concept": "flow arrows",
      "fields": {
-      "labels": [
-       "CAN STOP IT",
-       "KNOWS IT",
-       "WANTS TO"
-      ]
+      "a": "CAN STOP IT",
+      "b": "KNOWS IT",
+      "c": "WANTS TO"
      }
     },
     {
      "word": "evil",
-     "type": "question",
+     "type": "question_big",
+     "concept": "question big",
      "fields": {
       "label": "WHY EVIL?"
      }
@@ -97,18 +99,17 @@
    "drawings": [
     {
      "word": "will",
-     "type": "scales",
+     "type": "scales_big",
+     "concept": "scales big",
      "fields": {
-      "labels": [
-       "GOD'S CONTROL",
-       "YOUR CHOICE"
-      ],
-      "tilt": 0.5
+      "left": "GOD'S CONTROL",
+      "right": "YOUR CHOICE"
      }
     },
     {
      "word": "controlled",
-     "type": "puppet",
+     "type": "puppet_strings",
+     "concept": "puppet strings",
      "fields": {
       "label": "NO CHOICE"
      }
@@ -136,18 +137,18 @@
    "drawings": [
     {
      "word": "lie",
-     "type": "flow",
+     "type": "flow_arrows",
+     "concept": "flow arrows",
      "fields": {
-      "labels": [
-       "LIE",
-       "GOD STOPS",
-       "NO CHOICE"
-      ]
+      "a": "LIE",
+      "b": "GOD STOPS",
+      "c": "NO CHOICE"
      }
     },
     {
      "word": "choosing",
-     "type": "person",
+     "type": "thinker",
+     "concept": "thinker",
      "fields": {
       "label": "YOUR CHOICE"
      }
@@ -176,18 +177,18 @@
    "drawings": [
     {
      "word": "earthquakes",
-     "type": "flow",
+     "type": "flow_arrows",
+     "concept": "flow arrows",
      "fields": {
-      "labels": [
-       "EARTHQUAKE",
-       "DISEASE",
-       "NOBODY CHOSE"
-      ]
+      "a": "EARTHQUAKE",
+      "b": "DISEASE",
+      "c": "NOBODY CHOSE"
      }
     },
     {
      "word": "diseases",
-     "type": "germ",
+     "type": "germ_big",
+     "concept": "germ big",
      "fields": {
       "label": "DISEASE"
      }
@@ -211,16 +212,16 @@
    "drawings": [
     {
      "word": "broken",
-     "type": "openbook",
+     "type": "bible",
+     "concept": "bible",
      "fields": {
-      "left": "CREATION",
-      "right": "BROKEN",
       "label": "THE BIBLE"
      }
     },
     {
      "word": "punishment",
-     "type": "person",
+     "type": "thinker",
+     "concept": "thinker",
      "fields": {
       "label": "NOT A PUNISHMENT"
      }
@@ -254,7 +255,8 @@
     },
     {
      "word": "death",
-     "type": "heart",
+     "type": "broken_heart",
+     "concept": "broken heart",
      "fields": {
       "label": "NO MORE PAIN"
      }
@@ -283,18 +285,17 @@
    "drawings": [
     {
      "word": "allowing",
-     "type": "scales",
+     "type": "scales_big",
+     "concept": "scales big",
      "fields": {
-      "labels": [
-       "POWER",
-       "FREEDOM"
-      ],
-      "tilt": 0
+      "left": "POWER",
+      "right": "FREEDOM"
      }
     },
     {
      "word": "question",
-     "type": "question",
+     "type": "question_big",
+     "concept": "question big",
      "fields": {
       "label": "STILL ASKING"
      }

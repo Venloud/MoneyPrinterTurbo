@@ -169,13 +169,13 @@ def _coverage_lines(g: dict, words: list[list[dict]]) -> list[str]:
     if c.get("ok", True):
         return []
     hits: dict[int, int] = {}
-    for t, _ in (c.get("detail") or {}).get("low_samples", []):
+    d = c.get("detail") or {}
+    for t, _ in d.get("low_samples", []) + d.get("empty_samples", []):
         n = next((i for i, ws in enumerate(words) if ws and ws[0]["start"] - 0.3 <= t <= ws[-1]["end"] + 0.6), None)
         if n is not None:
             hits[n] = hits.get(n, 0) + 1
-    return [f"line {n + 1}: the frame looks empty: make its first drawing a WIDE diagram (flow, timeline, scales, venn, "
-            "crossout, bars) and its second a TALL or square object (person, puppet, question, germ, bolt, heart)"
-            for n in sorted(hits)]
+    return [f"line {n + 1}: the frame looks empty: give it two drawings, the first wide or square (shown above the guide), "
+            "the second tall or square (shown beside him)" for n in sorted(hits)]
 
 
 def fail_report(out: Path, vid: str, rounds: list[dict], why: str) -> str:
@@ -334,6 +334,12 @@ def main() -> None:
         (a.out / "plan.json").write_text(json.dumps(res["plan"], indent=1, ensure_ascii=False), encoding="utf-8")
         (a.out / "media.json").write_text(json.dumps(res["media"], indent=1, ensure_ascii=False), encoding="utf-8")
         (a.out / "gates.json").write_text(json.dumps(res["gates"], indent=1, ensure_ascii=False), encoding="utf-8")
+        miss = planmod.misses(res["plan"], cat)                 # concepts the doodle library did not have
+        (a.out / "doodle_misses.json").write_text(json.dumps(miss, indent=1, ensure_ascii=False), encoding="utf-8")
+        status["doodle_misses"] = len(miss)
+        used = [d.get("type") for L in res["plan"]["lines"] for d in L.get("drawings", [])]
+        status["drawings"] = {"library": sum(1 for t in used if cat["objects"].get(t, {}).get("doodle")), "built_in":
+                              sum(1 for t in used if not cat["objects"].get(t, {}).get("doodle"))}
         times = json.loads((res["work"] / "preview_times.json").read_text())
         subprocess.run([sys.executable, str(ROOT / "tools" / "frame_sheet.py"), str(res["mp4"]), "--work", str(res["work"]),
                         "--out", str(a.out / f"{a.id}-8-frames.jpg")], check=True)

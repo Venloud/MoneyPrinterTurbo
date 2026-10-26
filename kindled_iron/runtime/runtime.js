@@ -453,6 +453,12 @@
         p(circlePath(0, -95, 9) + ' ' + circlePath(150, 95, 9) + ' ' + circlePath(-150, 95, 9), { w: 5, fill: 'ink', fo: 1 }) +
         lbl(0, -128, L[0], 34) + lbl(-150, 128, L[1], 34) + lbl(150, 128, L[2], 34) + (o.center ? lbl(0, 40, o.center, 38, 'waterLine') : '');
     },
+    doodle: function (o) {      // a library illustration (kindled_iron/doodles): o.parts [[d, style]], o.slots {name: [x, y, size, color]}, o.labels {name: text}
+      var s = '', L = o.labels || {};
+      (o.parts || []).forEach(function (q) { s += p(q[0], q[1]); });
+      Object.keys(o.slots || {}).forEach(function (k) { var t = L[k], q = o.slots[k]; if (t) s += lbl(q[0], q[1], t, q[2] || 30, q[3]); });
+      return s;
+    },
     venn: function (o) {        // two overlapping circles: left label, right label, and what they share (written under them)
       var L = o.labels || ['A', 'B'];
       return p(wobbleCircle(-70, 0, 110, 3, 0.03), { w: 7, c: 'accent', fill: 'accent', fo: 0.15 }) +

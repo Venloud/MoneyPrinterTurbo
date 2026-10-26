@@ -137,7 +137,7 @@ def measure_specs(specs: list[dict], chrome: str | None = None, guide: bool = Fa
         with sync_playwright() as pw:
             b = pw.chromium.launch(executable_path=render.find_chrome(chrome), args=["--allow-file-access-from-files"])
             page = b.new_page(viewport={"width": 1080, "height": 1920})
-            page.goto(page_file.as_uri())
+            page.goto(Path(page_file).resolve().as_uri())
             page.wait_for_function("window.kiSeek !== undefined", timeout=60000)
             page.evaluate("document.fonts.ready.then(function () { return 1; })")
             page.wait_for_timeout(1200)

@@ -205,7 +205,8 @@ def main() -> None:
     if not script.is_file() or not mp3.is_file():
         sys.exit(f"FAIL: {src} needs script.txt and narration.mp3 (the owner's recording; no voice is generated)")
     os.environ.setdefault("KI_PRIVATE_MEDIA", str(a.private))
-    work = a.work or (REPO / "storage" / "director" / a.id)
+    work = (a.work or (REPO / "storage" / "director" / a.id)).resolve()     # the renderer and Chrome need absolute paths
+    a.out = a.out.resolve()
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     a.out.mkdir(parents=True, exist_ok=True)

@@ -147,3 +147,80 @@ class Budget(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Acceptance(unittest.TestCase):
+    """Correction 6 (run #16 said ok: true with verdict fixed_not_rereviewed): only a genuine passing vision review of
+    the final video, with every gate passed, is accepted."""
+    GATES = {"collisions": True, "coverage": True, "audit": True}
+
+    def test_rule(self):
+        self.assertEqual(direct.accepted(self.GATES, {"verdict": "pass"}), (True, ""))
+        for rev in ({"verdict": "fail", "summary": "chalkboard held"}, {"verdict": "fixed_not_rereviewed"},
+                    {"verdict": "pending"}, {}, None):
+            ok, why = direct.accepted(self.GATES, rev)
+            self.assertFalse(ok, rev)
+            self.assertTrue(why)
+        self.assertFalse(direct.accepted(dict(self.GATES, coverage=False), {"verdict": "pass"})[0])
+        self.assertFalse(direct.accepted({}, {"verdict": "pass"})[0])
+
+
+class ReviewBlocks(Budget):
+    """The whole main(): every gate passes, then the vision review decides the status."""
+
+    def fake_result(self):
+        work = self.tmp / "work_ok"
+        work.mkdir(exist_ok=True)
+        (work / "preview_times.json").write_text("[]")
+        mp4 = work / "v.mp4"
+        mp4.write_bytes(b"mp4")
+        return {"plan": {"lines": []}, "scene": {}, "frames": [], "media": [], "gates": {"coverage": {"ok": True}},
+                "mp4": mp4, "work": work}
+
+    def run_with_review(self, verdicts, fix_passes=True):
+        from kindled_iron.director import review as reviewmod
+        real = (reviewmod.review, reviewmod.fixes, direct.subprocess.run)
+        it = iter(verdicts)
+
+        def plan(kind, prompt, compact=None, **kw):
+            CALLS.append({"kind": kind, "provider": "gemini"})
+            return {"lines": []}
+        llm.call_json = plan
+        tries = []
+
+        def attempt(*a):
+            tries.append(1)
+            return self.fake_result() if fix_passes or len(tries) == 1 else None
+        direct.attempt = attempt
+        reviewmod.review = lambda *a: {"verdict": next(it), "summary": "the review's words"}
+        reviewmod.fixes = lambda rev, beats: ["fix it"]
+        direct.subprocess.run = lambda *a, **k: None
+        sys.argv = ["direct", "--id", "test-video", "--private", str(self.tmp / "private"), "--out", str(self.out),
+                    "--work", str(self.tmp / "work")]
+        code = None
+        try:
+            direct.main()
+        except SystemExit as e:
+            code = e.code
+        finally:
+            reviewmod.review, reviewmod.fixes, direct.subprocess.run = real
+        return code, json.loads((self.out / "status.json").read_text())
+
+    def test_failed_review_is_not_ok(self):
+        code, st = self.run_with_review(["fail"], fix_passes=False)     # the fix round fails its gates
+        self.assertIn("FAIL", str(code))
+        self.assertFalse(st["ok"])
+        self.assertEqual(st["state"], "failed")
+        self.assertIn("vision review failed", (self.out / "fail_report.md").read_text())
+
+    def test_revised_after_review_is_not_ok(self):
+        code, st = self.run_with_review(["fail"])            # the fix round re-renders and passes the gates
+        self.assertEqual(st["verdict"], "fixed_not_rereviewed")
+        self.assertFalse(st["ok"])
+        self.assertIn("not reviewed again", (self.out / "fail_report.md").read_text())
+
+    def test_passing_review_is_ok(self):
+        code, st = self.run_with_review(["pass"])
+        self.assertIsNone(code)
+        self.assertTrue(st["ok"])
+        self.assertEqual(st["state"], "done")

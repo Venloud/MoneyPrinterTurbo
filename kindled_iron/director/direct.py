@@ -194,6 +194,22 @@ def fail_report(out: Path, vid: str, rounds: list[dict], why: str) -> str:
     return text
 
 
+def accepted(gate_ok: dict, review: dict | None) -> tuple[bool, str]:
+    """A preview is accepted only when every gate passed AND a genuine vision review of THIS final video said
+    "pass". A failed or missing review, or a video revised after its review (not re-reviewed), is never ok."""
+    if not gate_ok or not all(gate_ok.values()):
+        return False, "not every gate passed: " + ", ".join(k for k, v in (gate_ok or {}).items() if not v)
+    verdict = (review or {}).get("verdict")
+    if verdict == "pass":
+        return True, ""
+    if verdict == "fixed_not_rereviewed":
+        return False, ("the video was revised after its vision review and the revision was not reviewed again (the "
+                       "budget is 1 vision call a video): it is not accepted")
+    if verdict in (None, "", "pending"):
+        return False, "no vision review of the final video"
+    return False, f"the vision review failed: {(review or {}).get('summary', '')[:600]}"
+
+
 def load_checkpoint(private: Path, vid: str, sha: str) -> dict:
     """The state of a video that waits for AI quota (previews/<id>/checkpoint.json): kept only while its status
     says waiting_quota and the recording is the same, so a finished or failed video always starts fresh."""
@@ -276,8 +292,8 @@ def main() -> None:
             ntfy(f"Kindled Iron director FAILED: {a.id}", why + "\n" + text[:1500])
             sys.exit(f"FAIL: {why} (see fail_report.md)")
         (a.out / "fail_report.md").unlink(missing_ok=True)
-        ntfy(f"Kindled Iron preview ready: {a.id}",
-             f"Gates passed. Vision review: {rev.get('verdict')}. {rev.get('summary', '')}\nPrivate: previews/{a.id}/")
+        ntfy(f"Kindled Iron preview accepted: {a.id}",
+             f"Gates passed and the vision review passed. {rev.get('summary', '')}\nPrivate: previews/{a.id}/")
 
     def wait(stage: str, e: Exception) -> None:
         """Every AI provider is out of quota: keep the checkpoint and stop cleanly; the scheduled retry after the
@@ -386,8 +402,9 @@ def main() -> None:
         log("vision review failed and the plan budget is spent: keeping the video with the failed verdict")
     final = {"verdict": final_verdict, "summary": rev.get("summary", ""), "rounds": reviews}
     status.update({"verdict": final_verdict})
-    save(result, final)
-    finish(True, final)
+    save(result, final)                         # the video and its review stay in the private preview either way
+    ok, why = accepted(status.get("gates") or {}, final)
+    finish(ok, final, why)
     log(f"done: {a.out}")
 
 

@@ -469,7 +469,7 @@
         while (lines.length > 3 && size > 12) { size -= 2; lines = [lines.join(' ')]; }
         var sz = size * 1.35;
         var top = k === 'label' ? 0 : (lines.length - 1) / 2;    // the label under a drawing grows downward
-        lines.forEach(function (ln, j) { s += lbl(q[0], q[1] + (j - top) * sz * 0.95, ln, size, q[3]); });
+        lines.forEach(function (ln, j) { s += lbl(q[0], q[1] + (j - top) * sz * 0.95, ln, size, q[3], true); });   // already wrapped
       });
       return s;
     },
@@ -572,9 +572,9 @@
   };
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
   // a handwritten label centred on (x, y); long labels wrap onto two lines (director catalog drawings)
-  function lbl(x, y, text, size, color) {
-    var t = String(text == null ? '' : text).toUpperCase(), lines = [t];
-    if (t.length > 14 && t.indexOf(' ') > 0) { var m = t.length / 2, cut = -1;
+  function lbl(x, y, text, size, color, nowrap) {   // nowrap: a line the caller already wrapped (wrapping it again
+    var t = String(text == null ? '' : text).toUpperCase(), lines = [t];   // put it on top of the next line)
+    if (!nowrap && t.length > 14 && t.indexOf(' ') > 0) { var m = t.length / 2, cut = -1;
       for (var i = 0; i < t.length; i++) if (t[i] === ' ' && (cut < 0 || Math.abs(i - m) < Math.abs(cut - m))) cut = i;
       lines = [t.slice(0, cut), t.slice(cut + 1)]; }
     var sz = (size || 32) * 1.35, out = '';     // read on a phone: labels stay big after the drawing is scaled
@@ -641,11 +641,67 @@
     wait_what: eyes(0, -1, 4) + p('M-6,-24 q3,-3 6,0 q3,3 6,0', { w: 3 }) + p('M-19,-56 q7,-7 14,-2', { w: 4 }) +
       p('M38,-106 q0,-14 11,-14 q11,0 11,11 q0,8 -9,11 l0,7 M49,-76 l0,2', { w: 5, c: 'accent' })
   };
+  // The teenage narrator (a per-video character style: cast spec style "teen"; approved for evaluation in Computer
+  // Bugs only). The same joints, groups and animations as every character; only the drawing differs: a taller oval
+  // head with a jaw (about 0.43 of the body), bigger readable features, an oversized hoodie and baggy cargo pants
+  // drawn as outlines only (the paper shows through; colours from spec.colors: hoodie, pants, line).
+  function teenEyes(o) {   // o: {l: [dx, dy, rx, ry, px, py], r: [...]} in head space (head centre (0,-38))
+    var e = function (q) { return '<ellipse cx="' + q[0] + '" cy="' + q[1] + '" rx="' + q[2] + '" ry="' + q[3] + '" fill="' + C.board + '" stroke="' + C.ink + '" stroke-width="2.6"/>' +
+      '<circle cx="' + (q[0] + (q[4] || 0)) + '" cy="' + (q[1] + (q[5] || 0)) + '" r="' + (Math.min(q[2], q[3]) * 0.5).toFixed(1) + '" fill="' + C.ink + '"/>'; };
+    return e(o.l) + e(o.r);
+  }
+  var TE = { l: [-12, -42, 6.5, 5.5], r: [12, -42, 6.5, 5.5] };
+  var TB = 'M-21,-53 q7,-3 15,-1 M6,-54 q7,-3 15,0';                     // calm brows
+  var TEEN_FACES = {
+    neutral: teenEyes(TE) + p(TB, { w: 3.2 }) + p('M-8,-19 q8,4 16,0', { w: 2.8 }),
+    happy: p('M-18,-41 q6,-9 12,0 M6,-41 q6,-9 12,0', { w: 3 }) + p(TB, { w: 3.2 }) + p('M-12,-22 Q0,-6 12,-22 Z', { w: 2.6, fill: 'board' }),
+    surprised: teenEyes({ l: [-12, -43, 8, 8], r: [12, -43, 8, 8] }) + p('M-23,-58 q8,-7 16,-2 M7,-59 q8,-7 16,0', { w: 3.2 }) +
+      '<ellipse cx="0" cy="-18" rx="5" ry="7" fill="' + C.board + '" stroke="' + C.ink + '" stroke-width="2.6"/>',
+    curious: teenEyes({ l: [-12, -42, 6.5, 5.5, 2, -2], r: [12, -42, 6.5, 5.5, 2, -2] }) + p('M-21,-52 L-6,-52 M6,-56 q7,-6 15,-1', { w: 3.2 }) + p('M-3,-19 q6,-2 11,0', { w: 2.8 }),
+    awe: teenEyes({ l: [-12, -43, 7.5, 7.5, 0, -3], r: [12, -43, 7.5, 7.5, 0, -3] }) + p('M-22,-57 q8,-6 16,-2 M6,-58 q8,-6 16,0', { w: 3.2 }) + p('M-5,-19 q5,5 10,0', { w: 2.8 }),
+    blink: p('M-19,-42 L-5,-42 M5,-42 L19,-42', { w: 3 }) + p(TB, { w: 3.2 }) + p('M-8,-19 q8,4 16,0', { w: 2.8 })
+  };
+  var TQ = function (x, y) { return p('M' + x + ',' + y + ' q0,-12 11,-12 q11,0 11,10 q0,7 -9,11 l0,7 M' + (x + 11) + ',' + (y + 22) + ' l0,1', { w: 4.5, c: 'accent' }); };
+  var TEEN_REACT = {
+    confused_math: TEEN_FACES.curious + p('M-8,-18 q4,-4 8,0 q4,4 8,0', { w: 2.8 }) + TQ(36, -96),
+    puzzled: teenEyes({ l: [-12, -41, 5.5, 4.5, 1, 1], r: [12, -44, 8, 7, -1, 1] }) + p('M-21,-48 l15,2 M5,-59 q8,-7 16,1', { w: 3.4 }) +
+      p('M-9,-18 q4,-4 8,0 q4,4 8,0', { w: 2.8 }) + TQ(38, -98),
+    surprised: TEEN_FACES.surprised,
+    shocked: TEEN_FACES.surprised + p('M-44,-66 l-10,-8 M-46,-48 l-12,0 M44,-68 l10,-9 M46,-50 l12,-1', { w: 3.6, c: 'accent' }),
+    mind_blown: TEEN_FACES.happy + p('M-30,-82 l-6,-14 M30,-82 l6,-14 M-42,-66 l-12,-4 M42,-66 l12,-4', { w: 3.6, c: 'accent' }),
+    side_eye: teenEyes({ l: [-12, -41, 6.5, 3.5, 3, 0.5], r: [12, -42, 6.5, 5.5, 3, 1] }) + p('M-21,-47 L-5,-46 M5,-56 q8,-6 16,0', { w: 3.4 }) + p('M-2,-19 q8,-1 13,-6', { w: 2.8 }),
+    crying_laughing: TEEN_FACES.happy + p('M-26,-38 c-5,6 -6,11 -2,13 c4,-2 4,-7 2,-13 Z M26,-38 c5,6 6,11 2,13 c-4,-2 -4,-7 -2,-13 Z', { w: 2.2, c: 'accent' }),
+    thinking: teenEyes({ l: [-12, -42, 6.5, 5.5, 3, -3], r: [12, -43, 6.5, 5.5, 3, -3] }) + p('M-21,-51 L-6,-51 M5,-57 q8,-7 16,-1', { w: 3.4 }) +
+      p('M-2,-19 q5,-2 10,0', { w: 2.8 }) + p('M44,-92 a4,4 0 1,0 0.1,0 M56,-108 a6,6 0 1,0 0.1,0 M72,-130 a10,10 0 1,0 0.1,0', { w: 2.6, c: 'accent' }),
+    wait_what: teenEyes({ l: [-12, -42, 7, 6.5], r: [12, -43, 7.5, 7] }) + p('M-22,-56 q8,-7 16,-2 M6,-53 L21,-53', { w: 3.4 }) +
+      p('M-7,-19 q3,-3 7,0 q3,3 7,0', { w: 2.8 }) + TQ(38, -100)
+  };
+  var TEEN_HEAD = 'M-1,-75 C15,-76 29,-67 31,-50 C33,-36 31,-23 23,-13 C16,-6 8,-2 0,-2 C-9,-2 -18,-6 -24,-14 C-31,-24 -33,-40 -31,-54 C-28,-68 -16,-75 -1,-75 Z';
+  var TEEN_HAIR = 'M-31,-54 C-33,-72 -21,-86 -3,-87 C16,-88 32,-76 31,-55 M-26,-70 q2,-8 8,-5 M-17,-79 q3,-7 9,-3 M-6,-84 q3,-7 9,-2 M5,-84 q4,-6 9,-1 M16,-80 q4,-6 8,0 M25,-71 q4,-5 7,2';
+  function teenParts(col) {
+    var HOOD = col.hoodie || '#FF5F52', PANTS = col.pants || '#0B0D12', LINE = col.line || C.ink;
+    var oc = function (d, c, w) { return f(d, 'board', 1, false) + p(d, { w: w || 3.6, c: c }); };       // outline only
+    return {
+      head: oc(TEEN_HEAD, LINE, 3.6) + p(TEEN_HAIR, { w: 3, c: LINE }) +
+        p('M-31,-44 q-7,1 -6,10 q1,5 6,4 M31,-43 q7,1 6,10 q-1,5 -6,4', { w: 3, c: LINE }) + p('M2,-36 q4,8 -2,10', { w: 2.4, c: LINE }),
+      torso: oc('M-30,8 C-36,-28 -36,-62 -30,-92 C-14,-102 14,-102 30,-92 C36,-62 36,-28 30,8 Q0,16 -30,8 Z', HOOD) +
+        p('M-30,0 Q0,8 30,0', { w: 2.6, c: HOOD }) + oc('M-16,-44 L16,-44 L21,-20 L-21,-20 Z', HOOD, 2.6) +
+        oc('M-17,-94 C-21,-108 21,-108 17,-94 C10,-89 -10,-89 -17,-94 Z', HOOD, 3.2) +
+        p('M-5,-92 l-1,22 M5,-92 l1,22', { w: 2.2, c: HOOD }),
+      seg: function (w0, w1, L, which) { return oc(capsule(w0, w1, L), which === 'leg' ? PANTS : HOOD); },
+      pocket: p('M-13,14 l10,0 l0,18 l-10,0 Z M-13,20 l10,0', { w: 2.4, c: PANTS }),
+      folds: p('M-11,30 q6,4 12,0 M-10,40 q5,3 10,0', { w: 2.2, c: PANTS }),
+      hand: oc(circlePath(0, 4, 8), LINE, 3),
+      shoe: oc('M-11,-5 C-13,7 24,10 27,2 C27,-5 8,-9 -11,-5 Z', LINE, 3) + p('M-12,2 L27,2', { w: 2.2, c: LINE })
+    };
+  }
   function buildChar(id, spec) {
     var col = {}; Object.keys(DEFAULT_COLORS).forEach(function (k) { col[k] = (spec.colors || {})[k] || DEFAULT_COLORS[k]; });
+    var teen = spec.style === 'teen', TP = teen ? teenParts(spec.colors || {}) : null;
+    var FS = teen ? TEEN_FACES : FACES, RS = teen ? TEEN_REACT : REACT;
     var exprs = '';
-    Object.keys(FACES).forEach(function (name) { exprs += '<g class="expr" data-expr="' + name + '" opacity="0">' + FACES[name] + '</g>'; });
-    Object.keys(REACT).forEach(function (name) { exprs += '<g class="react" data-react="' + name + '" opacity="0">' + REACT[name] + '</g>'; });
+    Object.keys(FS).forEach(function (name) { exprs += '<g class="expr" data-expr="' + name + '" opacity="0">' + FS[name] + '</g>'; });
+    Object.keys(RS).forEach(function (name) { exprs += '<g class="react" data-react="' + name + '" opacity="0">' + RS[name] + '</g>'; });
     (D.inboxReactions || []).forEach(function (r) {
       exprs += '<g class="react" data-react="' + r.key + '" opacity="0"><clipPath id="rc-' + id + '-' + r.key + '"><circle cx="0" cy="-38" r="36"/></clipPath>' +
         '<image href="' + r.href + '" x="-38" y="-76" width="76" height="76" preserveAspectRatio="xMidYMid slice" clip-path="url(#rc-' + id + '-' + r.key + ')"/></g>';
@@ -713,6 +769,31 @@
       p('M-59,-312 Q-40,-400 0,-420 M59,-312 Q40,-400 0,-420', { w: 4, c: 'accent' }) + '</g>';
     var snorkel = '<g class="snorkel" opacity="0">' + solid('M-24,-50 Q0,-56 24,-50 L24,-34 Q0,-28 -24,-34 Z', '#BFE3F2', 4) +
       p('M-33,-44 L-24,-43 M24,-43 L33,-44', { w: 4 }) + solid('M30,-40 L36,-40 L36,-100 Q36,-106 30,-106 L30,-40 Z', C.accent, 3.5) + '</g>';
+    if (teen) {   // the same joints and groups, the teen drawing (outline-only clothes, taller head ~1.3x)
+      var limbT = function (cls, len1, len2, w, which, end, upper, lower) {
+        return '<g class="' + cls + '1">' + TP.seg(w[0], w[1], len1, which) + (upper || '') +
+          '<g transform="translate(0,' + len1 + ')"><g class="' + cls + '2">' + TP.seg(w[1], w[2], len2, which) + (lower || '') + end + '</g></g></g>';
+      };
+      torso = TP.torso; dress = ''; scarf = '';
+      leg = function (cls, x) {
+        return '<g transform="translate(' + x + ',0)"><g class="' + cls + '">' + limbT(cls, LEG, LEG, [30, 27, 25], 'leg',
+          '<g transform="translate(0,' + (LEG - 2) + ')">' + TP.shoe + '</g>', x < 0 ? TP.pocket : '<g transform="scale(-1,1)">' + TP.pocket + '</g>', TP.folds) + '</g></g>';
+      };
+      arm = function (cls, x, mirror) {
+        return '<g transform="translate(' + x + ',-' + SHOULDER + ')"><g class="' + cls + '"' + (mirror ? ' transform="scale(-1,1)"' : '') + '>' +
+          limbT(cls, UARM, FARM, [22, 20, 18], 'arm', '<g transform="translate(0,' + FARM + ')">' + TP.hand + '</g>') + '</g></g>';
+      };
+      var HS = '<g transform="translate(0,-3) scale(1.3) translate(0,3)">';
+      return '<g class="ki-char" id="char-' + id + '"><clipPath id="cl-' + id + '" clipPathUnits="userSpaceOnUse"><rect class="clipr" x="-600" y="-3000" width="1200" height="3006"/></clipPath>' +
+        '<g class="cclip">' +
+        '<g class="shadow">' + f('M-46,2 C-24,-7 24,-7 46,2 C24,10 -24,10 -46,2 Z', 'shadow', 0.8, false) + '</g>' +
+        '<g class="mover"><g class="flip"><g class="body" transform="translate(0,' + HIP_Y + ')">' + chute +
+        leg('legL', -11) + leg('legR', 11) +
+        '<g class="torso">' + arm('armL', -SH_W - 6, true) + torso +
+        '<g transform="translate(0,-' + (TORSO - 2) + ')"><g class="head"><g class="headbox">' + HS + TP.head + '</g></g>' + HS + exprs + '</g>' + snorkel + '</g></g>' +
+        arm('armR', SH_W + 6, false) + '</g>' +
+        '</g></g></g></g></g>';
+    }
     return '<g class="ki-char" id="char-' + id + '"><clipPath id="cl-' + id + '" clipPathUnits="userSpaceOnUse"><rect class="clipr" x="-600" y="-3000" width="1200" height="3006"/></clipPath>' +
       '<g class="cclip">' +
       '<g class="shadow">' + f('M-46,2 C-24,-7 24,-7 46,2 C24,10 -24,10 -46,2 Z', 'shadow', 0.8, false) + '</g>' +
@@ -1980,6 +2061,29 @@
       cards.forEach(function (c) { if (inter(rr, c) > 0) out.push('DRAWING ' + id + ' UNDER MEME'); });
       safeIssues('drawing ' + id, rr, out);
     });
+    // two drawings on each other, and label text on other label text (a drawing over a drawing, a wrapped label
+    // on its own next line): the director's main drawings only (a cross-out or an arrow on a drawing is meant)
+    var mains = [], texts = [];
+    Object.keys(objs).forEach(function (id) {
+      var ob = objs[id];
+      if (!ob.def.main || !shown(ob.el) || parseFloat(getComputedStyle(ob.el).opacity) < 0.3) return;
+      var rr = glyphBox(ob); if (!rr.width || offScreen(rr)) return;
+      mains.push({ id: id, r: rr });
+      Array.prototype.forEach.call(ob.el.querySelectorAll('text'), function (tx) {
+        if (!tx.textContent.trim()) return;
+        var q = tx.getBoundingClientRect(), h = q.height * 0.55, cy = (q.top + q.bottom) / 2;    // the glyph band
+        if (q.width > 2) texts.push({ id: id, r: { left: q.left, right: q.right, top: cy - h / 2, bottom: cy + h / 2 } });
+      });
+    });
+    var areaOf = function (r) { return Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top); };
+    for (var a = 0; a < mains.length; a++) for (var b = a + 1; b < mains.length; b++) {
+      var ov = inter(mains[a].r, mains[b].r), small = Math.min(areaOf(mains[a].r), areaOf(mains[b].r));
+      if (small > 0 && ov > 0.12 * small) out.push('DRAWINGS OVERLAP ' + mains[a].id + ' / ' + mains[b].id);
+    }
+    for (var a2 = 0; a2 < texts.length; a2++) for (var b2 = a2 + 1; b2 < texts.length; b2++) {
+      var ov2 = inter(texts[a2].r, texts[b2].r), small2 = Math.min(areaOf(texts[a2].r), areaOf(texts[b2].r));
+      if (small2 > 0 && ov2 > 0.2 * small2) out.push('LABELS OVERLAP ' + texts[a2].id + (texts[a2].id === texts[b2].id ? '' : ' / ' + texts[b2].id));
+    }
     // meme reaction cards: big, beside the guide, never over the box, the guide or the captions
     Object.keys(objs).forEach(function (id) {
       var ob = objs[id]; if (!ob.def.reaction_card || !shown(ob.el)) return;

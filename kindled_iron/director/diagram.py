@@ -16,6 +16,14 @@ after the whole diagram has been seen. Assets with region_rendering false always
 Selection is by meaning, not by a trigger phrase: a run of consecutive sentences that (a) starts where the
 narration points at a visual ("this graph", "the map", "look at...") or names the diagram's subject, and (b) keeps
 talking about what the diagram contains (its subject, topics, aliases, description and region text).
+
+How LONG it stays is a separate decision (attention, not topic): the whole picture is the visual while the
+narration is looking AT it, i.e. through the last clause that points at the picture itself ("according to this
+graph,") or, for an asset that allows region focus, names one of its regions; never shorter than the time to take
+it in (MIN_VIEW, or the asset's own reading_seconds); then it goes at the next pause. When the narration only goes
+on discussing the subject (the argument the chart summarises), one idea at a time is clearer than a dense chart, so
+the drawings take over. The same rule gives a quick reference ~3-5 s and a chart the narration walks through much
+longer. (Owner, 2026-10-27: a flowchart stayed 25.4 s while the narration only discussed its subject.)
 """
 from __future__ import annotations
 
@@ -27,6 +35,7 @@ MAX_GAP = 2                # short sentences in between that do not ("Sounds cra
 MAX_SECONDS = 30.0         # it never stays longer than this
 HOLD = 0.4                 # after the last sentence about it
 MIN_WHOLE = 2.0            # the whole diagram is seen this long before any region focus
+MIN_VIEW = 3.0             # the least time to take in a whole diagram (an asset may say more: reading_seconds)
 MIN_READABLE_PX = 18       # smallest text (cap height, px on the 1920-tall frame) a phone viewer can read
 CAPTION_BAND = 140         # the caption line box (110 px for 88 px text) + its outline + gap, under the diagram
 
@@ -93,12 +102,12 @@ def select(sentences: list[dict], lib: list[dict]) -> dict | None:
             if n_support < MIN_SUPPORT:
                 continue
             if best is None or total > best["score"]:          # the same total: the earlier introduction wins
+                t0 = round(max(0.0, s["t0"] - 0.05), 3)
+                t1, upto = attention_end(d, sentences, a, last, t0)
                 best = {"file": d["file"], "path": d.get("path"), "size": list(d["size"]), "score": total,
-                        "t0": round(max(0.0, s["t0"] - 0.05), 3),
-                        "t1": round(min(sentences[last]["t1"] + HOLD, sentences[last + 1]["t0"] + 0.1)
-                                    if last + 1 < len(sentences) else sentences[last]["t1"] + HOLD, 3),
-                        "first": a, "last": last,
-                        "sentences": [dict(st.evidence(sentences[k]), why=scored[k][1]) for k in range(a, last + 1)],
+                        "t0": t0, "t1": t1, "topic_until": round(sentences[last]["t1"], 3), "support": n_support,
+                        "first": a, "last": upto,
+                        "sentences": [dict(st.evidence(sentences[k]), why=scored[k][1]) for k in range(a, upto + 1)],
                         "_asset": d}
     if not best:
         return None
@@ -107,6 +116,46 @@ def select(sentences: list[dict], lib: list[dict]) -> dict | None:
     best["why"] = (f"the narration introduces {d.get('subject') or d['file']} and talks about what it shows for "
                    f"{len(best['sentences'])} sentences")
     return best
+
+
+def clauses(s: dict) -> list[dict]:
+    """A sentence's clauses (split after , ; : and the sentence end), with their words and times."""
+    out, cur = [], []
+    for w in s.get("words") or []:
+        cur.append(w)
+        if w["word"].rstrip("\"'”’)").endswith((",", ";", ":", ".", "?", "!")):
+            out.append(cur)
+            cur = []
+    if cur:
+        out.append(cur)
+    return [{"text": " ".join(w["word"] for w in c), "t0": c[0]["start"], "t1": c[-1]["end"], "words": c} for c in out]
+
+
+def attention_end(d: dict, sentences: list[dict], a: int, last: int, t0: float) -> tuple[float, int]:
+    """When the whole diagram stops being the visual -> (exit time, index of the last sentence it covers).
+    It stays through the last clause that points at the picture itself (a visual noun with a determiner: "this
+    graph"; for a region-focus asset also a clause naming one of its regions), at least MIN_VIEW (or the asset's
+    reading_seconds) from its start, and leaves in the pause after that clause. Pointing again more than MAX_GAP
+    sentences later does not keep it up through everything in between."""
+    keys = [k for r in ((d.get("regions") or {}).values() if isinstance(d.get("regions"), dict) else d.get("regions") or [])
+            for k in r.get("keywords") or []] if d.get("region_rendering") else []
+    need = t0 + float(d.get("reading_seconds") or MIN_VIEW)
+    flat = [(k, c) for k in range(a, last + 1) for c in clauses(sentences[k])]
+    att, gap_from = None, a
+    for k, c in flat:
+        points = "refers_visual" in st.intent(c["text"]) or any(st.phrase_in(x, c["text"]) for x in keys)
+        if points and k - gap_from <= MAX_GAP:
+            att, gap_from = (k, c), k
+    k_end, c_end = att if att else flat[0]
+    for k, c in flat:                                  # never shorter than the time to take it in
+        if (k, c["t1"]) >= (k_end, c_end["t1"]) and c["t1"] >= need:
+            k_end, c_end = k, c
+            break
+    else:
+        k_end, c_end = flat[-1]
+    nxt = next((w["start"] for kk in range(k_end, len(sentences)) for w in sentences[kk]["words"] if w["start"] > c_end["t1"]), None)
+    t1 = c_end["t1"] + HOLD if nxt is None else min(c_end["t1"] + HOLD, (c_end["t1"] + nxt) / 2 + 0.05)
+    return round(t1, 3), k_end
 
 
 def views(d: dict, ss: list[dict], t0: float) -> list[dict]:

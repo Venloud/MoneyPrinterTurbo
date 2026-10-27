@@ -11,6 +11,8 @@ editing or animation code depends on it.
 """
 from __future__ import annotations
 
+import json
+
 BOARD = "#123A6B"
 PANEL = "#17457C"          # fills read as flat panels a shade lighter than the paper, never as colour
 WHITE = "#F4F8FF"
@@ -29,6 +31,25 @@ THEMES: dict[str, dict] = {
         "grid": {"minor": 40, "major": 200},
     },
 }
+
+
+# Narrator characters a video may ask for (approved_audio/<id>/settings.json "character"); without one the guide is the
+# theme's usual narrator. Same rig, joints and animations; only the drawing differs (runtime buildChar: spec.style).
+#   teen   a stylized teenager: taller oval head with a jaw (about 0.43 of the body), big readable features, an
+#          oversized hoodie and baggy cargo pants drawn as outlines only (approved 2026-10-27 for evaluation in
+#          Computer Bugs only; it never replaces another video's approved character)
+CHARACTERS: dict[str, dict] = {
+    "teen": {"style": "teen", "colors": {"hoodie": "#FF5F52", "pants": "#0B0D12"}},
+}
+
+
+def character(name: str | None) -> dict:
+    """The cast spec for a narrator character ({} for the theme's own). An unknown name is an error."""
+    if not name:
+        return {}
+    if name not in CHARACTERS:
+        raise SystemExit(f"FAIL: unknown character {name!r} (known: {', '.join(sorted(CHARACTERS))})")
+    return json.loads(json.dumps(CHARACTERS[name]))
 
 
 def apply(name: str | None, palette: dict, host_look: dict) -> dict | None:

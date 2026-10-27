@@ -299,7 +299,8 @@ def main() -> None:
     meta = {"id": a.id, "audio_path": f"approved_audio/{a.id}/narration.mp3", "sha256": sha, "align": ratio}
     settings_f = src / "settings.json"               # optional per video: {"theme": "blueprint"} (look only)
     if settings_f.is_file():
-        meta["theme"] = (json.loads(settings_f.read_text(encoding="utf-8")) or {}).get("theme")
+        st_ = json.loads(settings_f.read_text(encoding="utf-8")) or {}
+        meta["theme"], meta["character"] = st_.get("theme"), st_.get("character")   # look only: colours, paper, narrator
     cat = planmod.catalog()
     lib = media.library(a.private)
     diagrams = [m for m in lib if m.get("role") == "diagram"]

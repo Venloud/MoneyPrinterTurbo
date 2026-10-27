@@ -65,7 +65,8 @@ class DiagramSelection(unittest.TestCase):
             dg, _, _ = pick(name)
             self.assertIsNotNone(dg, name)
             self.assertEqual(dg["file"], f, name)
-            self.assertGreaterEqual(len(dg["sentences"]), diagram.MIN_SUPPORT)
+            self.assertGreaterEqual(dg["support"], diagram.MIN_SUPPORT)      # chosen because the narration explains it
+            self.assertLessEqual(dg["t1"], dg["topic_until"] + diagram.HOLD + 0.01)
             self.assertTrue(dg["why"])
         self.assertIsNone(pick("unrelated")[0])
 
@@ -76,16 +77,38 @@ class DiagramSelection(unittest.TestCase):
         # a meme is never a diagram, whatever its words
         self.assertFalse(diagram.is_diagram(LIB[-1]))
 
-    def test_the_window_follows_the_narration_and_ends_when_it_moves_on(self):
+    def test_it_stays_while_the_narration_looks_at_it_not_while_it_discusses_the_subject(self):
+        """Owner, 2026-10-27: the flowchart stayed 25 s while the narration walked through the argument; about 5 s was
+        right there. The whole picture stays through the last clause that points at it, then leaves in the pause."""
         dg, lines, words = pick("epicurean")
-        self.assertEqual(dg["t0"], 0.0)                         # it is introduced by the first sentence
-        last = dg["sentences"][-1]["sentence"]
-        self.assertEqual(last, "Free will.")                    # ends where the narration stops walking through it
-        self.assertLessEqual(dg["t1"] - dg["t0"], diagram.MAX_SECONDS)
+        self.assertEqual(dg["t0"], 0.0)
         ss = story.sentences(lines, words)
-        k = next(i for i, s in enumerate(ss) if s["text"] == last)
-        self.assertEqual(ss[k + 1]["text"], "Think about it.")  # the next sentence is not about the diagram ...
-        self.assertLessEqual(dg["t1"], ss[k + 1]["t0"] + 0.15)  # ... and the diagram is gone as it starts
+        covered = [s_ for s_ in ss if s_["t0"] < dg["t1"]]                  # (a later "this graph leaves out", far
+        cl = [c for s_ in covered for c in diagram.clauses(s_) if "refers_visual" in story.intent(c["text"])][-1]   # on, does not hold it)
+        self.assertGreaterEqual(dg["t1"], cl["t1"])                          # through "according to this graph,"
+        nxt = next(w["start"] for s_ in ss for w in s_["words"] if w["start"] > cl["t1"])
+        self.assertLessEqual(dg["t1"], nxt + 0.05)                          # gone in the pause after it
+        self.assertGreaterEqual(dg["t1"] - dg["t0"], diagram.MIN_VIEW)
+        self.assertGreater(dg["topic_until"], dg["t1"] + 10)                # the argument goes on: drawings show it
+
+    def test_a_chart_the_narration_keeps_pointing_at_stays_longer(self):
+        """Unseen script: a narrator walking the viewer through a chart keeps it up as long as they point at it."""
+        lines, words = timed("Look at this diagram of the water cycle. In this diagram the sun heats the ocean and water "
+                             "evaporates into vapor. This diagram then shows the vapor cooling into clouds. The clouds "
+                             "fall as rain. Rivers carry it back to the sea.\n\nSo the water in your glass is old.")
+        dg = diagram.select(story.analyze(lines, words)["sentences"], LIB)
+        ss = story.sentences(lines, words)
+        third = next(s_ for s_ in ss if s_["text"].startswith("This diagram then"))
+        self.assertGreaterEqual(dg["t1"], third["t1"])                      # through the third reference ...
+        so = next(s_ for s_ in ss if s_["text"].startswith("So the water"))   # (a region asset also follows the
+        self.assertLess(dg["t1"], so["t0"])                                 # regions it names) not into the conclusion
+
+    def test_one_quick_reference_still_gets_time_to_be_seen(self):
+        lines, words = timed("This map shows it. Rome built roads to Brindisi. Roads crossed Gaul, Hispania and Britain. "
+                             "Milestones marked every Roman mile along the trade routes.", per_word=0.3)
+        dg = diagram.select(story.analyze(lines, words)["sentences"], LIB)
+        self.assertIsNotNone(dg)
+        self.assertGreaterEqual(dg["t1"] - dg["t0"], diagram.MIN_VIEW)     # a 1.2 s mention: seen at least MIN_VIEW
 
     def test_a_quote_ends_the_diagram(self):
         lines, words = timed("Look at this diagram. The sun heats the ocean and water evaporates into vapor. The vapor "
@@ -630,3 +653,73 @@ class LateMediaLead(unittest.TestCase):
         self.assertLessEqual(bottom, cat["zones"]["draw"]["y0"])           # in the box's place, above the band
         gone = [t for t, e in ev if e.get("do") == "fade" and d[1]["id"] in e["ids"] and not e.get("opacity")]
         self.assertTrue(gone and d[0] < min(gone) <= box)                  # and gives way just before the media
+
+
+class DrawingLifetimes(unittest.TestCase):
+    """A drawing is on screen while the narration is about it: an earlier line's drawing leaves at the line handover
+    when the new line moves on (not seconds later when its slot is reused), and stays when the new line still
+    talks about it. Unseen script (not one of the four evaluation videos)."""
+
+    def compile(self, second_line):
+        from kindled_iron.director import compile as C, plan as P
+        cat = P.catalog()
+        lines, words = timed("Every lighthouse keeper kept a logbook of passing ships.\n\n" + second_line +
+                             "\n\nAnd that is how the coast stayed safe.")
+        plan = {"freeze": None, "lines": [
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [],
+             "drawings": [{"word": "logbook", "type": "openbook", "concept": "logbook", "fields": {"label": "LOGBOOK"}}]},
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [],
+             "drawings": [{"word": second_line.split()[-1], "type": "question_big", "concept": "question", "fields": {"label": "?"}}]},
+            {"expression": "happy", "gesture": {"do": "none"}, "box": [], "drawings": [{"word": "coast", "type": "check_big", "concept": "safe", "fields": {}}]}]}
+        scene, _ = C.compile_scene(plan, lines, words, cat, [[], [], []], {"id": "a", "audio_path": "a", "sha256": "x"})
+        ev = [((e["at"] if isinstance(e["at"], (int, float)) else C._anchor_time(words[b], e["at"])), e)
+              for b, beat in enumerate(scene["beats"]) for e in beat["events"]]
+        gone = min([t for t, e in ev if e.get("do") == "fade" and "l1_openbook0" in e["ids"] and not e.get("opacity")] + [1e9])
+        return gone, words
+
+    def test_it_leaves_when_the_narration_moves_on(self):
+        gone, words = self.compile("Storms still sank many of them anyway, why?")
+        self.assertLessEqual(gone, words[1][0]["start"])                   # gone by the time line 2 starts
+
+    def test_it_stays_while_the_narration_still_talks_about_it(self):
+        gone, words = self.compile("The logbook told the next keeper what to watch for, right?")
+        self.assertGreater(gone, words[1][0]["start"] + 0.5)               # still up during line 2
+
+
+class NarratorCharacter(unittest.TestCase):
+    """A video may ask for a narrator character in its settings (owner-approved: the teen narrator, for the Computer
+    Bugs evaluation only). It is a cast spec on the same rig; without the setting nothing changes."""
+
+    def test_only_a_video_that_asks_gets_it(self):
+        from kindled_iron import themes
+        from kindled_iron.director import compile as C, plan as P
+        self.assertEqual(themes.character(None), {})
+        with self.assertRaises(SystemExit):
+            themes.character("toddler")
+        lines, words = timed("A short line about bugs.")
+        plan = {"freeze": None, "lines": [{"expression": "curious", "gesture": {"do": "none"}, "box": [],
+                                           "drawings": [{"word": "bugs", "type": "moth", "fields": {}}]}]}
+        meta = {"id": "a", "audio_path": "a", "sha256": "x"}
+        plain, _ = C.compile_scene(plan, lines, words, P.catalog(), [[]], meta)
+        teen, _ = C.compile_scene(json.loads(json.dumps(plan)), lines, words, P.catalog(), [[]], dict(meta, character="teen"))
+        self.assertNotIn("style", plain["cast"]["guide"])
+        self.assertEqual(teen["cast"]["guide"]["style"], "teen")
+
+    def test_the_teen_rig_has_every_expression_and_reaction(self):
+        js = (ROOT / "kindled_iron" / "runtime" / "runtime.js").read_text()
+        def keys(name):
+            body = js.split(f"var {name} = {{", 1)[1].split("\n  };", 1)[0]
+            return set(re.findall(r"^\s{4}(\w+):", body, re.M))
+        self.assertEqual(keys("TEEN_FACES"), keys("FACES"))                # the director's expressions work unchanged
+        self.assertEqual(keys("TEEN_REACT"), keys("REACT"))
+
+
+class FrameAuditOverlaps(unittest.TestCase):
+    """Owner, 2026-10-27: the composition study's misses were a drawing on a drawing and a label on itself. The
+    per-frame audit now checks both, and the label wrap that put "EVERYTHING THAT" on "HAPPENED" is fixed."""
+
+    def test_the_audit_checks_drawings_and_labels_and_the_double_wrap_is_gone(self):
+        js = (ROOT / "kindled_iron" / "runtime" / "runtime.js").read_text()
+        self.assertIn("'DRAWINGS OVERLAP '", js)
+        self.assertIn("'LABELS OVERLAP '", js)
+        self.assertIn("ln, size, q[3], true)", js)                        # an already wrapped line is not wrapped again

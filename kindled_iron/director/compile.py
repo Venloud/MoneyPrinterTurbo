@@ -15,7 +15,9 @@ import math
 import re
 
 from kindled_iron import scripture
+from kindled_iron import themes as _themes
 from kindled_iron.director import actions
+from kindled_iron.director import story as _story
 from kindled_iron.director.plan import director_types, key, quoted_spans
 
 WALK_SPEED = 280                # px/s, the guide's natural pace at this size
@@ -477,6 +479,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     tl: dict = {"draw": {}, "fade": [], "cards": []}   # absolute times, for the pre-render collision check
     kept_before: set = set()                    # band drawings already kept over from their own line
     cleared_by_freeze = False                   # the previous line's freeze left the board empty
+    rel_terms: dict[str, set[str]] = {}          # what each drawing is about (its concept, word, type, labels)
     for i, (L, text) in enumerate(zip(P, lines)):
         W = words[i]
         t_start, t_last = W[0]["start"], W[-1]["end"]
@@ -646,6 +649,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                        "pop": False, "still": True, "main": True, **({"instant": True} if i == 0 and j == 0 and zone == "area" else {}),
                        **_draw_fields(d, types)})
             ids.append(did)
+            rel_terms[did] = _story.content(" ".join([str(d.get("concept") or ""), str(d.get("word") or ""), d["type"].replace("_", " ")] +
+                                                   [str(v) for v in (d.get("fields") or {}).values() if isinstance(v, str)]))
             draw_pos[did] = ((slot[0] + slot[2]) / 2, (slot[1] + slot[3]) / 2, key(d["word"]), t, zone)
             fw, fh = obj["size"][0] * s, obj["size"][1] * s
             slot_of[did] = (x + obj.get("center", [0, 0])[0] * s - fw / 2, y + obj.get("center", [0, 0])[1] * s - fh / 2,
@@ -767,6 +772,19 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     for od in shown[zone]:
                         if od != nd and _overlap(slot_of[od], slot_of[nd]):
                             fades.setdefault(round(max(t_start - 0.55, tn - 0.05), 3), []).append(od)
+        # an earlier line's drawing leaves when the narration moves on from it (at the line handover, in the pause),
+        # not when its slot is next needed: it stays only while the new line still talks about it (its concept, word
+        # or labels are said again). An empty part of the frame is better than a picture of what was said before.
+        if i:
+            pe = words[i - 1][-1]["end"]
+            first_new = min([draw_pos[d][3] for d in ids] + [t_start])   # before the new line's first drawing
+            th = round(max(pe + 0.05, min(pe + 0.3, t_start - 0.05, first_new - 0.05)), 3)
+            said = _story.content(text)
+            for zone in ("area", "lane", "top"):
+                for od in shown[zone]:
+                    if not (rel_terms.get(od, set()) & said):
+                        fades.setdefault(th, []).append(od)
+                        kept_area = [k_ for k_ in kept_area if k_ != od]
         if late[i]:                                    # the lead drawing gives way to the media for good
             for did_ in [d for d in ids if draw_pos[d][4] == "top" and draw_pos[d][3] < box_at[i] - 0.3]:
                 fades.setdefault(round(box_at[i] - 0.2, 3), []).append(did_)
@@ -957,7 +975,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                                   key=lambda w: w["t0"]),
         "audit": {"max_words": 3, "one_line": True}, "caption_color": "ink", "caption_on": "accent",
         "require_memes": sum(1 for L in P if L.get("pop")), "max_media_uses": 2,
-        "cast": {"guide": {"panel": 0, "x": route[0], "scale": 2.1, "facing": -1 if route[0] > 540 else 1, "accent": True}},
+        "cast": {"guide": {"panel": 0, "x": route[0], "scale": 2.1, "facing": -1 if route[0] > 540 else 1, "accent": True,
+                           **_themes.character(meta.get("character"))}},
         "mediabox": {"x": Z["box"]["x"], "y": Z["box"]["y"], "w": Z["box"]["w"], "h": Z["box"]["h"], "verse_size": round(60 * Z["box"]["h"] / 420), "pad_x": 48},
         "clips": scene_clips,
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",

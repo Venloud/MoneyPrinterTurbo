@@ -171,7 +171,10 @@ class Library(unittest.TestCase):
         self.assertFalse(res["per_line"]["ok"])
         self.assertIn("line 1", res["per_line"]["fix"])
         p = self._plan(box1=[{"word": "crazy", "kind": "stock", "query": "chalkboard argument"}])
-        self.assertEqual(planmod.validate(p, LINES, self.keys, self.lib, self.cat), [])     # lines 2-3 have no box
+        self.assertEqual(planmod.validate(p, LINES, self.keys, self.lib, self.cat), [])     # line 2 has no box
+        p["lines"][2]["box"] = []                       # but a clip never stays up a third line (run 40446183634)
+        self.assertIn("line 3: the clip box would still show line 1's media", " ".join(
+            planmod.validate(p, LINES, self.keys, self.lib, self.cat)))
         p["lines"][0]["box"] = []
         self.assertIn("hook line needs clip-box media", " ".join(planmod.validate(p, LINES, self.keys, self.lib, self.cat)))
 
@@ -364,7 +367,8 @@ class Library(unittest.TestCase):
              "drawings": [dr("argument", "question_big", {"label": "REALLY?"}), dr("money", "coin_pile", {"label": "MONEY"})]},
             {"expression": "sad", "gesture": {"do": "none"}, "box": box2 or [],
              "drawings": [dr("Earthquakes", "earthquake", {"label": "EARTHQUAKE"}), dr("people", "heart", {"label": "PAIN"})]},
-            {"expression": "thinking", "gesture": {"do": "shrug", "word": "why"}, "box": [], "pop": pop3,
+            {"expression": "thinking", "gesture": {"do": "shrug", "word": "why"},
+             "box": [{"word": "suffer", "kind": "stock", "query": "person praying dark room"}], "pop": pop3,
              "drawings": [dr("suffer", "question_big", {"label": "WHY?"}), dr("innocent", "heart", {"label": "INNOCENT"})]}]}
 
     def _compile(self, p):

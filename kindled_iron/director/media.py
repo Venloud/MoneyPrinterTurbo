@@ -23,6 +23,11 @@ STOP = {"the", "and", "with", "from", "into", "over", "under", "for", "person", 
         "shot", "slow", "motion", "footage", "stock"}
 
 
+WRITING = {"chalkboard", "blackboard", "whiteboard", "sign", "signboard", "poster", "newspaper", "headline", "text",
+           "letter", "word", "writing", "handwriting", "typing", "book", "page", "note", "notebook", "menu", "banner",
+           "billboard", "screen", "phone", "laptop", "calendar", "map"}
+
+
 def _words(s: str) -> set[str]:
     out = set()
     for w in re.findall(r"[a-z]+", s.lower()):
@@ -162,6 +167,8 @@ def stock(query: str, avoid: list[str], counts: dict, log) -> dict | None:
             have = _words(c.get("title", "") + " " + c.get("page", ""))
             if not want & have:
                 continue
+            if (have & WRITING) - want:                # footage whose subject is writing (a chalkboard, a sign...)
+                continue                               # shows words the line does not say
             ident = f"{c['source']}:{c['id']}"
             if (avoid and avoid[-1] == ident) or counts.get(ident, 0) >= 2:
                 continue

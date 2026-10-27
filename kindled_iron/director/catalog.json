@@ -3170,7 +3170,7 @@
   "openbook": {
    "center": [
     2,
-    35
+    60
    ],
    "director": true,
    "doc": "an open book (the Bible, a law, a story) with a short line written on each page",
@@ -3181,7 +3181,7 @@
    ],
    "size": [
     384,
-    218
+    268
    ]
   },
   "openhand": {
@@ -5073,7 +5073,7 @@
    ]
   }
  },
- "runtime_sha256": "7a01471721f52d264a9678229340cb48f9a2b722fe453d514e2513cb8b6071b9",
+ "runtime_sha256": "10705a90f5d4bf6a7be8ce525815d3e88d0f5b3c91f64c5ad5d2f0c518819a97",
  "zones": {
   "box": {
    "h": 380,

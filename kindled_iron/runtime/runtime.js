@@ -525,7 +525,7 @@
     },
     openbook: function (o) {    // an open book (the Bible, a law, a story) with a short line written on each page
       return OBJ.book({ blank: true }) + (o.left ? lbl(-95, -10, o.left, 30) : '') + (o.right ? lbl(95, -10, o.right, 30) : '') +
-        (o.label ? lbl(0, 115, o.label, 34, 'accent') : '');
+        (o.label ? lbl(0, 165, o.label, 34, 'accent') : '');   // below the ribbon (it hangs to y 120)
     },
     question: function (o) {    // a big question mark (why? an open question)
       return p('M-60,-80 C-60,-150 70,-150 70,-80 C70,-30 0,-20 0,30 L0,55', { w: 22, c: 'accent' }) + p(circlePath(0, 105, 14), { w: 8, fill: 'accent', fo: 1 }) +

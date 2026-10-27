@@ -131,7 +131,7 @@ RULES = [
     "Abstract ideas become diagrams: cause/effect -> 'flow'; two options -> 'signpost' or 'scales'; overlap -> 'venn'; a rejected idea -> 'crossout'; past/future -> 'timeline'; a question -> 'question'; control -> 'puppet'.",
     "Words appear only as LABELS inside a drawing (labels, title, center, label, text fields), short and in CAPS (max 28 characters).",
     "Read the WHOLE script first: know its argument, its turns and its feeling before picking anything for a line.",
-    "'box' (0-3 items): kind 'stock' with a concrete 2-4 word footage search query that literally shows the line's meaning (real things a camera can film), or kind 'meme' with a 'file' from media_library. Line 1 (the hook) always has box media; any other line may leave 'box' empty when its drawings and the guide's action carry it (the previous clip stays up). Never add media just to fill the box.",
+    "'box' (0-3 items): kind 'stock' with a concrete 2-4 word footage search query that literally shows the line's meaning (real things a camera can film), or kind 'meme' with a 'file' from media_library. Line 1 (the hook) always has box media. Give every line its own box media that shows what THAT line says; a line may leave 'box' empty only when the line right before it has box media of its own and shows the same thing (the previous clip stays up for one more line, never two, never a verse card). Never stock footage of writing (chalkboards, signs, screens, books): it shows words the narration does not say.",
     "media_library has two roles: 'still' = a real-looking picture of a subject (use it like stock when it shows what the line is about); 'meme' = a reaction. Use a meme ONLY where it genuinely adds humor or emotional emphasis to what is said (its description/purpose must fit the line); at most 4 memes in the whole video, and each meme (with its look-alikes) once. Most lines need no meme.",
     "Stock queries must name filmable things (e.g. 'earthquake rubble street', 'hospital patient bed', 'person praying'), never abstract words alone. No God depicted as a person, no occult imagery.",
     "No identical box media twice in a row; no file or query used more than twice in the video.",
@@ -432,8 +432,11 @@ def _repair_unknown_drawings(plan: dict, lines: list[str], cat: dict, lib: list[
     return notes
 
 
+FILL_VAGUE = {"god", "lord", "jesus", "christ", "people", "thing", "world", "life"}   # said in nearly every line
+
+
 def _repair_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
-    from kindled_iron.director.media import relevance
+    from kindled_iron.director.media import relevance, _words as _mwords
     by_file = {m["file"]: m for m in lib}
     notes, groups, memes = [], set(), 0
 
@@ -457,6 +460,26 @@ def _repair_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
             break
         box = L.get("box") or []
         L["box"] = [b for b in box if b.get("kind") != "meme" or keep(i, b.get("file"), "box", L.get("expression"))]
+        prev = plan["lines"][i - 1] if i else None
+        if i and not L["box"] and not L.get("verse") and (prev.get("verse") or not (prev.get("box") or [])):
+            # this line would hold a stale clip (or the verse card) another line: its most relevant unused library
+            # still, if one fits what it says (no meme is added just to fill the box)
+            best = None
+            said = _mwords(lines[i]) - FILL_VAGUE
+            for m in lib:
+                if m.get("role") != "still" or m.get("group", m["file"]) in groups:
+                    continue
+                shared = said & _mwords(" ".join((m.get("tags") or []) + [m.get(k, "") for k in ("description", "purpose")]))
+                if shared and (best is None or len(shared) > len(best[2])):   # a real word in common, not a mood
+                    best = (m, "shares " + ", ".join(sorted(shared)[:3]) + " with the line", shared)
+            if best:
+                m = best[0]
+                spoken = [w for w in lines[i].split() if key(w)]
+                word = next((w for w in spoken if _tokens(w) & _tokens(*(m.get("tags") or []), m.get("description", ""))), spoken[0])
+                L["box"] = [{"word": word, "kind": "meme", "file": m["file"]}]
+                groups.add(m.get("group", m["file"]))
+                notes.append(f"line {i + 1}: library still {m['file']!r} added to the clip box ({best[1]}): the previous "
+                             "media would otherwise stay up")
         p = L.get("pop")
         if isinstance(p, dict) and not keep(i, p.get("file"), "pop-up", L.get("expression")):
             L["pop"] = None
@@ -543,6 +566,13 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
         box = L.get("box") or []
         if not box and not v and i == 0:
             errs.append(f"line {n}: the hook line needs clip-box media; give 1-3 'box' items (stock query or a media_library file)")
+        elif not box and not v:
+            prev = P[i - 1]
+            if prev.get("verse"):
+                errs.append(f"line {n}: the verse card of line {i} would stay up through this line: give it its own box media")
+            elif not (prev.get("box") or []):
+                errs.append(f"line {n}: the clip box would still show line {i - 1}'s media (3 lines): give this line its own "
+                            "box media that shows what it says")
         for b in box:
             word_ok(i, b.get("word"), "box")
             if b.get("kind") == "meme" and b.get("file") not in files:

@@ -132,8 +132,13 @@ Rules the code enforces (plan.repair, no AI call):
 - a meme or still is kept only when it fits its line: a shared word, or the same reaction family ("crazy" ~ "wait
   what", "earthquake" ~ "collapsed house"; the line's expression counts too). Dropped otherwise (logged).
 - each meme once per video, look-alikes (`same_meme_as`) included; at most 4 memes per video (box + pop-ups).
-- the hook line always has clip-box media; any other line may be the drawings' and the guide's alone (the previous
-  clip stays up), so the bot never adds a meme just to fill the box.
+- the hook line always has clip-box media. A later line may go without its own only when the line right before it
+  has box media of its own: a clip stays up one extra line at most, a verse card never runs into the next line (the
+  real review of run 40446183634 failed one chalkboard clip held over lines 1-4 and the verse card on line 8). A line
+  that would break this gets the library still that shares a real word with it (not "God"), else the planner is
+  told exactly which line needs media. No meme is ever added to fill the box.
+- stock footage whose subject is writing (chalkboard, sign, screen, book...) is skipped unless the query asks for it:
+  it shows words the narration does not say.
 - pop-ups: at most 3 per video, at least 2 lines apart, never on a verse line or on the word "God", 380 px wide,
   1.2 s; no file twice in a row and no file more than twice per video.
 - box items without a word are anchored on a spoken word of their line (the word their query or file names, else the

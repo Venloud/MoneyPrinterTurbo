@@ -161,6 +161,81 @@ class Repair(unittest.TestCase):
         self.assertEqual(self.errs(p), [])
 
 
+class ReviewRun15(unittest.TestCase):
+    """What the real vision review of run 40446183634 failed (every gate had passed): one chalkboard clip held over
+    lines 1-4, the Revelation 21:4 card still up on line 8, a label drawn over the open book's ribbon."""
+    LINES4 = LINES + ["So why does He allow innocent people to suffer?"]
+
+    def setUp(self):
+        self.cat = planmod.catalog()
+        self.keys = [[planmod.key(w["word"]) for w in ws] for ws in words(self.LINES4)]
+
+    def plan4(self):
+        p = plan()
+        p["lines"].append({"expression": "sad", "gesture": {"do": "none"}, "box": [],
+                           "drawings": [{"word": "suffer", "type": "question_big", "fields": {"label": "WHY?"}},
+                                        {"word": "innocent", "type": "heart", "fields": {"label": "PAIN"}}]})
+        return p
+
+    def test_a_clip_never_stays_up_a_third_line(self):
+        p = self.plan4()
+        p["lines"][2].pop("verse")
+        p["lines"][2]["box"] = []
+        lines = LINES[:2] + ["A future of light without death, pain, or mourning.", self.LINES4[3]]
+        keys = [[planmod.key(w["word"]) for w in ws] for ws in words(lines)]
+        p["lines"][2]["drawings"] = [{"word": "future", "type": "rainbow", "fields": {"label": "PROMISE"}},
+                                     {"word": "death", "type": "grave", "fields": {"label": "GRAVE"}}]
+        p["lines"][2]["gesture"] = {"do": "look", "word": "future"}
+        errs = " | ".join(planmod.validate(p, lines, keys, [], self.cat))       # line 2 skips: fine; line 3 too: no
+        self.assertIn("line 3: the clip box would still show line 1's media", errs)
+        notes = planmod.repair(p, lines, keys, self.cat, FAKE_LIB)            # a fitting library still fills it
+        self.assertEqual(p["lines"][2]["box"][0]["file"], "sunlight_through_storm_clouds.png")
+        self.assertTrue(any("library still" in n for n in notes))
+        self.assertNotIn("line 3: the clip box", " ".join(planmod.validate(p, lines, keys, FAKE_LIB, self.cat)))
+        # sharing only "God" (said in nearly every line) is no reason to show a still: the planner is told instead
+        god_lib = [{"file": "x.png", "path": "movie_reference/x.png", "role": "still", "group": "x", "tags": ["god", "storm"]}]
+        p["lines"][2]["box"] = []
+        lines2 = LINES[:2] + ["God is good and there is a future without death.", self.LINES4[3]]
+        keys2 = [[planmod.key(w["word"]) for w in ws] for ws in words(lines2)]
+        p["lines"][2]["drawings"] = [{"word": "future", "type": "rainbow", "fields": {"label": "PROMISE"}},
+                                     {"word": "death", "type": "grave", "fields": {"label": "GRAVE"}}]
+        planmod.repair(p, lines2, keys2, self.cat, god_lib)
+        self.assertEqual(p["lines"][2]["box"], [])
+        self.assertIn("line 3: the clip box", " ".join(planmod.validate(p, lines2, keys2, god_lib, self.cat)))
+
+    def test_the_verse_card_never_runs_into_the_next_line(self):
+        p = self.plan4()
+        errs = " | ".join(planmod.validate(p, self.LINES4, self.keys, FAKE_LIB, self.cat))
+        self.assertIn("line 4: the verse card of line 3 would stay up", errs)
+        planmod.repair(p, self.LINES4, self.keys, self.cat, [])               # nothing fits: the planner is told
+        self.assertIn("line 4: the verse card", " ".join(planmod.validate(p, self.LINES4, self.keys, [], self.cat)))
+        p["lines"][3]["box"] = [{"word": "suffer", "kind": "stock", "query": "person praying dark room"}]
+        self.assertEqual(planmod.validate(p, self.LINES4, self.keys, FAKE_LIB, self.cat), [])
+
+    def test_stock_footage_of_writing_is_not_used(self):
+        from kindled_iron import insets
+        real = insets._pexels, insets._pixabay
+        os.environ.pop("KI_BOX_PLACEHOLDER", None)
+        insets._pexels = lambda q, pin: [{"source": "pexels", "id": "8499804", "title": "",
+                                          "page": "https://www.pexels.com/video/a-close-up-of-a-blackboard-in-a-classroom-8499804/"},
+                                         {"source": "pexels", "id": "2", "title": "", "page": "https://www.pexels.com/video/classroom-students-raising-hands-2/"}]
+        insets._pixabay = lambda q, pin: []
+        try:
+            hit = media.stock("chalkboard diagram classroom", [], {}, lambda m: None)
+            self.assertIsNotNone(hit)                                        # asked for a chalkboard: allowed
+            hit = media.stock("graph classroom", [], {}, lambda m: None)    # the run's case: the board's words
+            self.assertEqual(hit["id"], "2")                                 # are not what the line says
+        finally:
+            insets._pexels, insets._pixabay = real
+            os.environ["KI_BOX_PLACEHOLDER"] = "1"
+
+    def test_the_open_books_label_sits_below_its_ribbon(self):
+        js = (Path(__file__).resolve().parents[2] / "kindled_iron" / "runtime" / "runtime.js").read_text()
+        ribbon = max(int(y) for y in __import__("re").findall(r"M40,62 L40,(\d+) L55,(?:\d+) L70,(\d+)", js)[0])
+        label_y = int(__import__("re").search(r"openbook: function[\s\S]*?o\.label \? lbl\(0, (\d+)", js).group(1))
+        self.assertGreater(label_y - 34 / 2, ribbon)                         # the label's top is below the ribbon
+
+
 class Timeline(unittest.TestCase):
     def setUp(self):
         os.environ["KI_BOX_PLACEHOLDER"] = "1"
@@ -214,7 +289,8 @@ class Timeline(unittest.TestCase):
              "drawings": [dr("words", "question_big"), dr("start", "bar_chart")]},
             {"expression": "curious", "gesture": {"do": "none"}, "box": [],
              "pop": {"word": "ten", "file": "m1.png"}, "drawings": [dr("two", "bar_chart"), dr("three", "question_big")]},
-            {"expression": "curious", "gesture": {"do": "none"}, "box": [], "drawings": [dr("Okay", "check_big")]},
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [{"word": "Okay", "kind": "stock", "query": "thumbs up hand"}],
+             "drawings": [dr("Okay", "check_big")]},
             {"expression": "curious", "gesture": {"do": "none"}, "box": [],
              "pop": {"word": "Alpha", "file": "m2.png"}, "drawings": [dr("gamma", "storm"), dr("delta", "heart")]}]}
         lib = [{"file": f, "path": f"reactions/{f}", "role": "meme", "group": f, "tags": [t]}

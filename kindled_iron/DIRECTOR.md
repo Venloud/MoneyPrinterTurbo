@@ -91,8 +91,17 @@ A library item with `"type": "diagram"` (or flowchart, chart, map, infographic) 
 never a box meme and never split into drawings. It is shown when the narration does two things in a row of
 sentences: points at a visual ("this graph", "the map", "look at...") or names the diagram's subject, and then keeps
 talking about what the diagram contains (its subject, topics, aliases, description and region text) for at least 3
-sentences (short asides like "Sounds crazy, right?" may sit between). It goes when the narration moves on, at most
-30 s, and before any verse / quote. No video id and no script phrase is ever a trigger (a test checks the code).
+sentences (short asides like "Sounds crazy, right?" may sit between). No video id and no script phrase is ever a
+trigger (a test checks the code).
+
+How long it stays is a separate decision: attention, not topic. The whole picture is the visual while the narration
+looks AT it, through the last clause that points at the picture itself ("according to this graph,"; for a region-focus
+asset also a clause naming one of its regions), at least `MIN_VIEW` 3 s (or the asset's `reading_seconds`), and it
+leaves in the pause after that clause (at most 30 s, always before a verse / quote). While the narration only
+discusses the subject, the drawings show it one idea at a time. Why it generalises: it uses only the grammar of
+pointing (a determiner + a visual noun, clause boundaries) and the asset's own metadata; a quick reference gets
+3-5 s, a chart the narrator keeps pointing at stays as long as they point (tests on unseen scripts). (Owner,
+2026-10-27: a flowchart stayed 25.4 s while the narration walked through the argument; about 5 s was right there.)
 
 While it is up:
 - the WHOLE image, uniformly scaled: `scale = min(available_width / width, available_height / height)` into the
@@ -113,6 +122,20 @@ show whole; their regions stay as metadata for later.
 Readability: `"min_text_px"` (the smallest text's cap height in the original) gives the smallest text on screen;
 under 18 px is reported as a limitation in status.json / media.json. The diagram is still shown whole (cropping or
 splitting it needs the owner's approval).
+
+### Visual lifetimes and entrances (director/compile.py)
+
+Every visual is on screen while the narration is about it, not until something else needs its place:
+- a drawing enters with its idea: on its word, at most `EARLY_MAX` 2.5 s before it (anticipation), never pulled
+  across the freeze; the opening line's drawings for its first sentence / first 3 s (`HOOK_SECONDS`) are up from
+  frame one (the hook), later ideas of that line still come with their words;
+- the idea said first takes the line's biggest place; a line whose media comes late shows its idea in the
+  media's place until the media arrives;
+- an earlier line's drawing leaves at the line handover (in the pause, before the new line's first drawing) when
+  the new line moves on from it, i.e. does not say its concept, word or labels again; it stays while the new line
+  still talks about it. An empty part of the frame is better than a picture of what was said before.
+Why these generalise: they read only the timing of the words and what the plan says each drawing is about (the AI's
+`concept`, its word and labels), never a video, topic or asset name.
 
 ### The doodle library (kindled_iron/doodles/)
 
@@ -261,7 +284,7 @@ record_scratch level; the sound library has no record-scratch variants, so witho
 |---|---|
 | render | the renderer finished (its every-frame audit fails it on any overlap) |
 | layout | zero layout warnings |
-| audit | zero every-frame audit issues |
+| audit | zero every-frame audit issues: anything on the guide, the box, the caption or a meme card, outside the safe box or in the button column, two main drawings on each other (`DRAWINGS OVERLAP`), label text on label text (`LABELS OVERLAP`) |
 | coverage | at least 60 % of the usable frame (safe box minus the button column) is covered at every half second (from 0.25 s, skipping the freeze zoom and its redraw), and no single empty rectangle is larger than 20 % of it |
 | (proposed) composition | REPORT-ONLY until the owner approves it (`gates.json` -> `_proposed_composition`, never counted in the result): every third of the usable frame (top / middle / bottom) holds something and no empty region is over 30 %; failing for 1 s or more = an unfinished frame. Negative space between drawings is allowed; a whole empty part of the frame is not. Drawing-led frames like the owner's reference measure 0.4-0.55 bounding-box coverage, so the 60 % floor fails them although they are finished compositions |
 | doodles | every drawing is at least 250 px on its long side (measured on the page) |

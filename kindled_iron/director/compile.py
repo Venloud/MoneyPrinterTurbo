@@ -25,6 +25,7 @@ FACE_OF = {"happy": "crying_laughing", "curious": "thinking", "thinking": "think
            "puzzled": "puzzled", "confused_math": "confused_math", "side_eye": "side_eye", "wait_what": "wait_what",
            "crying_laughing": "crying_laughing"}
 POP_CARD = {"w": 380, "dur": 1.2}
+POP_GOD_GAP, POP_MIN_GAP = 0.45, 3.05      # effects.py drops a reaction within 0.4 s of "God" or 3 s of the last
 SCRATCH = "sfx/record_scratch.mp3"        # the owner's record scratch (private repo); the sound library has none
 FREEZE = {"dur": 1.0, "zoom": 1.45, "after": 0.45}   # the camera needs ~0.35 s to come back after the freeze
 SHOULDER_Y = 1110               # set from the measured guide (his top + 122) in compile_scene
@@ -342,9 +343,28 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
 
     # ---------------- times we must keep clear of walks: pop cards, verse typing, the freeze
     pop_t, verse_t, freeze_t = {}, {}, None
+    god = [w["start"] for ws in words for w in ws if key(w["word"]) == "god"]
     for i, L in enumerate(P):
         if L.get("pop"):
-            pop_t[i] = _occ(words[i], L["pop"]["word"])[1]["start"]
+            # the renderer's reaction rules (effects.apply_reaction_rules), applied here so a card is never
+            # dropped at render time: not within 0.4 s of the word God, 3 s after the previous card
+            t = _occ(words[i], L["pop"]["word"])[1]["start"]
+            near = [g for g in god if abs(t - g) < POP_GOD_GAP]
+            if near:
+                later = [w for w in words[i] if w["start"] >= max(near) + POP_GOD_GAP and key(w["word"]) != "god"
+                         and all(abs(w["start"] - g) >= POP_GOD_GAP for g in god)]
+                if later:
+                    t = later[0]["start"]
+                    scene_notes.append(f"line {i + 1}: pop-up moved off the word God to {later[0]['word']!r}")
+                else:
+                    t = None
+            if t is not None and pop_t and t - pop_t[max(pop_t)] < POP_MIN_GAP:
+                t = None
+            if t is None:
+                P[i] = dict(L, pop=None)
+                scene_notes.append(f"line {i + 1}: pop-up dropped (too close to the word God or the previous card)")
+            else:
+                pop_t[i] = t
         if L.get("verse"):
             v = L["verse"]
             verse_t[i] = (_occ(words[i], v["word"])[1]["start"] - 0.4, words[i][-1]["end"] + 1.4)
@@ -405,6 +425,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     last_gesture_line = -2
     acted_log: list[dict] = []                  # the guide actions asked for and whether the rig performed them
     tl: dict = {"draw": {}, "fade": [], "cards": []}   # absolute times, for the pre-render collision check
+    kept_before: set = set()                    # band drawings already kept over from their own line
     for i, (L, text) in enumerate(zip(P, lines)):
         W = words[i]
         t_start, t_last = W[0]["start"], W[-1]["end"]
@@ -469,6 +490,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         dr, objs, places = [dr[k] for k, _ in order], [objs[k] for k, _ in order], [p_ for _, p_ in order]
         ids, first_t, draw_pos = [], None, {}
         pop_redraw: list = []                          # lane drawings that make way for this line's meme card
+        freeze_back: list = []                         # drawings shown before the freeze that come back after it
         new_in = {"area": None, "lane": None}
         for j, d in enumerate(dr):
             did = f"l{i + 1}_{d['type']}{j}"
@@ -493,7 +515,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if fz and zone == "lane" and t > fz[1] + FREEZE["dur"] + FREEZE["after"] + 1.5:
                 t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.3      # refill the lane right after the freeze
                 a = _at_time(W, t)
-            if fz and t <= fz[1] + FREEZE["dur"] + FREEZE["after"]:
+            tb = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35 + 0.35 * j if fz else 0
+            if fz and t <= fz[1] - 0.8 and t >= t_start - 0.01:
+                if tb < t_last - 0.3:                  # shown on its word, cleared for the freeze zoom (below), back
+                    freeze_back.append((did, tb))       # once the camera is, while its line still runs
+            elif fz and t <= fz[1] + FREEZE["dur"] + FREEZE["after"]:
                 t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35 + 0.35 * j   # after it, the camera fully back
                 a = _at_time(W, t)
             if j and first_t is not None and abs(t - first_t) < 0.3 and i:
@@ -515,8 +541,14 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         # clear each slot just before its new drawing; the lane also clears before a walk toward it, a pop-up
         # on that side, or when it gets no new drawing this line
         fades: dict[float, list[str]] = {}
+        kept_area = []                                 # an old band drawing no new drawing covers stays one line
+        new_area = [d for d in ids if draw_pos[d][4] == "area"]
+        for od in shown["area"]:
+            if new_area and od not in kept_before and not any(_overlap(slot_of[od], slot_of[nd]) for nd in ids):
+                kept_area.append(od)
+        kept_before = set(kept_area)
         for zone in ("area", "lane"):
-            old = shown[zone]
+            old = [d for d in shown[zone] if d not in kept_area]
             if not old:
                 continue
             t_new = new_in[zone]
@@ -552,8 +584,12 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 tn = round(tf + 0.05, 3)
                 if i in walks and _path_hits(walks[i], [slot_of[nd]], G):
                     continue
-                if i in pop_t and tn > pop_t[i] - 1.4:
-                    continue                           # it would sit under (or flash just before) this line's card
+                if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
+                    continue                           # never into the freeze zoom
+                if i in pop_t and pop_t[i] - 1.4 < tn < pop_t[i] + POP_CARD["dur"] + 0.25:
+                    tn = round(pop_t[i] + POP_CARD["dur"] + 0.25, 3)   # it would sit under (or flash just before)
+                    if tn >= draw_pos[nd][3] - 0.3:                     # the card: right after it instead
+                        continue
                 for e in ev:
                     if e.get("do") == "draw" and e.get("id") == nd:
                         e["at"] = _at_time(W, tn)
@@ -568,6 +604,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     for od in shown[zone]:
                         if od != nd and _overlap(slot_of[od], slot_of[nd]):
                             fades.setdefault(round(max(t_start - 0.4, tn - 0.05), 3), []).append(od)
+        faded_now = {d for fids in fades.values() for d in fids}
         for ft, fids in sorted(fades.items()):
             fids = sorted(set(fids))
             ev.append({"at": _at_time(W, ft) if ft >= t_start else _anchor(W, first, ft - t_start)[0], "do": "fade",
@@ -578,7 +615,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         for zone in ("area", "lane"):
             mine = [d for d in ids if draw_pos[d][4] == zone]
             if mine or zone == "lane":
-                shown[zone] = mine
+                shown[zone] = mine + ([d for d in kept_area if d not in faded_now] if zone == "area" else [])
         old_lane_side = None if not shown["lane"] else (1 if draw_pos[shown["lane"][0]][0] > spot else -1)
         old_lane_spot = spot
 
@@ -630,6 +667,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 tl["fade"].append((_anchor(W, freeze["word"], -0.12)[1], sorted(set(on_screen)), 0))
                 ev.append({"at": _anchor(W, freeze["word"], -0.12)[0], "do": "fade", "ids": sorted(set(on_screen)),
                            "opacity": 0, "dur": 0.1})
+            for did_, tb in freeze_back:
+                ev.append({"at": _at_time(W, tb), "do": "fade", "ids": [did_], "opacity": 1, "dur": 0.1})
+                tl["fade"].append((tb, [did_], 1))
             ev.append({"at": _anchor(W, freeze["word"])[0], "do": "freeze", "who": "guide", "dur": FREEZE["dur"],
                        "zoom": FREEZE["zoom"], "focus": {"x": spot, "y": 1150}, "grey": True,
                        "sound": "record_scratch", "sound_file": SCRATCH})
@@ -665,8 +705,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 raise CompileError(f"line {i + 1}: no room for the pop-up beside the guide")
             cx = (ls[0] + ls[2]) / 2
             tl["cards"].append(((cx - Z["pop"]["w"] / 2, ls[1], cx + Z["pop"]["w"] / 2, ls[3]),
-                                _anchor(W, p["word"])[1], _anchor(W, p["word"])[1] + POP_CARD["dur"]))
-            ev.append({"at": _anchor(W, p["word"])[0], "reaction": FACE_OF.get(L["expression"], "surprised"),
+                                pop_t[i], pop_t[i] + POP_CARD["dur"]))
+            ev.append({"at": _at_time(W, pop_t[i]), "reaction": FACE_OF.get(L["expression"], "surprised"),
                        "face": FACE_OF.get(L["expression"], "surprised"), "file": p.get("path") or "movie_reference/" + p["file"],
                        "dur": POP_CARD["dur"], "card": {"x": cx, "y": Z["pop"]["y"], "w": Z["pop"]["w"], "rotate": 0}})
         beat = {"id": f"l{i + 1}", "panel": 0, "narration": text, "events": ev,

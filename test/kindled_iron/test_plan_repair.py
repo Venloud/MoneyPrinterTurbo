@@ -179,6 +179,73 @@ class Timeline(unittest.TestCase):
         self.assertEqual(scene["director"]["timeline_fixes"], [])
         self.assertEqual(sum(1 for b in scene["beats"] for e in b["events"] if "reaction" in e), 2)
 
+    def _compile(self, p, lines=LINES, lib=FAKE_LIB):
+        planmod.repair(p, lines, [[planmod.key(w["word"]) for w in ws] for ws in words(lines)], self.cat, lib)
+        self.assertEqual(planmod.validate(p, lines, [[planmod.key(w["word"]) for w in ws] for ws in words(lines)], lib,
+                                          self.cat), [])
+        per_line, _, errs = media.resolve(p, lib, lambda m: None, lines)
+        self.assertEqual(errs, [])
+        return compiler.compile_scene(p, lines, words(lines), self.cat, per_line,
+                                      {"id": "t", "audio_path": "x", "sha256": "x", "align": 1})[0]
+
+    # attempt 3: the renderer dropped a meme card placed right after the word "God"
+    def test_pop_never_lands_within_the_renderers_god_gap(self):
+        p = plan()
+        p["lines"][1]["pop"] = {"word": "is", "file": "meme_why.png"}               # 0.35 s after "God"
+        lib = FAKE_LIB + [{"file": "meme_why.png", "path": "reactions/meme_why.png", "role": "meme", "group": "w",
+                           "tags": ["why"]}]
+        scene = self._compile(p, lib=lib)
+        ws = words(LINES)[1]
+        god = next(w["start"] for w in ws if w["word"] == "God")
+        pops = [e for b in scene["beats"] for e in b["events"] if "reaction" in e]
+        self.assertEqual(len(pops), 1)
+        t = compiler._anchor_time(ws, pops[0]["at"])
+        self.assertGreaterEqual(abs(t - god), 0.4)                                # effects.py's own rule
+        self.assertTrue(any("moved off the word God" in n for n in scene["director"]["notes"]))
+        self.assertEqual(scene["require_memes"], 1)
+
+    def test_pops_closer_than_3_seconds_are_dropped_before_rendering(self):
+        # 2 lines apart (the plan rule passes) but only ~1.9 s apart in time (the renderer's 3 s rule would drop it)
+        lines = ["Hook words here for the start.", "One two three four five six seven eight nine ten.", "Okay.",
+                 "Alpha beta gamma delta epsilon zeta eta theta."]
+        dr = lambda w, t: {"word": w, "type": t, "fields": {"label": "X"}}
+        p = {"freeze": {"line": 4, "word": "eta"}, "lines": [
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [{"word": "Hook", "kind": "stock", "query": "fishing hook water"}],
+             "drawings": [dr("words", "question_big"), dr("start", "bar_chart")]},
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [],
+             "pop": {"word": "ten", "file": "m1.png"}, "drawings": [dr("two", "bar_chart"), dr("three", "question_big")]},
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [], "drawings": [dr("Okay", "check_big")]},
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [],
+             "pop": {"word": "Alpha", "file": "m2.png"}, "drawings": [dr("gamma", "storm"), dr("delta", "heart")]}]}
+        lib = [{"file": f, "path": f"reactions/{f}", "role": "meme", "group": f, "tags": [t]}
+               for f, t in (("m1.png", "ten"), ("m2.png", "alpha"))]
+        scene = self._compile(p, lines, lib)
+        pops = [compiler._anchor_time(words(lines)[k], e["at"]) for k, b in enumerate(scene["beats"])
+                for e in b["events"] if "reaction" in e]
+        self.assertEqual(len(pops), scene["require_memes"])                # the renderer must place every card asked
+        self.assertEqual(len(pops), 1)
+        self.assertTrue(any("line 4: pop-up dropped" in n for n in scene["director"]["notes"]))
+
+    # attempt 2: the freeze on the hook line kept its drawings off screen until after it (an empty first frame)
+    def test_hook_drawings_show_before_a_freeze_and_come_back_after_it(self):
+        lines = ["One two three four five six seven eight nine ten eleven twelve.", LINES[1]]
+        dr = lambda w, t: {"word": w, "type": t, "fields": {"label": "X"}}
+        p = {"freeze": {"line": 1, "word": "four"}, "lines": [
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [{"word": "One", "kind": "stock", "query": "one number sign"}],
+             "drawings": [dr("two", "bar_chart"), dr("three", "question_big")]},
+            {"expression": "thinking", "gesture": {"do": "none"}, "box": [],
+             "drawings": [dr("powerful", "storm"), dr("evil", "heart")]}]}
+        scene = self._compile(p, lines)
+        ev = scene["beats"][0]["events"]
+        ws = words(lines)[0]
+        draws = {e["id"]: compiler._anchor_time(ws, e["at"]) for e in ev if e.get("do") == "draw"}
+        self.assertTrue(all(t <= 0.2 for t in draws.values()), draws)            # the hook frame is full at once
+        fz = next(compiler._anchor_time(ws, e["at"]) for e in ev if e.get("do") == "freeze")
+        back = {i for e in ev if e.get("do") == "fade" and e.get("opacity") == 1 for i in e["ids"]}
+        self.assertEqual(back, set(draws))                                         # cleared for the zoom, then back
+        self.assertTrue(all(compiler._anchor_time(ws, e["at"]) > fz for e in ev if e.get("do") == "fade" and e.get("opacity") == 1))
+        self.assertEqual(scene["director"]["timeline_fixes"], [])
+
     def test_conflicts_are_found_like_the_audit_finds_them(self):
         card = ((300, 1100, 700, 1400), 10.0, 11.2)
         tl = {"draw": {"a": ((420, 1000, 600, 1300), 9.0), "b": ((100, 700, 400, 1000), 5.0),

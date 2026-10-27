@@ -246,6 +246,32 @@ class Timeline(unittest.TestCase):
         self.assertTrue(all(compiler._anchor_time(ws, e["at"]) > fz for e in ev if e.get("do") == "fade" and e.get("opacity") == 1))
         self.assertEqual(scene["director"]["timeline_fixes"], [])
 
+    def test_meme_card_lines_keep_their_drawings_in_the_band(self):
+        """Run 40434188836 attempt 1, 12.8 s: a full-height side drawing had to clear for the card and left the
+        upper side empty (56% coverage). On a card line the drawings go in the band when it holds two of them."""
+        d = json.loads(FIXTURE.read_text())
+        per_line, _, _ = media.resolve(d["plan"], FAKE_LIB, lambda m: None, d["lines"])
+        measured = d["measured"]                     # the drawings' real sizes, measured in Chrome during the run
+        scene, _ = compiler.compile_scene(d["plan"], d["lines"], d["words"], self.cat, per_line,
+                                          {"id": "t", "audio_path": "x", "sha256": "x", "align": 1},
+                                          measure=lambda specs: {k: measured[k] for k in (s["id"] for s in specs) if k in measured})
+        self.assertEqual(scene["director"]["timeline_fixes"], [])
+        band_bottom = self.cat["zones"]["draw"]["y1"]
+        for b in scene["beats"]:
+            if not any("reaction" in e for e in b["events"]):
+                continue
+            in_band, beside = 0, []
+            for e in b["events"]:
+                if e.get("do") == "draw":
+                    m = next(v for k, v in measured.items() if k.rstrip("0123456789") == e["id"].rstrip("0123456789"))
+                    if e["y"] + (m["center"][1] + m["size"][1] / 2) * e["scale"] <= band_bottom + 2:
+                        in_band += 1
+                    else:
+                        beside.append(e["id"])
+            self.assertGreaterEqual(in_band, 2, b["id"])                                  # the band holds two
+            # a drawing beside him either comes after the card or makes way for it: nothing is under the card
+            # (timeline_fixes == [] above: the pre-render check found nothing to fix)
+
     def test_conflicts_are_found_like_the_audit_finds_them(self):
         card = ((300, 1100, 700, 1400), 10.0, 11.2)
         tl = {"draw": {"a": ((420, 1000, 600, 1300), 9.0), "b": ((100, 700, 400, 1000), 5.0),

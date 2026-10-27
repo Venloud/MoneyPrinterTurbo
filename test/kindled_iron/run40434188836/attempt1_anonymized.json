@@ -1331,5 +1331,247 @@
 }
 ]
 },
-"source": "Director run 40434188836, attempt 1: words and narration replaced by tokens; timings, drawings and pop-ups as in the run"
+"source": "Director run 40434188836, attempt 1: words and narration replaced by tokens; timings, drawings and pop-ups as in the run",
+"measured": {
+"l1_bar_chart0": {
+"size": [
+340,
+404
+],
+"center": [
+0,
+-18
+]
+},
+"l1_bible1": {
+"size": [
+245,
+384
+],
+"center": [
+8,
+42
+]
+},
+"l1_thinker2": {
+"size": [
+224,
+434
+],
+"center": [
+22,
+27
+]
+},
+"l2_triangle_diagram0": {
+"size": [
+366,
+405
+],
+"center": [
+1,
+-15
+]
+},
+"l2_storm1": {
+"size": [
+356,
+393
+],
+"center": [
+3,
+37
+]
+},
+"l2_question_big2": {
+"size": [
+170,
+385
+],
+"center": [
+5,
+41
+]
+},
+"l3_signpost_big0": {
+"size": [
+334,
+406
+],
+"center": [
+2,
+33
+]
+},
+"l3_puppet1": {
+"size": [
+220,
+389
+],
+"center": [
+0,
+24
+]
+},
+"l3_road_fork2": {
+"size": [
+360,
+440
+],
+"center": [
+0,
+24
+]
+},
+"l4_check_big0": {
+"size": [
+284,
+374
+],
+"center": [
+2,
+47
+]
+},
+"l4_hand_open1": {
+"size": [
+201,
+406
+],
+"center": [
+-16,
+31
+]
+},
+"l4_robot2": {
+"size": [
+300,
+456
+],
+"center": [
+0,
+6
+]
+},
+"l5_earthquake0": {
+"size": [
+364,
+359
+],
+"center": [
+2,
+54
+]
+},
+"l5_germ_big1": {
+"size": [
+340,
+394
+],
+"center": [
+2,
+37
+]
+},
+"l5_child2": {
+"size": [
+205,
+386
+],
+"center": [
+8,
+46
+]
+},
+"l6_planet_earth0": {
+"size": [
+308,
+381
+],
+"center": [
+2,
+44
+]
+},
+"l6_gavel1": {
+"size": [
+320,
+394
+],
+"center": [
+0,
+37
+]
+},
+"l6_wooden_cross2": {
+"size": [
+340,
+449
+],
+"center": [
+0,
+10
+]
+},
+"l7_rainbow0": {
+"size": [
+404,
+316
+],
+"center": [
+2,
+76
+]
+},
+"l7_grave1": {
+"size": [
+340,
+346
+],
+"center": [
+0,
+31
+]
+},
+"l7_anchor2": {
+"size": [
+320,
+402
+],
+"center": [
+0,
+33
+]
+},
+"l8_question_big0": {
+"size": [
+170,
+385
+],
+"center": [
+5,
+41
+]
+},
+"l8_shield1": {
+"size": [
+264,
+394
+],
+"center": [
+2,
+37
+]
+},
+"l8_thinker2": {
+"size": [
+224,
+434
+],
+"center": [
+22,
+27
+]
+}
+}
 }

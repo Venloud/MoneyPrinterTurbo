@@ -152,6 +152,18 @@ fixed in code (the drawing makes way for the card, appears after it, or the earl
 in `scene.json` director.timeline_fixes); anything left rejects the plan before rendering. The per-frame audit
 still runs on every render.
 
+Layout rules that keep the frame filled (found replaying run 40434188836's three real plans):
+- meme-card lines: the band holds two drawings when it can (the side beside the guide is the card's while it is
+  up); a third may go beside him: it appears once the card is gone or makes way for it. A drawing beside the card
+  clears just as the card appears (0.12 s before) and comes back as it goes (0.02 s after).
+- the compiler applies the renderer's own card rules: no card within 0.4 s of the word God, none within 3 s of the
+  previous card (moved to the next clear word or dropped, noted).
+- a drawing whose place is free before its word is drawn as soon as it is free (staggered); an empty place may be
+  filled in the pause before its line (at most 0.5 s ahead). Never into the guide's walk, a card or the freeze.
+- drawings due well before the freeze show on their word, clear for the zoom and come back inside their line; after
+  a freeze that cleared the board for good, the next line draws at its start. An old band drawing that no new
+  drawing covers stays for one more line.
+
 ### Guide actions (director/actions.py)
 
 The plan's `gesture` is an action the approved guide performs with his existing rig (never a stand-in figure):

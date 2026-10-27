@@ -25,6 +25,7 @@ FACE_OF = {"happy": "crying_laughing", "curious": "thinking", "thinking": "think
            "puzzled": "puzzled", "confused_math": "confused_math", "side_eye": "side_eye", "wait_what": "wait_what",
            "crying_laughing": "crying_laughing"}
 POP_CARD = {"w": 380, "dur": 1.2}
+POP_CLEAR, POP_BACK = 0.12, 0.02          # a drawing beside the card goes just as it appears, comes back as it goes
 POP_GOD_GAP, POP_MIN_GAP = 0.45, 3.05      # effects.py drops a reaction within 0.4 s of "God" or 3 s of the last
 SCRATCH = "sfx/record_scratch.mp3"        # the owner's record scratch (private repo); the sound library has none
 FREEZE = {"dur": 1.0, "zoom": 1.45, "after": 0.45}   # the camera needs ~0.35 s to come back after the freeze
@@ -145,6 +146,13 @@ def _near_top(lane: tuple) -> tuple[float, float, float, float]:
 
 def _overlap(a, b) -> bool:
     return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def _LANE_CARD(spot: float, G: dict) -> tuple[float, float, float, float]:
+    """Where a meme card beside the guide at this spot goes (its box, for the timeline check)."""
+    ls = _pop_slot(spot, G)
+    cx = (ls[0] + ls[2]) / 2
+    return (cx - _Z["pop"]["w"] / 2, ls[1], cx + _Z["pop"]["w"] / 2, ls[3])
 
 
 def _pop_slot(spot: float, G: dict) -> tuple[float, float, float, float]:
@@ -467,20 +475,33 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             sets += [[("area", slots1[0]), ("lane", lane)], [("area", slots2[0]), ("area", slots2[1]), ("lane", lane)]]
         if full:
             sets += [[("lane", full)], [("lane", full), ("area", near)]]
+        def search(cands):
+            best, best_area, pick = None, -1.0, ()
+            for st in cands:
+                if len(st) > len(dr):
+                    continue
+                for perm in itertools.permutations(range(len(dr)), len(st)):
+                    area = 0.0
+                    for k, (_, sl) in zip(perm, st):
+                        f = _fit(objs[k], sl, strict=False)
+                        if f is None or (f[0] < MIN_LABEL_SCALE and objs[k].get("_labeled")):   # labels stay readable
+                            area = -1.0
+                            break
+                        area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2
+                    if area > best_area:
+                        best, best_area, pick = st, area, perm
+            return best, best_area, pick
         best, best_area, pick = None, -1.0, ()
-        for st in sets:
-            if len(st) > len(dr):
-                continue
-            for perm in itertools.permutations(range(len(dr)), len(st)):
-                area = 0.0
-                for k, (_, sl) in zip(perm, st):
-                    f = _fit(objs[k], sl, strict=False)
-                    if f is None or (f[0] < MIN_LABEL_SCALE and objs[k].get("_labeled")):   # labels must stay readable
-                        area = -1.0
-                        break
-                    area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2
-                if area > best_area:
-                    best, best_area, pick = st, area, perm
+        if i in pop_t:
+            # a meme-card line: the side beside the guide is the card's while it is up (a side drawing would have to
+            # clear for it and leave its part of the frame empty), so the band holds two drawings when it can hold
+            # them readably; a third may still go beside him (it appears once the card is gone)
+            need = min(2, len(dr))
+            best, best_area, pick = search([st for st in sets if sum(z == "area" for z, _ in st) >= need])
+            if best is None or best_area < 0 or sum(z == "area" for z, _ in best) < need:
+                best, best_area, pick = None, -1.0, ()
+        if best is None:
+            best, best_area, pick = search(sets)
         if best is None or best_area < 0:
             raise CompileError(f"line {i + 1}: {' and '.join(o['_name'] for o in objs)} cannot be drawn 250 px or larger "
                                "here: pick library illustrations")
@@ -509,7 +530,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 if t < pop_t[i] - 1.4:                 # shown on its word, cleared just before the card, back after it
                     pop_redraw.append((did, t))
                 else:
-                    t = pop_t[i] + POP_CARD["dur"] + 0.25
+                    t = pop_t[i] + POP_CARD["dur"] + POP_BACK
                     a = _at_time(W, t)
             k0 = 1 if zone == "lane" else j              # a lane drawing waits until the guide stands on his spot
             if i == 0 and t - t_start > 0.1 * k0 and not (zone == "lane" and i in pop_t):   # first frame full (the hook)
@@ -544,24 +565,6 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             first_t = t if first_t is None else min(first_t, t)
             if new_in[zone] is None or t < new_in[zone]:
                 new_in[zone] = t
-        # a band drawing whose place is empty when its line starts is drawn at once (staggered) instead of waiting
-        # for its word: the band never stands half empty through a long line (the lane has its own refill below)
-        sp_now = _spans(tl)
-        for j, did in enumerate(ids):
-            if draw_pos[did][4] != "area":
-                continue
-            occupied = any(o not in ids and _overlap(r, slot_of[did]) and any(a <= t_start + 0.05 < b for a, b in spans)
-                           for o, (r, _, spans) in sp_now.items())
-            tn = round(t_start + 0.1 + 0.35 * j, 3)
-            if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
-                continue
-            if not occupied and draw_pos[did][3] > tn + 0.5:
-                for e in ev:
-                    if e.get("do") == "draw" and e.get("id") == did:
-                        e["at"] = _at_time(W, tn)
-                draw_pos[did] = draw_pos[did][:3] + (tn,) + draw_pos[did][4:]
-                tl["draw"][did] = (slot_of[did], tn)
-                new_in["area"] = min(new_in["area"] if new_in["area"] is not None else tn, tn)
         # clear each slot just before its new drawing; the lane also clears before a walk toward it, a pop-up
         # on that side, or when it gets no new drawing this line
         fades: dict[float, list[str]] = {}
@@ -580,7 +583,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 if i in walks and _path_hits(walks[i], [slot_of[d] for d in old], G):
                     t_new = walks[i][2] - 0.05 if t_new is None else min(t_new, walks[i][2] - 0.05)
                 if i in pop_t:
-                    t_new = pop_t[i] - 0.4 if t_new is None else min(t_new, pop_t[i] - 0.4)
+                    t_new = pop_t[i] - POP_CLEAR + 0.05 if t_new is None else min(t_new, pop_t[i] - POP_CLEAR + 0.05)
                 if t_new is None:
                     t_new = new_in["area"] if new_in["area"] is not None else t_start
             if t_new is None:
@@ -599,10 +602,41 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 if hits:
                     fades.setdefault(round(max(t_start - 0.4, min(hits) - 0.05), 3), []).append(od)
         for did_, _ in pop_redraw:
-            fades.setdefault(round(pop_t[i] - 0.2, 3), []).append(did_)
+            fades.setdefault(round(pop_t[i] - POP_CLEAR, 3), []).append(did_)
             ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [did_], "opacity": 1,
                        "dur": 0.1})                    # the card is hidden at its end time (it shrinks just before)
             tl["fade"].append((pop_t[i] + POP_CARD["dur"], [did_], 1))
+        # a drawing whose place is free before its word (empty when the line starts, or its old drawing cleared early
+        # for another one) is drawn as soon as it is free, staggered, instead of leaving part of the frame empty; an
+        # empty place may be filled in the pause before the line (at most 0.5 s ahead, never before the previous
+        # line's last word). Beside the guide: never into his walk, a meme card or the freeze.
+        probe = {"draw": tl["draw"], "fade": tl["fade"] + [(ft, fids, 0) for ft, fids in fades.items()], "cards": []}
+        sp_now = _spans(probe)
+        lead = max(t_start - 0.5, words[i - 1][-1]["end"] + 0.05) if i else t_start
+        pulled = 0                                     # the stagger counts only the drawings moved earlier here
+        for j, did in enumerate(ids):
+            if draw_pos[did][4] == "lane":
+                if i in walks and _path_hits(walks[i], [slot_of[did]], G):
+                    continue
+                if i in pop_t and _overlap(slot_of[did], _LANE_CARD(spot, G)):
+                    continue
+            ends = [max(b for _, b in spans) for o, (r, _, spans) in sp_now.items()
+                    if o not in ids and _overlap(r, slot_of[did]) and max(b for _, b in spans) > t_start]
+            if any(e > 1e8 for e in ends):
+                continue                               # its place stays taken until its own word
+            # as the old one fades (the same 0.05 s overlap as every replacement): a drawing counts from its start
+            tn = round(max([lead + 0.1 + 0.35 * pulled] + [e - 0.05 for e in ends]), 3)
+            if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
+                continue
+            if i in pop_t and pop_t[i] - 0.3 < tn < pop_t[i] + POP_CARD["dur"] and _overlap(slot_of[did], _LANE_CARD(spot, G)):
+                continue
+            if draw_pos[did][3] > tn + 0.01:
+                pulled += 1
+                for e in ev:
+                    if e.get("do") == "draw" and e.get("id") == did:
+                        e["at"] = _at_time(W, tn)
+                draw_pos[did] = draw_pos[did][:3] + (tn,) + draw_pos[did][4:]
+                tl["draw"][did] = (slot_of[did], tn)
         # an old side drawing cleared early (a new band drawing covers it): the new side drawing takes its place at
         # once instead of waiting for its word, so the side never stands empty
         old_lane = set(shown["lane"])
@@ -615,8 +649,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     continue
                 if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
                     continue                           # never into the freeze zoom
-                if i in pop_t and pop_t[i] - 1.4 < tn < pop_t[i] + POP_CARD["dur"] + 0.25:
-                    tn = round(pop_t[i] + POP_CARD["dur"] + 0.25, 3)   # it would sit under (or flash just before)
+                if i in pop_t and pop_t[i] - 1.4 < tn < pop_t[i] + POP_CARD["dur"] + POP_BACK:
+                    tn = round(pop_t[i] + POP_CARD["dur"] + POP_BACK, 3)   # it would sit under (or flash just before)
                     if tn >= draw_pos[nd][3] - 0.3:                     # the card: right after it instead
                         continue
                 for e in ev:
@@ -625,7 +659,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 draw_pos[nd] = draw_pos[nd][:3] + (tn,) + draw_pos[nd][4:]
                 tl["draw"][nd] = (slot_of[nd], tn)
                 if i in pop_t and tn < pop_t[i]:      # now shown before the card: it makes way for it like the others
-                    fades.setdefault(round(pop_t[i] - 0.2, 3), []).append(nd)
+                    fades.setdefault(round(pop_t[i] - POP_CLEAR, 3), []).append(nd)
                     ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [nd], "opacity": 1,
                                "dur": 0.1})
                     tl["fade"].append((pop_t[i] + POP_CARD["dur"], [nd], 1))

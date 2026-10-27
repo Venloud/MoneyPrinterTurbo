@@ -426,6 +426,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     acted_log: list[dict] = []                  # the guide actions asked for and whether the rig performed them
     tl: dict = {"draw": {}, "fade": [], "cards": []}   # absolute times, for the pre-render collision check
     kept_before: set = set()                    # band drawings already kept over from their own line
+    cleared_by_freeze = False                   # the previous line's freeze left the board empty
     for i, (L, text) in enumerate(zip(P, lines)):
         W = words[i]
         t_start, t_last = W[0]["start"], W[-1]["end"]
@@ -472,12 +473,14 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 continue
             for perm in itertools.permutations(range(len(dr)), len(st)):
                 area = 0.0
-                for k, (_, sl) in zip(perm, st):
+                for k, (_, sl) in zip(perm, st):  # _ = the slot's zone
                     f = _fit(objs[k], sl, strict=False)
                     if f is None or (f[0] < MIN_LABEL_SCALE and objs[k].get("_labeled")):   # labels must stay readable
                         area = -1.0
                         break
-                    area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2
+                    # on a meme-card line the side slot is the card's for a while: a drawing there counts half
+                    w_ = 0.5 if (_ == "lane" and i in pop_t) else 1.0
+                    area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2 * w_
                 if area > best_area:
                     best, best_area, pick = st, area, perm
         if best is None or best_area < 0:
@@ -491,6 +494,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         ids, first_t, draw_pos = [], None, {}
         pop_redraw: list = []                          # lane drawings that make way for this line's meme card
         freeze_back: list = []                         # drawings shown before the freeze that come back after it
+        after_freeze = cleared_by_freeze
+        cleared_by_freeze = False
         new_in = {"area": None, "lane": None}
         for j, d in enumerate(dr):
             did = f"l{i + 1}_{d['type']}{j}"
@@ -512,6 +517,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if i == 0 and t - t_start > 0.1 * k0 and not (zone == "lane" and i in pop_t):   # first frame full (the hook)
                 t = round(0.1 * k0, 3)
                 a = t
+            if after_freeze and t - t_start > 0.1 + 0.35 * j:   # the freeze cleared the board: refill at once
+                t = round(t_start + 0.1 + 0.35 * j, 3)
+                a = _at_time(W, t)
             if fz and zone == "lane" and t > fz[1] + FREEZE["dur"] + FREEZE["after"] + 1.5:
                 t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.3      # refill the lane right after the freeze
                 a = _at_time(W, t)
@@ -670,6 +678,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             for did_, tb in freeze_back:
                 ev.append({"at": _at_time(W, tb), "do": "fade", "ids": [did_], "opacity": 1, "dur": 0.1})
                 tl["fade"].append((tb, [did_], 1))
+            cleared_by_freeze = not freeze_back and not any(p[3] > fz[1] for p in draw_pos.values())
             ev.append({"at": _anchor(W, freeze["word"])[0], "do": "freeze", "who": "guide", "dur": FREEZE["dur"],
                        "zoom": FREEZE["zoom"], "focus": {"x": spot, "y": 1150}, "grey": True,
                        "sound": "record_scratch", "sound_file": SCRATCH})

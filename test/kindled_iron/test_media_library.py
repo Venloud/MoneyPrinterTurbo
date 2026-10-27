@@ -302,27 +302,45 @@ class Library(unittest.TestCase):
     # the real private library (KI_PRIVATE_ROOT)
     @unittest.skipUnless(os.getenv("KI_PRIVATE_ROOT"), "KI_PRIVATE_ROOT not set")
     def test_real_library_indexes_are_valid(self):
+        """Counts only in every message: the run's log is public, the private library's file names are not."""
         root = Path(os.environ["KI_PRIVATE_ROOT"])
-        for folder in ("reactions", "movie_reference"):
-            self._valid_index(root / folder)
-        lib = media.library(root, log=self.fail)
-        self.assertGreaterEqual(len(lib), 40)
-        self.assertFalse(any("guide_actions" in m["path"] for m in lib))
+        problems = sum(len(self._index_problems(root / f)) for f in ("reactions", "movie_reference"))
+        self.assertEqual(problems, 0, f"{problems} problem(s) in the private index files (names withheld)")
+        logged = []
+        lib = media.library(root, log=logged.append)
+        self.assertEqual(len(logged), 0, f"{len(logged)} library warning(s) (details withheld)")
+        self.assertGreaterEqual(len(lib), 40, f"only {len(lib)} library files")
+        self.assertEqual(sum("guide_actions" in m["path"] for m in lib), 0, "a guide-action reference is offered as media")
         refs = [i for i in json.loads((root / "movie_reference" / "index.json").read_text())["items"]
                 if i.get("type") == "guide_action_reference"]
-        for r in refs:
-            self.assertIn(r["guide_action"], actions.ACTIONS, r["file"])
+        unknown = sum(r.get("guide_action") not in actions.ACTIONS for r in refs)
+        self.assertEqual(unknown, 0, f"{unknown} guide-action reference(s) map to no action")
+        self.assertGreater(len(refs), 0)
 
     # ---------------------------------------------------------------- helpers
-    def _valid_index(self, folder: Path):
-        d = json.loads((folder / "index.json").read_text(encoding="utf-8"))
-        self.assertIsInstance(d["items"], list)
-        names = [i["file"] for i in d["items"]]
-        self.assertEqual(len(names), len(set(names)), f"duplicate entries in {folder}")
+    @staticmethod
+    def _index_problems(folder: Path) -> list[str]:
+        try:
+            d = json.loads((folder / "index.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            return [f"{folder.name}/index.json unreadable ({type(e).__name__})"]
+        if not isinstance(d.get("items"), list):
+            return [f"{folder.name}/index.json has no items list"]
+        out, seen = [], set()
         for i in d["items"]:
-            self.assertIsInstance(i["file"], str)
-            if i.get("sha256"):
-                self.assertTrue((folder / i["file"]).exists(), i["file"])
+            f = i.get("file") if isinstance(i, dict) else None
+            if not isinstance(f, str):
+                out.append("an entry without a file name")
+                continue
+            if f in seen:
+                out.append(f"duplicate entry {f}")
+            seen.add(f)
+            if i.get("sha256") and not (folder / f).exists():
+                out.append(f"indexed file missing: {f}")
+        return out
+
+    def _valid_index(self, folder: Path):
+        self.assertEqual(self._index_problems(folder), [])
 
     def _pack(self, assets: dict) -> Path:
         import zipfile

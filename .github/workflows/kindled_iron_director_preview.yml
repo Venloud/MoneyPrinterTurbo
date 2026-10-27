@@ -122,10 +122,20 @@ jobs:
 
       - name: Catalog from the renderer (regenerated every run) + offline tests
         if: ${{ steps.ids.outputs.ids != '' }}
+        env:
+          KI_PRIVATE_ROOT: ${{ env.KI_PRIVATE_MEDIA }}   # the private-library index checks (counts only in the log)
         run: |
           set -euo pipefail
           python -m kindled_iron.director.catalog
-          for t in 'test_director*.py' 'test_llm*.py' 'test_direct_budget*.py' 'test_media_library*.py' 'test_import_media*.py'; do python -m unittest discover -s test/kindled_iron -p "$t" -v; done
+          # every required module must exist (a missing one used to run 0 tests silently), every test file runs,
+          # and a skipped test fails the step: a skip is not a pass
+          for m in test_director test_llm test_direct_budget test_media_library test_import_media; do
+            [ -f "test/kindled_iron/$m.py" ] || { echo "::error::required test module test/kindled_iron/$m.py is missing"; exit 1; }
+          done
+          mods=$(ls test/kindled_iron/test_*.py | sed 's#\.py$##; s#/#.#g')
+          python -m unittest -v $mods 2>&1 | tee "$RUNNER_TEMP/unittest.log"
+          grep -qE '^Ran [1-9][0-9]* tests? in' "$RUNNER_TEMP/unittest.log" || { echo "::error::no tests ran"; exit 1; }
+          if grep -qE 'skipped=|\.\.\. skipped' "$RUNNER_TEMP/unittest.log"; then echo "::error::a test was skipped"; exit 1; fi
 
       - name: Direct, render, gate, review
         id: direct

@@ -322,10 +322,13 @@ def _anchor_time(words: list[dict], at) -> float:
 
 
 def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: dict, media: list[list[dict]],
-                  meta: dict, measure=None) -> tuple[dict, list[dict]]:
+                  meta: dict, measure=None, diagram: dict | None = None) -> tuple[dict, list[dict]]:
     """-> (scene, frames). frames = the 8 review stills: [{beat, at, line}].
     measure(specs) -> {id: {size, center}}: the drawings' real boxes with their own labels (Chrome); without it
-    the catalog's sample sizes are used (offline tests)."""
+    the catalog's sample sizes are used (offline tests).
+    diagram (diagram.select + diagram.fit): a whole diagram shown from t0 to t1. While it is up nothing else is drawn
+    where it or its caption band is (drawings move after it, or are left out when their line ends first), no clip,
+    meme card or freeze happens, and the guide steps out when it covers him and comes back when it goes."""
     Z, G = cat["zones"], cat["guide"]
     global SHOULDER_Y
     SHOULDER_Y = G["top"] + 122                 # measured: shoulders 122 px under the top of his head
@@ -348,6 +351,38 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     n_lines = len(lines)
     P = plan["lines"]
     freeze = plan.get("freeze") or {}
+    ov = (diagram["t0"], diagram["t1"]) if diagram else None
+    OBST: list = []                              # the diagram and its caption band while it is up
+    hide_guide = False
+    if diagram:
+        x_, y_, w_, h_ = diagram["fit"]["rect"]
+        cp = diagram["fit"]["caption"]
+        OBST = [(x_, y_, x_ + w_, y_ + h_), (cp["x"] - cp["w"] / 2, cp["y"] - 6, cp["x"] + cp["w"] / 2, cp["y"] + 112)]
+        hide_guide = y_ + h_ > G["top"] - 10      # it reaches down over the guide: he steps out while it is up
+
+    def under_diagram(rect, t: float, t_end: float | None = None) -> bool:
+        """Would this drawing be on screen where the diagram (or its caption band) is while it is up?"""
+        return bool(ov) and any(_overlap(rect, o) for o in OBST) and t < ov[1] + 0.05 and (t_end or 1e9) > ov[0] - 0.05
+    BOX = (Z["box"]["x"] - Z["box"]["w"] / 2, Z["box"]["y"] - Z["box"]["h"] / 2,
+           Z["box"]["x"] + Z["box"]["w"] / 2, Z["box"]["y"] + Z["box"]["h"] / 2)
+    # a line with no clip-box media: the captions go to the top of the safe area (CAP_TOP) and the drawings get the
+    # middle of the frame, from under them to above the guide (OPEN)
+    CAP_TOP = {"x": 540, "y": 190, "w": 720}
+    OPEN = (dx0, 312, dx1, dz["y1"])
+    has_box = [bool([b for b in media[i] if not b.get("skip")]) or bool(L.get("verse")) for i, L in enumerate(P)]
+    open_line = [not has_box[i] and not (ov and words[i][-1]["end"] < ov[1] + 1.0)   # (not a line the diagram covers)
+                 for i in range(len(P))]
+    cap_wins: list[dict] = []                    # where the captions sit at the top (lines without media)
+    for i in range(len(P)):
+        if open_line[i]:
+            # the handover at a layout change: the clip leaves (+0.01), then the caption moves up (+0.03); at the next
+            # media line the middle drawings clear (gone by +0.02), then the caption comes back down (+0.03)
+            a_ = max(words[i - 1][-1]["end"] + 0.03 if i else 0.0, ov[1] if ov else 0.0)
+            b_ = words[i][-1]["end"] + 0.03 if i + 1 < len(P) else words[i][-1]["end"] + 5
+            if cap_wins and a_ <= cap_wins[-1]["t1"] + 0.11:
+                cap_wins[-1]["t1"] = round(b_, 3)
+            else:
+                cap_wins.append({"t0": round(a_, 3), "t1": round(b_, 3), **CAP_TOP})
 
     # ---------------- times we must keep clear of walks: pop cards, verse typing, the freeze
     pop_t, verse_t, freeze_t = {}, {}, None
@@ -366,6 +401,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     scene_notes.append(f"line {i + 1}: pop-up moved off the word God to {later[0]['word']!r}")
                 else:
                     t = None
+            if t is not None and ov and ov[0] - 0.3 <= t <= ov[1] + 0.3:
+                t = None                              # the diagram is up: no meme card over it
+                scene_notes.append(f"line {i + 1}: pop-up left out (the diagram is on screen then)")
             if t is not None and pop_t and t - pop_t[max(pop_t)] < POP_MIN_GAP:
                 t = None
             if t is None:
@@ -379,6 +417,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     if freeze.get("line"):
         fi = freeze["line"] - 1
         freeze_t = (fi, _occ(words[fi], freeze["word"])[1]["start"])
+        if ov and ov[0] - 0.5 <= freeze_t[1] <= ov[1] + 0.2:
+            scene_notes.append(f"line {fi + 1}: freeze left out (the diagram is on screen then)")
+            freeze_t, freeze = None, {}
 
     # ---------------- guide route: a walk every 2-3 lines, outer spots for pop-ups
     cur = spots[3]
@@ -410,6 +451,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 c0, c1 = pop_t[j] - 0.3, pop_t[j] + POP_CARD["dur"] + 0.3
                 if ws < c1 and ws + dur > c0 and j != i:
                     ws = c1 + 0.05
+            if ov and ws < ov[1] + 0.3 and ws + dur > ov[0] - 0.3:
+                ws = ov[1] + 0.35                    # never while the diagram is up (he may be stepped out)
             t_end = ws + dur
             blocked = (i in verse_t and t_end > verse_t[i][0]) or (i in pop_t and t_end > pop_t[i] - 0.2) or \
                 (freeze_t and freeze_t[0] == i and t0 <= freeze_t[1] + FREEZE["dur"] + FREEZE["after"] and t_end >= freeze_t[1] - 0.2)
@@ -427,7 +470,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
 
     scene_clips: dict[str, dict] = {}
     beats, frames, used_media = [], [], []
-    shown: dict[str, list[str]] = {"area": [], "lane": []}
+    shown: dict[str, list[str]] = {"area": [], "lane": [], "top": []}
     slot_of: dict[str, tuple] = {}
     old_lane_side = None
     last_gesture_line = -2
@@ -457,6 +500,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         fz = freeze_t if freeze_t and freeze_t[0] == i else None
         if fz:
             busy.append((fz[1] - 0.2, fz[1] + FREEZE["dur"] + FREEZE["after"]))
+        if ov and hide_guide and t_start - 1 < ov[1] and t_last + 1 > ov[0]:
+            busy.append((ov[0] - 0.2, ov[1] + 0.3))     # he is stepped out behind the diagram
 
         # ---------------- drawings: the first in the drawing area, the second in the guide lane on the side away
         # from the guide (when no pop-up uses that side), else both side by side in the drawing area. Each one
@@ -475,6 +520,13 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             sets += [[("area", slots1[0]), ("lane", lane)], [("area", slots2[0]), ("area", slots2[1]), ("lane", lane)]]
         if full:
             sets += [[("lane", full)], [("lane", full), ("area", near)]]
+        if open_line[i]:                       # no media: one big drawing, two side by side or two stacked (+ beside him)
+            om, oh = (OPEN[0] + OPEN[2]) / 2, (OPEN[1] + OPEN[3]) / 2
+            opens = [[("top", OPEN)], [("top", (OPEN[0], OPEN[1], om - 5, OPEN[3])), ("top", (om + 5, OPEN[1], OPEN[2], OPEN[3]))],
+                     [("top", (OPEN[0], OPEN[1], OPEN[2], oh - 5)), ("top", (OPEN[0], oh + 5, OPEN[2], OPEN[3]))]]
+            sets = [o_ + l_ for o_ in opens for l_ in ([[]] + ([[("lane", lane)]] if lane else [])) if len(o_) + len(l_) <= 3]
+            if full:
+                sets.append([("lane", full), ("top", (near[0], OPEN[1], near[2], OPEN[3]))])
         def search(cands):
             best, best_area, pick = None, -1.0, ()
             for st in cands:
@@ -488,6 +540,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                             area = -1.0
                             break
                         area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2
+                    if open_line[i] and area >= 0:   # the open middle: keep the planner's drawings over one giant one
+                        area += 1e7 * len(st)
                     if area > best_area:
                         best, best_area, pick = st, area, perm
             return best, best_area, pick
@@ -500,9 +554,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             best, best_area, pick = search([st for st in sets if sum(z == "area" for z, _ in st) >= need])
             if best is None or best_area < 0 or sum(z == "area" for z, _ in best) < need:
                 best, best_area, pick = None, -1.0, ()
-        if best is None:
+        if best is None and dr:
             best, best_area, pick = search(sets)
-        if best is None or best_area < 0:
+        if not dr:                                     # the line's visual is its media / verse card / the diagram
+            best, best_area, pick = [], 0.0, ()
+        elif best is None or best_area < 0:
             raise CompileError(f"line {i + 1}: {' and '.join(o['_name'] for o in objs)} cannot be drawn 250 px or larger "
                                "here: pick library illustrations")
         order = sorted(zip(pick, best))                # keep the planner's order
@@ -515,7 +571,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         freeze_back: list = []                         # drawings shown before the freeze that come back after it
         after_freeze = cleared_by_freeze
         cleared_by_freeze = False
-        new_in = {"area": None, "lane": None}
+        new_in = {"area": None, "lane": None, "top": None}
         for j, d in enumerate(dr):
             did = f"l{i + 1}_{d['type']}{j}"
             obj = objs[j]
@@ -536,6 +592,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if i == 0 and t - t_start > 0.1 * k0 and not (zone == "lane" and i in pop_t):   # first frame full (the hook)
                 t = round(0.1 * k0, 3)
                 a = t
+            if open_line[i] and (i == 0 or not open_line[i - 1]) and zone == "top" and j == 0 and t - t_start > 0.1:
+                t = round(t_start + 0.1, 3)            # the media left: the line's main drawing takes the middle at once
+                a = _at_time(W, t)
             if after_freeze and t - t_start > 0.1 + 0.35 * j:   # the freeze cleared the board: refill at once
                 t = round(t_start + 0.1 + 0.35 * j, 3)
                 a = _at_time(W, t)
@@ -549,6 +608,16 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             elif fz and t <= fz[1] + FREEZE["dur"] + FREEZE["after"]:
                 t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35 + 0.35 * j   # after it, the camera fully back
                 a = _at_time(W, t)
+            if ov and t_start < ov[1] < t_last and t > ov[1] + 0.1 + 0.35 * j:
+                t = round(ov[1] + 0.1 + 0.35 * j, 3)          # the board refills as soon as the diagram goes
+                a = _at_time(W, t)
+            if under_diagram(slot, t):
+                if ov[1] + 0.1 + 0.35 * j < t_last - 0.3:   # the rest of its line, once the diagram is gone
+                    t = round(ov[1] + 0.1 + 0.35 * j, 3)
+                    a = _at_time(W, t)
+                else:                                        # its line is over before the diagram goes
+                    scene_notes.append(f"line {i + 1}: {d['type']} left out (the diagram is on screen for this line)")
+                    continue
             if j and first_t is not None and abs(t - first_t) < 0.3 and i:
                 t = first_t + 0.35
                 a = _at_time(W, t)
@@ -574,7 +643,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if new_area and od not in kept_before and not any(_overlap(slot_of[od], slot_of[nd]) for nd in ids):
                 kept_area.append(od)
         kept_before = set(kept_area)
-        for zone in ("area", "lane"):
+        for zone in ("area", "lane", "top"):
             old = [d for d in shown[zone] if d not in kept_area]
             if not old:
                 continue
@@ -586,6 +655,10 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     t_new = pop_t[i] - POP_CLEAR + 0.05 if t_new is None else min(t_new, pop_t[i] - POP_CLEAR + 0.05)
                 if t_new is None:
                     t_new = new_in["area"] if new_in["area"] is not None else t_start
+            if zone == "top" and t_new is None:      # the middle: cleared with the line's first new drawing
+                t_new = min([x for x in new_in.values() if x is not None], default=t_start)
+            if zone == "top" and not open_line[i]:   # ... and before the captions come back to the middle
+                t_new = min(t_new, (words[i - 1][-1]["end"] - 0.03) if i else t_start)
             if t_new is None:
                 continue
             if zone == "area":                         # each old band drawing goes just before the new one on it
@@ -593,10 +666,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] == "area" and _overlap(slot_of[od], slot_of[nd])]
                     fades.setdefault(round(max(t_start - 0.4, (min(hits) if hits else t_new) - 0.05), 3), []).append(od)
                 continue
-            fades.setdefault(round(max(t_start - 0.4, t_new - 0.05), 3), []).extend(old)
+            hand = zone == "top" and not open_line[i]          # the layout handover: exactly before the caption returns
+            fades.setdefault(round(t_new - 0.05 if hand else max(t_start - 0.4, t_new - 0.05), 3), []).extend(old)
         # a new drawing whose slot covers an old drawing of the OTHER zone (a full-height side drawing after a
         # band, or the reverse) clears that one just before it appears
-        for zone in ("area", "lane"):
+        for zone in ("area", "lane", "top"):
             for od in shown[zone]:
                 hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] != zone and _overlap(slot_of[od], slot_of[nd])]
                 if hits:
@@ -630,6 +704,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 continue
             if i in pop_t and pop_t[i] - 0.3 < tn < pop_t[i] + POP_CARD["dur"] and _overlap(slot_of[did], _LANE_CARD(spot, G)):
                 continue
+            if under_diagram(slot_of[did], tn):
+                continue
             if draw_pos[did][3] > tn + 0.01:
                 pulled += 1
                 for e in ev:
@@ -645,7 +721,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             tf = min(cleared)
             for nd in [d for d in ids if draw_pos[d][4] == "lane" and draw_pos[d][3] > tf + 0.3]:
                 tn = round(tf + 0.05, 3)
-                if i in walks and _path_hits(walks[i], [slot_of[nd]], G):
+                if i in walks and _path_hits(walks[i], [slot_of[nd]], G) or under_diagram(slot_of[nd], tn):
                     continue
                 if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
                     continue                           # never into the freeze zoom
@@ -663,7 +739,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [nd], "opacity": 1,
                                "dur": 0.1})
                     tl["fade"].append((pop_t[i] + POP_CARD["dur"], [nd], 1))
-                for zone in ("area", "lane"):          # what it now covers earlier is cleared earlier too
+                for zone in ("area", "lane", "top"):          # what it now covers earlier is cleared earlier too
                     for od in shown[zone]:
                         if od != nd and _overlap(slot_of[od], slot_of[nd]):
                             fades.setdefault(round(max(t_start - 0.4, tn - 0.05), 3), []).append(od)
@@ -675,9 +751,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             tl["fade"].append((ft, fids, 0))
         prev_old = shown["area"] + shown["lane"]
         prev_lane = list(shown["lane"])
-        for zone in ("area", "lane"):
+        for zone in ("area", "lane", "top"):
             mine = [d for d in ids if draw_pos[d][4] == zone]
-            if mine or zone == "lane":
+            if mine or zone in ("lane", "top"):
                 shown[zone] = mine + ([d for d in kept_area if d not in faded_now] if zone == "area" else [])
         old_lane_side = None if not shown["lane"] else (1 if draw_pos[shown["lane"][0]][0] > spot else -1)
         old_lane_spot = spot
@@ -685,7 +761,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         # ---------------- gesture (point at the drawing being named, or shrug / look / wave)
         g = L.get("gesture") or {"do": "none"}
         want = g.get("do", "none")
-        if want == "none" and i - last_gesture_line >= 2:
+        if want == "none" and i - last_gesture_line >= 2 and dr:
             want, g = "point", {"do": "point", "word": dr[0]["word"]}
         if want != "none":
             target = next((d for d, p in draw_pos.items() if p[2] == key(g.get("word", ""))), ids[0] if ids else None)
@@ -749,10 +825,15 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if not spoken:
                 box_ev.update({"paced": True, "from": key(v["word"])})
             ev.append(box_ev)
+        box_on = _anchor(W, L["verse"]["word"], -0.4)[1] if L.get("verse") else None
         for b in media[i]:
             if b.get("skip"):
                 continue
-            a = 0 if (i == 0 and not used_media) else _anchor(W, b["word"], -0.15)[0]
+            a, ta = _anchor(W, b["word"], -0.15)
+            if ov and ov[0] - 0.2 <= ta < ov[1]:
+                scene_notes.append(f"line {i + 1}: box media on {b['word']!r} left out (the diagram shows this part)")
+                continue
+            box_on = ta if box_on is None else min(box_on, ta)
             if b["kind"] == "meme":
                 ev.append({"at": a, "box": "media", "file": b.get("path") or "movie_reference/" + b["file"]})
             else:
@@ -760,6 +841,19 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 scene_clips.setdefault(ck, {b["source"]: b["id"], "label": b.get("title", "")[:80]})
                 ev.append({"at": a, "box": "clip", "clip": ck})
             used_media.append(b)
+        if box_on is not None:
+            # the frame is there only while its media is: it leaves at the end of its line, unless the next line's
+            # own media follows at once (no flicker); a verse card still holds its 1 s (mediabox.plan waits for it)
+            nxt = [_occ(words[i + 1], x["word"])[1]["start"] - 0.15 for x in (media[i + 1] if i + 1 < n_lines else [])
+                   if not x.get("skip")]
+            if i + 1 < n_lines and P[i + 1].get("verse"):
+                nxt.append(_occ(words[i + 1], P[i + 1]["verse"]["word"])[1]["start"] - 0.4)
+            t_off = round(t_last + (0.01 if i + 1 < n_lines and open_line[i + 1] else 0.15), 3)
+            if not nxt or min(nxt) - t_off > 0.8:
+                ev.append({"at": _at_time(W, t_off), "box": "off"})
+                tl["cards"].append((BOX, box_on, max(t_off, verse_t[i][1]) if i in verse_t else t_off))
+            else:
+                tl["cards"].append((BOX, box_on, min(nxt)))
 
         # ---------------- the pop-up meme beside the guide
         if L.get("pop"):
@@ -782,6 +876,29 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             # a still once the line's last drawing is complete (draw 0.6 s + margin for the renderer's own timing)
             frames.append({"beat": beat["id"], "t": max(draw_pos[d][3] for d in ids) + 1.5, "line": text})
 
+    dg_info = None
+    if diagram:
+        b0, b1 = _beat_at(words, ov[0]), _beat_at(words, ov[1])
+        at0 = 0 if ov[0] <= words[0][0]["start"] + 0.05 and b0 == 0 else _at_time(words[b0], ov[0])
+        beats[b0]["events"].append({"at": at0, "box": "diagram", "file": diagram["path"] or "movie_reference/" + diagram["file"],
+                                    "rect": diagram["fit"]["rect"],
+                                    "views": [dict(v, rect_n=[v["rect"][0] / diagram["size"][0], v["rect"][1] / diagram["size"][1],
+                                                              v["rect"][2] / diagram["size"][0], v["rect"][3] / diagram["size"][1]])
+                                              if v.get("rect") else v for v in diagram.get("views") or []]})
+        beats[b1]["events"].append({"at": _at_time(words[b1], ov[1]), "box": "off"})
+        if hide_guide:              # the diagram covers him: he steps out (a cut, no effect) and is back when it goes
+            first = next((e for e in beats[b0]["events"] if e.get("do") == "place" and e.get("at") == 0), None)
+            if at0 == 0 and first:
+                first["hidden"] = True                # the video opens on the diagram: he starts out of view
+            else:
+                beats[b0]["events"].append({"at": at0, "do": "exit", "who": "guide", "dur": 0})
+            beats[b1]["events"].append({"at": _at_time(words[b1], ov[1]), "do": "appear", "who": "guide"})
+        for o in OBST:
+            tl["cards"].append((o, ov[0], ov[1]))
+        frames.append({"beat": beats[b0]["id"], "t": min(ov[0] + 2.0, ov[1] - 0.2), "line": lines[b0]})
+        frames.sort(key=lambda f: f["t"])
+        dg_info = {k: diagram[k] for k in ("file", "size", "t0", "t1", "why", "sentences", "views", "fit", "readability") if k in diagram}
+        dg_info["guide_hidden"] = hide_guide
     fixed, left = resolve_conflicts(tl, beats, words)
     scene_notes += [f"timeline: {n}" for n in fixed]
     if left:
@@ -806,6 +923,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         "fill_min": 0.3, "max_visual_gap": 2.5, "walk_speed": WALK_SPEED, "pencil": True,
         "captions_box": {"x": Zc["x"] + Zc["w"] / 2, "y": Zc["y"], "w": Zc["w"], "size": Zc["size"], "min_scale": 0.6},
         "captions_chunk": {"max_words": 3, "min_words": 1, "max_chars": 16},
+        "caption_windows": sorted(([{"t0": ov[0], "t1": ov[1], **diagram["fit"]["caption"]}] if diagram else []) + cap_wins,
+                                  key=lambda w: w["t0"]),
         "audit": {"max_words": 3, "one_line": True}, "caption_color": "ink", "caption_on": "accent",
         "require_memes": sum(1 for L in P if L.get("pop")), "max_media_uses": 2,
         "cast": {"guide": {"panel": 0, "x": route[0], "scale": 2.1, "facing": -1 if route[0] > 540 else 1, "accent": True}},
@@ -814,7 +933,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",
                     "frames": [{"beat": f["beat"], "at": f["at"]} for f in pv]},
         "post": {"title": meta.get("title") or meta["id"].replace("-", " ").title()},
-        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}, "notes": scene_notes, "timeline_fixes": scene_conflicts,
+        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}, "notes": scene_notes, "timeline_fixes": scene_conflicts, "diagram": dg_info,
                      "actions": acted_log + list(plan.get("unsupported_actions") or [])},
         "beats": beats,
     }

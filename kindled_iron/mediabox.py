@@ -23,7 +23,12 @@ Rules (all checked here, the render stops on any of them):
   spoken duration; an orange caret follows the typing; the reference appears right after the quote and the card
   holds 1 s after it (a request that would cut it short waits); "split_after": the quote goes on a second page
   after that word;
-- pinned clips are required: a pin that can't be fetched fails the render (never a silent gap).
+- pinned clips are required: a pin that can't be fetched fails the render (never a silent gap);
+- no media, no frame: the box is drawn only while a segment holds something ("off" removes it, and the video may
+  start with no box at all); each clip / picture gets a frame of ITS OWN shape (fitted inside the box area: the
+  whole picture, minimal padding or cropping), never a stretched or empty frame;
+- {"box": "diagram", "file": ..., "rect": [x, y, w, h]}: a whole diagram (director/diagram.py), the image scaled
+  uniformly to exactly that rectangle, no frame around it.
 """
 from __future__ import annotations
 
@@ -138,6 +143,9 @@ def plan(scene: dict, spans: list, beat_words: list, pauses: list, duration: flo
             elif ev["box"] == "media":         # a private file (owner upload): image, gif, mp4, mov, webp
                 reqs.append((max(0.0, t), {"kind": "media", "file": ev["file"], "fallback": ev.get("fallback"), "fit": ev.get("fit"),
                                            "start": ev.get("start"), "crop": ev.get("crop"), "cue": ev.get("at"), "beat": beat.get("id", b)}))
+            elif ev["box"] == "diagram":       # a whole diagram, no frame (director/diagram.py placed it)
+                reqs.append((max(0.0, t), {"kind": "diagram", "file": ev["file"], "rect": ev["rect"],
+                                           "views": ev.get("views") or [], "cue": ev.get("at"), "beat": beat.get("id", b)}))
             elif ev["box"] == "heart":
                 reqs.append((t, {"kind": "heart", "cue": ev.get("at"), "beat": beat.get("id", b)}))
             elif ev["box"] == "off":
@@ -156,15 +164,13 @@ def plan(scene: dict, spans: list, beat_words: list, pauses: list, duration: flo
     if segs:
         segs[-1]["t1"] = round(max(duration, segs[-1].get("hold_until", 0.0)), 3)
     segs = [s for s in segs if s["kind"] != "off" and s["t1"] - s["t0"] > 0.05]
-    if not segs or segs[0]["t0"] > 0.0:
-        raise SystemExit("FAIL: the media box must have something in it from t=0")
     # rules: never the same footage twice in a row; clip groups (cash) capped
     prev: set = set()
     counts: dict[str, int] = {}
     clips = scene["clips"]
     for s in segs:
         keys = [s["clip"]] if s["kind"] == "clip" else [s["left"], s["right"]] if s["kind"] == "split" else []
-        pins = {clips[k].get("pexels") or k for k in keys} | ({"file:" + s["file"]} if s["kind"] == "media" else set())
+        pins = {clips[k].get("pexels") or k for k in keys} | ({"file:" + s["file"]} if s["kind"] in ("media", "diagram") else set())
         if pins & prev:
             raise SystemExit(f"FAIL: footage {sorted(pins & prev)} twice in a row at {s['t0']:.1f} s")
         prev = pins
@@ -205,7 +211,7 @@ def plan(scene: dict, spans: list, beat_words: list, pauses: list, duration: flo
 
 def label(s: dict) -> str:
     return {"clip": lambda: s["clip"], "verse": lambda: s["ref"], "heart": lambda: "drawn heart",
-            "media": lambda: s.get("used_file") or s["file"],
+            "media": lambda: s.get("used_file") or s["file"], "diagram": lambda: "diagram " + s["file"],
             "split": lambda: f"split {s['left']} | {s['right']}"}[s["kind"]]()
 
 
@@ -245,6 +251,15 @@ def _placeholder(key: str, dur: float, w: int, h: int, out_dir: Path) -> list[st
 FAILED: list[str] = []
 
 
+def frame_size(aspect: float, max_w: int, max_h: int) -> tuple[int, int]:
+    """The frame for media of this shape (width / height): as large as fits the box area, the media's own aspect
+    (even sizes for the encoder). No media is ever stretched to the box's shape."""
+    w, h = max_w, max_w / aspect
+    if h > max_h:
+        w, h = max_h * aspect, max_h
+    return int(w) // 2 * 2, int(h) // 2 * 2
+
+
 def media_frames(s: dict, seconds: float, w: int, h: int, work: Path, n: int, log):
     """Frames of a private owner file for the box. Stills: one frame; gif / video: the clip (loops when the line is
     longer). fit "contain" keeps the whole picture (paper around it); default "cover" for landscape pictures and
@@ -261,8 +276,11 @@ def media_frames(s: dict, seconds: float, w: int, h: int, work: Path, n: int, lo
             continue
         meta = idx.get(rel, {})
         sz = pm.image_size(f) or (w, h)
-        fit = s.get("fit") or ("contain" if sz[0] / max(1, sz[1]) < 1.15 else "cover")
         crop = s.get("crop") or meta.get("crop")
+        aspect = sz[0] * (crop[2] if crop else 1) / max(1, sz[1] * (crop[3] if crop else 1))
+        w, h = frame_size(aspect, w, h)             # the frame takes the picture's own shape
+        s["geom"] = {"w": w, "h": h}
+        fit = "contain"
         still = f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
         start = float(s.get("start") if s.get("start") is not None else meta.get("start", 0.0))
         end = meta.get("end")
@@ -297,6 +315,28 @@ def media_frames(s: dict, seconds: float, w: int, h: int, work: Path, n: int, lo
     raise SystemExit(f"FAIL: box media {s['file']} failed to load" + (f" (fallback {s['fallback']} too)" if s.get("fallback") else ""))
 
 
+def diagram_frame(s: dict, work: Path, n: int, log):
+    """The whole diagram as ONE picture of exactly rect's size: a uniform scale of the original (the rect was made
+    from its own aspect), never cropped, split or stretched. A diagram that fails to load fails the render."""
+    from kindled_iron import private_media as pm
+    f = pm.private_file(s["file"])
+    if not f:
+        FAILED.append(s["file"])
+        raise SystemExit(f"FAIL: diagram {s['file']} is not in the private repo")
+    sz = pm.image_size(f)
+    x, y, w, h = s["rect"]
+    if not sz or abs(sz[0] / sz[1] - w / h) > 0.01:
+        raise SystemExit(f"FAIL: diagram {s['file']} would be stretched ({sz} into {w}x{h}): its rectangle must keep its shape")
+    out_dir = work / "box" / f"diagram_{n}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / "f_0001.png"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(f), "-vf", f"scale={w}:{h}:flags=lanczos", "-frames:v", "1",
+                    str(out)], check=True, capture_output=True)
+    log(f"media box: diagram {s['file']} {sz[0]}x{sz[1]} scaled uniformly to {w}x{h} at ({x}, {y})")
+    return [out.as_uri()], {"clip": s["file"], "source": "owner upload (private)", "id": s["file"], "page": "", "file_url": "",
+                            "license": "owner-supplied", "start": 0.0, "end": 0.04, "crop": None, "fit": "whole, uniform scale"}
+
+
 def _source(spec: dict, key: str, got: dict, log):
     if key in got:
         return got[key]
@@ -323,8 +363,16 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
     Ranges: every use of a source continues after the previous use; "distinct" sources never show a range twice."""
     box, clips = scene["mediabox"], scene["clips"]
     W, H = int(box["w"]), int(box["h"])
+    BX, BY = box.get("x", 540), box.get("y", 455)
     placeholder = os.environ.get("KI_BOX_PLACEHOLDER") == "1"
     sources, got, cursor, used = [], {}, {}, {}
+    def clip_aspect(key: str, crop=None) -> float:
+        c, f, length = _source(clips[key], key, got, log)
+        from kindled_iron.private_media import image_size
+        sz = image_size(f) or (16, 9)
+        crop = crop or clips[key].get("crop")
+        return sz[0] * (crop[2] if crop else 1) / max(1, sz[1] * (crop[3] if crop else 1))
+
     def take(key: str, seconds: float, w: int, h: int, n: int, crop=None, start=None, side=""):
         spec = clips[key]
         crop = crop or spec.get("crop")
@@ -357,12 +405,23 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
                         "license": insets_mod.LICENSES[c.get("source", "pexels")], "start": rng[0], "end": rng[1], "crop": crop}
     for n, s in enumerate(segs):
         seconds = s["t1"] - s["t0"]
+        s["geom"] = {"x": BX, "y": BY, "w": W, "h": H}
         if s["kind"] == "clip":
-            frames, rec = take(s["clip"], seconds, W, H, n, s.get("crop"), s.get("start"))
+            asp = 16 / 9 if placeholder else clip_aspect(s["clip"], s.get("crop"))
+            fw, fh = frame_size(asp, W, H)
+            s["geom"].update(w=fw, h=fh)
+            frames, rec = take(s["clip"], seconds, fw, fh, n, s.get("crop"), s.get("start"))
             s.update({"frames": frames, "fps": 30})
             recs = [rec]
         elif s["kind"] == "media":
             frames, rec = media_frames(s, seconds, W, H, work, n, log)
+            s["geom"] = {"x": BX, "y": BY, **s["geom"]}
+            s.update({"frames": frames, "fps": 30})
+            recs = [rec]
+        elif s["kind"] == "diagram":
+            frames, rec = diagram_frame(s, work, n, log)
+            x, y, w, h = s["rect"]
+            s["geom"] = {"x": x + w / 2, "y": y + h / 2, "w": w, "h": h, "bare": True}
             s.update({"frames": frames, "fps": 30})
             recs = [rec]
         elif s["kind"] == "split":
@@ -428,6 +487,6 @@ def page_data(scene: dict, segs: list[dict]) -> tuple[dict, dict]:
            "verse_size": size, "pad_x": int(box.get("pad_x", 52)), "max_lines": max_lines, "allow_overlap": True}
     D = {"id": "box", "verse_size": size,
          "segments": [{k: v for k, v in s.items() if k in ("kind", "t0", "t1", "frames", "frames_l", "frames_r", "fps", "ref",
-                                                          "ref_t", "pages", "clip", "left", "right", "highlights")}
+                                                          "ref_t", "pages", "clip", "left", "right", "highlights", "geom", "views")}
                       for s in segs]}
     return obj, D

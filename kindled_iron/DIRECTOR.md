@@ -22,6 +22,9 @@ You give it two files. It makes the whole video by itself and puts a private pre
 ```
 script.txt + narration.mp3
  1 align    faster-whisper hears the MP3; every script word gets its time (the renderer's own alignment)
+ 1b story   story.py (no AI call): the spoken sentences on the narration's clock and what each one does (points at a
+            visual, asks, gives examples, quotes); story.json. diagram.py: where the narration introduces a library
+            diagram and walks through what it shows, that diagram is shown WHOLE for those sentences (below)
  2 plan     the AI (Gemini -> GitHub Models -> Hugging Face -> Groq -> OpenRouter -> Cloudflare, see "AI providers") writes a SHOT
             PLAN per line: 2 drawings (a library doodle picked by tag, or a built-in diagram, + labels), clip-box
             media (stock search words or a meme from your library), a typed verse card, an optional meme
@@ -34,7 +37,9 @@ script.txt + narration.mp3
  5 gates    plain mistakes are repaired in code first (no AI call); any failed gate goes back to the planner as
             "fix_errors"; at most 3 plan calls per video, else fail_report.md
  6 review   one vision call looks at the 8 stills with their lines; one automatic fix round if the plan budget
-            allows (the fixed video is then not re-reviewed: 1 vision call per video); review.json
+            allows; review.json. Accepted (status ok: true, state done) ONLY when every gate passed and the review
+            of the final video said pass: a failed or missing review, or a video revised after its review and not
+            reviewed again (1 vision call per video), is a FAIL with fail_report.md
 ```
 
 Files: `kindled_iron/director/` (`direct.py` runs it all, `plan.py`, `compile.py`, `media.py`, `gates.py`,
@@ -45,7 +50,7 @@ Files: `kindled_iron/director/` (`direct.py` runs it all, `plan.py`, `compile.py
 
 | Zone | Where (1080x1920) | What goes there |
 |---|---|---|
-| Clip box | top, 820 x 380 (y 180-560) | stock footage, your memes, the typed verse card |
+| Clip box | top, up to 820 x 380 (y 180-560) | stock footage, your memes, the typed verse card; only while it holds media, its frame shaped like that media; a line without media draws here instead |
 | Caption band | under the box | one line, 1-3 words, the spoken word orange (hidden while a verse is typed) |
 | Drawing area | everything from under the caption to the bottom of the safe box (y 702-1432, 38% of the frame) | the band above the guide's head (650 x 318) + the side beside him (285 wide, up to full height) |
 | Guide lane | bottom: 4 spots (230, 340, 560, 650), ground 1570 | the guide walks; a meme pop-up sits beside him on its word |
@@ -57,6 +62,43 @@ On a meme pop-up line the side drawing makes way for the card and comes back the
 Zones never overlap, so text never lands on text or on the guide; a new drawing that covers an old one of the
 other slot clears it first. The compiler keeps the guide's arms clear: he points only where his hand cannot reach a
 drawing, shrugs only where there is room, and a drawing is cleared before he walks through it.
+
+### No media, no frame
+
+The clip box exists only while it shows something real: a clip, a library picture, a verse card. Each item shows
+during its own line and the box goes when the line ends (unless the next line's own media follows at once). Its
+frame takes the media's shape (a 16:9 clip 674 x 380, a square picture 380 x 380, a tall one 212 x 380), so
+nothing is stretched or padded into an unrelated frame. A line with no fitting media has no box at all: its
+drawings use that space (one wide drawing or two side by side above the caption). A video may start without it.
+
+### Diagrams, charts, maps, flowcharts (director/story.py + director/diagram.py)
+
+A library item with `"type": "diagram"` (or flowchart, chart, map, infographic) is a complete composition. It is
+never a box meme and never split into drawings. It is shown when the narration does two things in a row of
+sentences: points at a visual ("this graph", "the map", "look at...") or names the diagram's subject, and then keeps
+talking about what the diagram contains (its subject, topics, aliases, description and region text) for at least 3
+sentences (short asides like "Sounds crazy, right?" may sit between). It goes when the narration moves on, at most
+30 s, and before any verse / quote. No video id and no script phrase is ever a trigger (a test checks the code).
+
+While it is up:
+- the WHOLE image, uniformly scaled: `scale = min(available_width / width, available_height / height)` into the
+  safe area (beside the button column for a tall diagram, across the top for a wide one), never cropped, split,
+  stretched or rearranged, no frame around it (`mediabox.py` refuses a rectangle that would change its shape);
+- captions sit in their own band under it (inside the safe area);
+- nothing else is drawn where it is: the planner's drawings for those words appear after it (or are left out when
+  their line ends first), no clip, meme card, freeze or walk;
+- when it reaches down over the guide, he steps out (a cut) and comes back the moment it goes; the normal layout
+  returns with him.
+
+Region focus (a view move over the intact image, never a cut file) is available only for library items with
+`"region_rendering": true` and `regions` (`{"id": {"rect": [x, y, w, h], "text": ..., "keywords": [...]}}` in image
+pixels), and only after the whole diagram has been on screen 2 s and a sentence names one region's keywords; the
+focus lands on that spoken word. Items with `"region_rendering": false` (the Epicurean Paradox flowchart) always
+show whole; their regions stay as metadata for later.
+
+Readability: `"min_text_px"` (the smallest text's cap height in the original) gives the smallest text on screen;
+under 18 px is reported as a limitation in status.json / media.json. The diagram is still shown whole (cropping or
+splitting it needs the owner's approval).
 
 ### The doodle library (kindled_iron/doodles/)
 
@@ -132,13 +174,17 @@ Rules the code enforces (plan.repair, no AI call):
 - a meme or still is kept only when it fits its line: a shared word, or the same reaction family ("crazy" ~ "wait
   what", "earthquake" ~ "collapsed house"; the line's expression counts too). Dropped otherwise (logged).
 - each meme once per video, look-alikes (`same_meme_as`) included; at most 4 memes per video (box + pop-ups).
-- the hook line always has clip-box media. A later line may go without its own only when the line right before it
-  has box media of its own: a clip stays up one extra line at most, a verse card never runs into the next line (the
-  real review of run 40446183634 failed one chalkboard clip held over lines 1-4 and the verse card on line 8). A line
-  that would break this gets the library still that shares a real word with it (not "God"), else the planner is
-  told exactly which line needs media. No meme is ever added to fill the box.
-- stock footage whose subject is writing (chalkboard, sign, screen, book...) is skipped unless the query asks for it:
-  it shows words the narration does not say.
+- no line needs box media (the hook neither): a box item shows only during its own line (the real review of run
+  40446183634 failed one chalkboard clip held over lines 1-4). Nothing is ever added just to fill the box.
+- stock footage must show what the LINE says (media.py, every decision with its reason in media.json):
+  the planner's query must share a subject word (or a reaction family) with the line, else it is left out; a result
+  must share a subject word with the query, setting words alone ("classroom", "street", "looking"...) do not count;
+  footage whose subject is writing or a chart (chalkboard, sign, screen, graph on a monitor...) is turned down unless
+  the line itself names it. No fitting result = no frame on that line, not an error. The run-15 BACK TO SCHOOL clip
+  came from the planner prompt's own example query ("chalkboard diagram classroom", now removed) and was accepted
+  on the shared word "classroom"; both are fixed. Verification is by the provider's title / page words (recorded
+  as `"verified"`); frames of stock clips are not inspected by a vision model (the budget is 1 vision call per
+  video, used on the final video).
 - pop-ups: at most 3 per video, at least 2 lines apart, never on a verse line or on the word "God", 380 px wide,
   1.2 s; no file twice in a row and no file more than twice per video.
 - box items without a word are anchored on a spoken word of their line (the word their query or file names, else the
@@ -202,9 +248,10 @@ record_scratch level; the sound library has no record-scratch variants, so witho
 | audit | zero every-frame audit issues |
 | coverage | at least 60 % of the usable frame (safe box minus the button column) is covered at every half second (from 0.25 s, skipping the freeze zoom and its redraw), and no single empty rectangle is larger than 20 % of it |
 | doodles | every drawing is at least 250 px on its long side (measured on the page) |
-| empty | no empty card, no empty verse page, the clip box never empties |
-| per_line | every line brings a new drawing; the hook line also clip-box content (later lines may be drawings + guide only) |
-| box_media | at least one real clip or meme in the clip box |
+| empty | no empty card, no empty verse page |
+| per_line | every line brings a new drawing, unless the whole diagram is on screen for it |
+| box_media | no frame without media: every clip-box segment holds media that loaded (none failed), shaped to it |
+| diagram | a whole diagram is inside the safe area and clear of the button column, uniformly scaled, its caption band inside the safe area and not over it, at most 30 s (readability reported) |
 | verses | every reference / quote in the script is on a typed verse card |
 | alignment | at least 85 % of the script's words are heard in the MP3 |
 | music, sfx | (full render) theme_1 is in the mix; sound effects are in the mix |
@@ -215,8 +262,8 @@ It lists each attempt (one AI plan, at most 3) and the exact checks it failed; t
 fix_errors in the next round. Typical causes and what to do:
 
 - `script.txt does not match narration.mp3`: the script is not the recording's text. Fix script.txt.
-- `no stock video matches 'x'`: the planner's footage idea found nothing that really shows it; it is retried
-  with another query automatically. If it keeps failing, add a fitting still or meme to movie_reference/ or reactions/.
+- No fitting footage is not a failure: the line goes without the box (media.json says why each result was turned
+  down). To give such a line a picture, add a fitting still to movie_reference/ (with tags / description).
 - `cannot be drawn 250 px or larger here`: the line's two drawings were both tall; the planner is told to make
   the first one wide.
 - `the frame looks empty` (coverage): a line's drawings are small for their slots; retried automatically.

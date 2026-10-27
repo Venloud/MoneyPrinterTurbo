@@ -68,7 +68,11 @@ class Director(unittest.TestCase):
         p["lines"][1].pop("verse")
         p["lines"][0]["box"] = [{"word": "nowhere", "kind": "meme", "file": "missing.jpg"}]
         errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
-        self.assertIn("line 1: no drawing", errs)
+        self.assertNotIn("line 1: nothing on screen", errs)     # drawings are not a quota: its box media is its visual
+        p["lines"][0]["box"] = []                                # with nothing at all, the line is reported
+        self.assertIn("line 1: nothing on screen shows this line", " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat)))
+        p["lines"][0]["box"] = [{"word": "nowhere", "kind": "meme", "file": "missing.jpg"}]
+        errs = " | ".join(planmod.validate(p, LINES, self.keys, LIB, self.cat))
         self.assertIn("line 2: names Revelation 21:4", errs)
         self.assertIn("not in media_library", errs)
         self.assertIn("'nowhere' is not spoken", errs)

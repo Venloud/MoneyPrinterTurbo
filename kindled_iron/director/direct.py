@@ -1,7 +1,7 @@
 """Kindled Iron director: script.txt + the owner's narration.mp3 -> a finished private preview. No voice is ever
 generated and nothing is published.
 
-    python -m kindled_iron.director.direct --id epicurean-paradox --private <kindled-iron-voice checkout> --out <dir>
+    python -m kindled_iron.director.direct --id <video-id> --private <kindled-iron-voice checkout> --out <dir>
 
 1. align   the MP3 is transcribed (faster-whisper small.en) and aligned to the script's words, like the renderer
 2. plan    the AI (llm.py: Gemini -> GitHub Models -> Cloudflare) writes a shot plan per line (meaning only: drawings, clip-box media, verse, pop, gesture, freeze)
@@ -32,7 +32,8 @@ from pathlib import Path
 
 from datetime import datetime, timedelta, timezone
 
-from kindled_iron.director import compile as compiler, gates, llm, media, plan as planmod, review as reviewmod
+from kindled_iron.director import compile as compiler, diagram as diagmod, gates, llm, media, plan as planmod, review as reviewmod
+from kindled_iron.director import story as storymod
 from kindled_iron.director.calls import CALLS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -128,12 +129,24 @@ def attempt(p: dict, lines, words, cat, lib, meta, work: Path, rec: dict) -> dic
     if notes:
         log("plan repaired in code: " + "; ".join(notes))
         rec["repairs"] = notes
-    errs = planmod.validate(p, lines, line_keys, lib, cat)
+    dg = meta.get("diagram")
+    if dg:                                         # the diagram is the visual there: no box media / meme card asked for
+        cleared = diagmod.clear_plan(p, words, dg)
+        if cleared:
+            log("diagram on screen: " + "; ".join(cleared))
+            rec.setdefault("repairs", []).extend(cleared)
+    covered = {i for i, ws in enumerate(words) if dg and ws and ws[-1]["end"] <= dg["t1"] + 1.0}   # the diagram shows them
+    errs = planmod.validate(p, lines, line_keys, lib, cat, covered)
     if not errs:
         per_line, records, errs = media.resolve(p, lib, log, lines)
+        if dg and not errs:
+            records.append({"kind": "diagram", "file": dg["file"], "path": dg.get("path"), "source": "owner library (private)",
+                            "shown": [dg["t0"], dg["t1"]], "rect": dg["fit"]["rect"], "scale": dg["fit"]["scale"],
+                            "why": dg["why"], "supports": dg["sentences"], "views": dg["views"],
+                            "readability": dg.get("readability")})
     if not errs:
         try:
-            scene, frames = compiler.compile_scene(p, lines, words, cat, per_line, meta, measure=_measure)
+            scene, frames = compiler.compile_scene(p, lines, words, cat, per_line, meta, measure=_measure, diagram=dg)
         except compiler.CompileError as e:
             errs = [f"layout: {e}"]
     if errs:
@@ -174,8 +187,8 @@ def _coverage_lines(g: dict, words: list[list[dict]]) -> list[str]:
         n = next((i for i, ws in enumerate(words) if ws and ws[0]["start"] - 0.3 <= t <= ws[-1]["end"] + 0.6), None)
         if n is not None:
             hits[n] = hits.get(n, 0) + 1
-    return [f"line {n + 1}: the frame looks empty: give it two drawings, the first wide or square (shown above the guide), "
-            "the second tall or square (shown beside him)" for n in sorted(hits)]
+    return [f"line {n + 1}: the frame looks unfinished: show this line's main idea as a drawing (it is laid out large), "
+            "or box media that truly shows it; never a decorative drawing" for n in sorted(hits)]
 
 
 def fail_report(out: Path, vid: str, rounds: list[dict], why: str) -> str:
@@ -260,9 +273,31 @@ def main() -> None:
     meta = {"id": a.id, "audio_path": f"approved_audio/{a.id}/narration.mp3", "sha256": sha, "align": ratio}
     cat = planmod.catalog()
     lib = media.library(a.private)
-    log(f"catalog: {sum(1 for o in cat['objects'].values() if o.get('director'))} drawings; meme library: {len(lib)} files")
+    diagrams = [m for m in lib if m.get("role") == "diagram"]
+    lib = [m for m in lib if m.get("role") != "diagram"]          # diagrams are presented whole, never as a box meme
+    log(f"catalog: {sum(1 for o in cat['objects'].values() if o.get('director'))} drawings; media library: {len(lib)} files, "
+        f"{len(diagrams)} diagram(s)")
+    # 1. story understanding (no AI call): the spoken sentences and what each one does
+    story = storymod.analyze(lines, words)
+    (a.out / "story.json").write_text(json.dumps({"sentences": [{**storymod.evidence(s_), "intent": s_["intent"]}
+                                                                for s_ in story["sentences"]]}, indent=1, ensure_ascii=False),
+                                      encoding="utf-8")
+    # 2. a whole diagram, where the narration introduces one from the library and explains what it shows
+    from kindled_iron.render import SAFE
+    dg = diagmod.select(story["sentences"], diagrams)
+    if dg:
+        item = next(m for m in diagrams if m["file"] == dg["file"])
+        dg["fit"] = diagmod.fit(dg["size"], SAFE)
+        dg["readability"] = diagmod.readability(item, dg["fit"]["scale"])
+        meta["diagram"] = dg
+        log(f"diagram: {dg['file']} {dg['t0']:.1f}-{dg['t1']:.1f}s at {dg['fit']['rect']} (scale {dg['fit']['scale']}); "
+            f"{dg['why']}" + (f"; LIMITATION: {dg['readability']['note']}" if dg["readability"].get("ok") is False else ""))
     rounds: list[dict] = ROUNDS
     status = {"id": a.id, "lines": len(lines), "alignment": round(ratio, 3)}
+    if dg:
+        status["diagram"] = {"file": dg["file"], "shown": [dg["t0"], dg["t1"]], "readability": dg["readability"]}
+        if dg["readability"].get("ok") is False:
+            status["limitations"] = [dg["readability"]["note"]]
     spoken = [[w["word"] for w in ws] for ws in words]
 
     def calls_summary() -> dict:
@@ -317,8 +352,9 @@ def main() -> None:
         finish(False, None, f"script.txt does not match narration.mp3 ({ratio:.0%} of the words heard)")
 
     def plan_call(feedback: list[str]) -> dict:
-        full = planmod.prompt(lines, lib, cat, feedback, spoken)
-        compact = planmod.prompt(lines, lib, cat, feedback, spoken, compact=True)
+        ctx = diagmod.planner_note(dg) if dg else None
+        full = planmod.prompt(lines, lib, cat, feedback, spoken, context=ctx)
+        compact = planmod.prompt(lines, lib, cat, feedback, spoken, compact=True, context=ctx)
         n_before = len(CALLS)
         p = llm.call_json("plan", full, compact=compact)
         ck["plan_calls"] += 1

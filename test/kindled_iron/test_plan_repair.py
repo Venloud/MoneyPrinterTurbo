@@ -77,8 +77,8 @@ class Repair(unittest.TestCase):
         p = plan()                                                    # without the repair, validate stays strict
         p["lines"][0]["box"] = [{"word": "nowhere", "kind": "stock", "query": "chalkboard graph"}]
         self.assertIn("box word 'nowhere' is not spoken", " ".join(self.errs(p)))
-        p["lines"][0]["box"] = []                                     # and the hook still needs box media
-        self.assertIn("hook line needs clip-box media", " ".join(self.errs(p)))
+        p["lines"][0]["box"] = []                                     # no media, no frame: even the hook may go
+        self.assertEqual(self.errs(p), [])                            # without box media (no filler footage)
 
     # attempt 2: the verse put in the box, quoted when it is only named
     def test_verse_in_the_box_becomes_the_verse_card(self):
@@ -177,7 +177,9 @@ class ReviewRun15(unittest.TestCase):
                                         {"word": "innocent", "type": "heart", "fields": {"label": "PAIN"}}]})
         return p
 
-    def test_a_clip_never_stays_up_a_third_line(self):
+    def test_no_line_holds_another_lines_media_and_no_filler_is_added(self):
+        """Run 15 held one clip over lines 1-4. Now a box item shows only during its own line (compile ends it), so a
+        line without media is valid, and no library still is added just to fill the box."""
         p = self.plan4()
         p["lines"][2].pop("verse")
         p["lines"][2]["box"] = []
@@ -186,31 +188,10 @@ class ReviewRun15(unittest.TestCase):
         p["lines"][2]["drawings"] = [{"word": "future", "type": "rainbow", "fields": {"label": "PROMISE"}},
                                      {"word": "death", "type": "grave", "fields": {"label": "GRAVE"}}]
         p["lines"][2]["gesture"] = {"do": "look", "word": "future"}
-        errs = " | ".join(planmod.validate(p, lines, keys, [], self.cat))       # line 2 skips: fine; line 3 too: no
-        self.assertIn("line 3: the clip box would still show line 1's media", errs)
-        notes = planmod.repair(p, lines, keys, self.cat, FAKE_LIB)            # a fitting library still fills it
-        self.assertEqual(p["lines"][2]["box"][0]["file"], "sunlight_through_storm_clouds.png")
-        self.assertTrue(any("library still" in n for n in notes))
-        self.assertNotIn("line 3: the clip box", " ".join(planmod.validate(p, lines, keys, FAKE_LIB, self.cat)))
-        # sharing only "God" (said in nearly every line) is no reason to show a still: the planner is told instead
-        god_lib = [{"file": "x.png", "path": "movie_reference/x.png", "role": "still", "group": "x", "tags": ["god", "storm"]}]
-        p["lines"][2]["box"] = []
-        lines2 = LINES[:2] + ["God is good and there is a future without death.", self.LINES4[3]]
-        keys2 = [[planmod.key(w["word"]) for w in ws] for ws in words(lines2)]
-        p["lines"][2]["drawings"] = [{"word": "future", "type": "rainbow", "fields": {"label": "PROMISE"}},
-                                     {"word": "death", "type": "grave", "fields": {"label": "GRAVE"}}]
-        planmod.repair(p, lines2, keys2, self.cat, god_lib)
+        self.assertEqual(planmod.validate(p, lines, keys, [], self.cat), [])
+        notes = planmod.repair(p, lines, keys, self.cat, FAKE_LIB)
         self.assertEqual(p["lines"][2]["box"], [])
-        self.assertIn("line 3: the clip box", " ".join(planmod.validate(p, lines2, keys2, god_lib, self.cat)))
-
-    def test_the_verse_card_never_runs_into_the_next_line(self):
-        p = self.plan4()
-        errs = " | ".join(planmod.validate(p, self.LINES4, self.keys, FAKE_LIB, self.cat))
-        self.assertIn("line 4: the verse card of line 3 would stay up", errs)
-        planmod.repair(p, self.LINES4, self.keys, self.cat, [])               # nothing fits: the planner is told
-        self.assertIn("line 4: the verse card", " ".join(planmod.validate(p, self.LINES4, self.keys, [], self.cat)))
-        p["lines"][3]["box"] = [{"word": "suffer", "kind": "stock", "query": "person praying dark room"}]
-        self.assertEqual(planmod.validate(p, self.LINES4, self.keys, FAKE_LIB, self.cat), [])
+        self.assertFalse(any("library still" in n for n in notes))
 
     def test_stock_footage_of_writing_is_not_used(self):
         from kindled_iron import insets
@@ -221,10 +202,19 @@ class ReviewRun15(unittest.TestCase):
                                          {"source": "pexels", "id": "2", "title": "", "page": "https://www.pexels.com/video/classroom-students-raising-hands-2/"}]
         insets._pixabay = lambda q, pin: []
         try:
-            hit = media.stock("chalkboard diagram classroom", [], {}, lambda m: None)
-            self.assertIsNotNone(hit)                                        # asked for a chalkboard: allowed
-            hit = media.stock("graph classroom", [], {}, lambda m: None)    # the run's case: the board's words
-            self.assertEqual(hit["id"], "2")                                 # are not what the line says
+            line = "I'm sure y'all have seen this graph before."
+            rej: list = []
+            hit = media.stock("chalkboard diagram classroom", [], {}, lambda m: None, line, rej)
+            # the run-15 case: the BACK TO SCHOOL blackboard is writing the line does not talk about, and the
+            # classroom clip shares only a setting word ("classroom") with the query: neither is shown
+            self.assertIsNone(hit)
+            self.assertEqual(len(rej), 2)
+            self.assertIn("setting words (classroom)", rej[0]["why"])
+            rej = []                                     # even a query that names the blackboard: the line is about
+            self.assertIsNone(media.stock("blackboard classroom", [], {}, lambda m: None, line, rej))   # a graph
+            self.assertIn("shows blackboard", rej[0]["why"])
+            hit = media.stock("blackboard lesson", [], {}, lambda m: None, "The teacher wrote it on the blackboard.")
+            self.assertEqual(hit["id"], "8499804")                           # a line about a blackboard may show one
         finally:
             insets._pexels, insets._pixabay = real
             os.environ["KI_BOX_PLACEHOLDER"] = "1"

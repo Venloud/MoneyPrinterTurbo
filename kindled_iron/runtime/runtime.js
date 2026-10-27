@@ -255,16 +255,17 @@
         '<path d="M-50,' + (-h / 2 - 16) + ' L50,' + (-h / 2 - 10) + ' L46,' + (-h / 2 + 18) + ' L-54,' + (-h / 2 + 12) + ' Z" fill="' + C.marker + '" fill-opacity="0.85" stroke="none"/>';
     },
     mediabox: function (o) {  // ONE framed box for the whole video: real clips, or a verse typed on in it
-      var w = o.w || 820, h = o.h || 500, cid = 'mb-clip-' + o.id, r = 26;
+      var w = o.w || 820, h = o.h || 500, cid = 'mb-clip-' + o.id + (o.gk || ''), r = o.bare ? 0 : 26;
       var rr = 'M' + (-w / 2 + r) + ',' + (-h / 2) + ' L' + (w / 2 - r) + ',' + (-h / 2) + ' Q' + (w / 2) + ',' + (-h / 2) + ' ' + (w / 2) + ',' + (-h / 2 + r) +
         ' L' + (w / 2) + ',' + (h / 2 - r) + ' Q' + (w / 2) + ',' + (h / 2) + ' ' + (w / 2 - r) + ',' + (h / 2) + ' L' + (-w / 2 + r) + ',' + (h / 2) +
         ' Q' + (-w / 2) + ',' + (h / 2) + ' ' + (-w / 2) + ',' + (h / 2 - r) + ' L' + (-w / 2) + ',' + (-h / 2 + r) + ' Q' + (-w / 2) + ',' + (-h / 2) + ' ' + (-w / 2 + r) + ',' + (-h / 2) + ' Z';
       var n = o.max_lines || 6, vs = o.verse_size || 62, lh = vs * 1.12, s = '';
       for (var i = 0; i < n; i++) s += '<text class="mb-line" x="' + (-w / 2 + o.pad_x) + '" y="0" font-family="Caveat" font-weight="700" font-size="' + vs + '" fill="' + C.ink + '"></text>';
       return '<clipPath id="' + cid + '"><path d="' + rr + '"/></clipPath>' +
-        '<path d="' + rr + '" transform="translate(12,12)" fill="' + C.shadow + '" stroke="none"/>' +
+        (o.bare ? '' : '<path d="' + rr + '" transform="translate(12,12)" fill="' + C.shadow + '" stroke="none"/>') +
         '<path class="mb-page" d="' + rr + '" fill="' + C.page + '" stroke="none"/>' +
-        '<image class="mb-img" href="" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
+        // the picture already has the frame's shape (mediabox.py): 'meet' never crops or stretches it
+        '<g clip-path="url(#' + cid + ')"><image class="mb-img" href="" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" preserveAspectRatio="xMidYMid meet"/></g>' +
         '<g class="mb-split" visibility="hidden">' +
           '<image class="mb-img-l" href="" x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + (w / 2 - 6) + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
           '<image class="mb-img-r" href="" x="6" y="' + (-h / 2) + '" width="' + (w / 2 - 6) + '" height="' + h + '" preserveAspectRatio="xMidYMid slice" clip-path="url(#' + cid + ')"/>' +
@@ -278,9 +279,10 @@
         '<g class="mb-verse" visibility="hidden"><rect class="mb-hl" x="0" y="0" width="0" height="0" rx="8" fill="' + C.accent + '" fill-opacity="0.32"/>' + s +
           '<rect class="mb-caret" x="0" y="0" width="7" height="' + Math.round(vs * 0.82) + '" rx="2" fill="' + C.accent + '"/>' +
           '<text class="mb-ref" x="0" y="' + (h / 2 - 40) + '" text-anchor="middle" font-family="Caveat" font-weight="700" font-size="' + Math.round(vs * 0.85) + '" fill="' + C.accent + '" opacity="0"></text></g>' +
+        (o.bare ? '' :         // a diagram has no frame: the picture alone
         '<path d="' + rr + '" stroke="' + C.ink + '" stroke-width="8" fill="none" stroke-linejoin="round"/>' +
         '<path d="' + rr + '" transform="translate(-4,3) rotate(-0.6)" stroke="' + C.ink + '" stroke-width="3" fill="none" opacity="0.6"/>' +
-        '<path d="M-50,' + (-h / 2 - 16) + ' L50,' + (-h / 2 - 10) + ' L46,' + (-h / 2 + 18) + ' L-54,' + (-h / 2 + 12) + ' Z" fill="' + C.marker + '" fill-opacity="0.85" stroke="none"/>';
+        '<path d="M-50,' + (-h / 2 - 16) + ' L50,' + (-h / 2 - 10) + ' L46,' + (-h / 2 + 18) + ' L-54,' + (-h / 2 + 12) + ' Z" fill="' + C.marker + '" fill-opacity="0.85" stroke="none"/>');
     },
     scripture: function (o) {   // the channel's signature: quote in handwriting, reference in burnt orange
       var lines = o.lines || [o.text || ''], size = o.size || 76, lh = size * 1.08, w = o.w || 800, pad = 46;
@@ -1249,7 +1251,8 @@
       case 'enter':
         tl.to(s, { draw: 1, duration: e.dur || 1.0, ease: 'power1.inOut' }, e.t);
         break;
-      case 'exit': tl.to(s, { opacity: 0, duration: e.dur || 0.4 }, e.t); break;
+      case 'exit': if (e.dur === 0) tl.set(s, { opacity: 0 }, e.t); else tl.to(s, { opacity: 0, duration: e.dur || 0.4 }, e.t); break;
+      case 'appear': tl.set(s, { opacity: 1 }, e.t); break;   // back after a bounded overlay (a cut)
       case 'express': tl.set(s, { expr: e.expression }, e.t); break;
       case 'face': tl.to(s, { flipX: e.facing, duration: 0.22 }, e.t); s._facing = e.facing; break;
       case 'walk': {
@@ -1396,10 +1399,21 @@
   var capEl = document.getElementById('captions');
   var lastChunk = -1;
   var T_NOW = 0;
+  var capWin = -1, CAP_HOME = { left: parseFloat(getComputedStyle(capEl).left), top: parseFloat(getComputedStyle(capEl).top),
+                                width: parseFloat(getComputedStyle(capEl).width) };
   function renderCaptions(t) {
     T_NOW = t;
     var idx = -1;
     for (var i = 0; i < D.captions.length; i++) { if (t >= D.captions[i].start && t < D.captions[i].end) { idx = i; break; } }
+    var cw = null;                     // a caption window: the captions sit in their own band (beside a diagram)
+    (D.captionWindows || []).forEach(function (w) { if (t >= w.t0 && t < w.t1) cw = w; });
+    var cwKey = cw ? cw.t0 : -1;
+    if (cwKey !== capWin) {
+      capWin = cwKey;
+      capEl.style.left = (cw ? cw.x : CAP_HOME.left) + 'px'; capEl.style.width = (cw ? cw.w : CAP_HOME.width) + 'px';
+      CAP_TOP = cw ? cw.y : CAP_HOME.top;
+      lastChunk = -2;
+    }
     if (idx !== lastChunk) {
       lastChunk = idx;
       capEl.innerHTML = idx < 0 ? '' : D.captions[idx].words.map(function (w, k) { return '<span data-k="' + k + '">' + esc(w.text) + '</span>'; }).join(' ');
@@ -1546,14 +1560,14 @@
   }
   // ---------------------------------------------------------------- media box (opt-in: D.mediabox)
   var MB = D.mediabox ? objs[D.mediabox.id] : null;
-  if (MB) {
+  function mbQuery() {
     MB.img = MB.el.querySelector('.mb-img'); MB.verse = MB.el.querySelector('.mb-verse'); MB.page = MB.el.querySelector('.mb-page');
     MB.lines = MB.el.querySelectorAll('.mb-line'); MB.caret = MB.el.querySelector('.mb-caret'); MB.ref = MB.el.querySelector('.mb-ref');
     MB.split = MB.el.querySelector('.mb-split'); MB.imgL = MB.el.querySelector('.mb-img-l'); MB.imgR = MB.el.querySelector('.mb-img-r');
     MB.heart = MB.el.querySelector('.mb-heart'); MB.heartP = MB.el.querySelector('.mb-heart-p');
     MB.bulletsG = MB.el.querySelector('.mb-bullets'); MB.bullets = MB.el.querySelectorAll('.mb-bullet');
     var BL = D.mediabox.bullets;
-    if (BL) BL.items.forEach(function (it, i) {       // lay the bullets out once: left column inside the box
+    if (BL) BL.items.forEach(function (it, i) {       // lay the bullets out: left column inside the box
       var g = MB.bullets[i], tx = g.querySelector('.mb-bullet-t'), bg = g.querySelector('.mb-bullet-bg');
       tx.textContent = '\u2713 ' + it.text;
       var x0 = -MB.def.w / 2 + 34, y0 = -MB.def.h / 2 + 38 + i * 108, bw = tx.getComputedTextLength() + 44;
@@ -1561,6 +1575,19 @@
       bg.setAttribute('x', x0); bg.setAttribute('y', y0); bg.setAttribute('width', bw); bg.setAttribute('height', 94);
       g.setAttribute('data-cx', x0 + bw / 2); g.setAttribute('data-cy', y0 + 47);
     });
+  }
+  // each segment's own frame: its media's shape and place (mediabox.py), bare for a diagram; rebuilt only on change
+  function mbGeom(sg) {
+    var g = sg.geom || { x: MB.def.x, y: MB.def.y, w: MB.def.w, h: MB.def.h }, key = [g.x, g.y, g.w, g.h, g.bare ? 1 : 0].join(',');
+    if (MB.gkey === key) return;
+    MB.gkey = key; MB.gn = (MB.gn || 0) + 1;
+    MB.inner.innerHTML = OBJ.mediabox(Object.assign({}, MB.def, { w: g.w, h: g.h, bare: !!g.bare, gk: '-' + MB.gn }));
+    MB.el.setAttribute('transform', 'translate(' + g.x + ',' + g.y + ')');
+    mbQuery();
+  }
+  if (MB) {
+    mbQuery();
+    MB.gkey = [MB.def.x, MB.def.y, MB.def.w, MB.def.h, 0].join(',');
     MB.el.setAttribute('visibility', 'visible');
     // wrap every verse page with the real font; each letter keeps the time Python gave it (typed with the voice)
     var vsz = D.mediabox.verse_size, lh = vsz * 1.12, maxW = MB.def.w - 2 * MB.def.pad_x - 20, meas = MB.lines[0];
@@ -1622,12 +1649,21 @@
     var sg = mbSegment(t);
     MB.el.setAttribute('visibility', sg ? 'visible' : 'hidden');
     if (!sg) return;
+    mbGeom(sg);
     renderBullets(t);
     MB.split.setAttribute('visibility', sg.kind === 'split' ? 'visible' : 'hidden');
     MB.heart.setAttribute('visibility', sg.kind === 'heart' ? 'visible' : 'hidden');
-    if (sg.kind === 'clip' || sg.kind === 'media') {
+    if (sg.kind === 'clip' || sg.kind === 'media' || sg.kind === 'diagram') {
       MB.verse.setAttribute('visibility', 'hidden'); MB.img.setAttribute('visibility', 'visible');
       swapFrame(MB.img, sg.frames, sg.t0, sg.fps, t);
+      // a diagram view: the whole picture, or a region focus = a view move over the intact picture (hard cut)
+      var v = null;
+      (sg.views || []).forEach(function (x) { if (t >= x.t) v = x; });
+      if (v && v.view === 'region' && v.rect_n) {
+        var gw = sg.geom.w, gh = sg.geom.h, r = v.rect_n;
+        var z = Math.min(1 / r[2], 1 / r[3]), cx = (r[0] + r[2] / 2 - 0.5) * gw, cy = (r[1] + r[3] / 2 - 0.5) * gh;
+        MB.img.setAttribute('transform', 'scale(' + z.toFixed(4) + ') translate(' + (-cx).toFixed(1) + ',' + (-cy).toFixed(1) + ')');
+      } else MB.img.removeAttribute('transform');
       return;
     }
     if (sg.kind === 'split') {
@@ -1884,7 +1920,8 @@
     });
     return r;
   }
-  window.kiRects = function () { var box = MB ? MB.el.querySelector('.mb-page').getBoundingClientRect() : null; return { box: box && [box.left, box.top, box.right, box.bottom], guide: charRect('guide'), cap: capRect() }; };
+  window.kiRects = function () {     // the box counts only while it is on screen (no media, no frame)
+    var box = MB && MB.el.getAttribute('visibility') !== 'hidden' ? MB.el.querySelector('.mb-page').getBoundingClientRect() : null; return { box: box && [box.left, box.top, box.right, box.bottom], guide: charRect('guide'), cap: capRect() }; };
   window.kiAudit = function (t) {
     var out = [], gap = (D.audit && D.audit.gap) || 6;
     var box = MB && MB.el.getAttribute('visibility') !== 'hidden' ? MB.el.querySelector('.mb-page').getBoundingClientRect() : null;

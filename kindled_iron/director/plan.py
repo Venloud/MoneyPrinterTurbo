@@ -7,7 +7,7 @@ compile.py decides WHERE (zones, slots, guide spots) from the catalog's measured
      "lines": [{"line": 1,
                 "expression": "curious",                         # the guide's face for this line (catalog list)
                 "gesture": {"do": "point", "word": "graph"},      # point | shrug | present | look | wave | none
-                "box": [{"word": "graph", "kind": "stock", "query": "philosophy chalkboard diagram"},
+                "box": [{"word": "storm", "kind": "stock", "query": "storm clouds lightning"},
                         {"word": "crazy", "kind": "meme", "file": "Wait-What-meme-kevin-hart.jpg"}],
                 "verse": {"ref": "Revelation 21:4", "word": "Revelation", "quoted": false},
                 "pop": {"word": "crazy", "file": "suspisious-fry-futurama.webp"},
@@ -125,13 +125,13 @@ RULES = [
     "Return ONLY JSON: {\"freeze\": {\"line\": n, \"word\": w}, \"lines\": [...]} with exactly one entry per script line, in order.",
     "Never change, add or drop narration words. Every 'word' you give must be a word spoken in THAT line (copy it exactly).",
     "Imitate the golden scenes' density and pacing: something new on screen every 2-3 seconds, the drawing appears on the word that names it.",
-    "EVERY line gets THREE new illustrations in 'drawings' (the frame must look full): 1 the main one of the idea and 2 a second one, both shown in the band above the guide (650 x 318 px together; wide or square types), and 3 a concrete object or person from the line shown beside the guide (a tall or square type, up to 285 x 730 px). The code arranges them for the most frame and drops one only when it cannot fit readably. Pick types from the catalog only; fill their fields.",
+    "The house style is drawing-led: hand-drawn illustrations of what is said, the guide acting it out, captions. 'drawings' (0-3 per line): give a line the illustrations that SHOW its ideas (the thing, the comparison, the turn of the argument), each on the word that names it; a line with one strong idea gets one drawing, a list or a comparison may get 2-3. Never add a decorative drawing to fill space: the code lays out whatever you give (one big drawing, two side by side or stacked, one beside the guide). A line may have no drawing only when its box media (or the verse card, or a diagram already decided) is its visual. Pick types from the catalog only; fill their fields.",
     "Prefer the drawing library: the catalog entries with 'tags' are finished illustrations. For each drawing pick the one whose tags best match the thing or idea the line names (a graph -> bar_chart or line_graph, an earthquake -> earthquake, a child -> child, the Bible -> bible, money -> money, a choice -> road_fork). Put the idea it shows in 'concept' (1-3 words, e.g. 'free will').",
     "Compose from the built-in diagrams (entries without tags: flow, timeline, scales, venn, crossout...) only when no library illustration fits the idea; then also set 'miss': the concept you could not find in the library (it is logged so the library can grow).",
     "Abstract ideas become diagrams: cause/effect -> 'flow'; two options -> 'signpost' or 'scales'; overlap -> 'venn'; a rejected idea -> 'crossout'; past/future -> 'timeline'; a question -> 'question'; control -> 'puppet'.",
     "Words appear only as LABELS inside a drawing (labels, title, center, label, text fields), short and in CAPS (max 28 characters).",
     "Read the WHOLE script first: know its argument, its turns and its feeling before picking anything for a line.",
-    "'box' (0-3 items): kind 'stock' with a concrete 2-4 word footage search query that literally shows the line's meaning (real things a camera can film), or kind 'meme' with a 'file' from media_library. Line 1 (the hook) always has box media. Give every line its own box media that shows what THAT line says; a line may leave 'box' empty only when the line right before it has box media of its own and shows the same thing (the previous clip stays up for one more line, never two, never a verse card). Never stock footage of writing (chalkboards, signs, screens, books): it shows words the narration does not say.",
+    "'box' (0-3 items): kind 'stock' with a concrete 2-4 word footage search query that literally shows what the line says (real things a camera can film: the person, event, object or action named), or kind 'meme' with a 'file' from media_library. Give box media only when real footage or a library picture truly shows the line; otherwise leave 'box' empty: the box then disappears and the drawings take its place (no filler footage, no frame without media). A box item shows only during its own line. Never stock footage of writing (chalkboards, signs, screens, documents, charts on monitors): it shows words the narration does not say.",
     "media_library has two roles: 'still' = a real-looking picture of a subject (use it like stock when it shows what the line is about); 'meme' = a reaction. Use a meme ONLY where it genuinely adds humor or emotional emphasis to what is said (its description/purpose must fit the line); at most 4 memes in the whole video, and each meme (with its look-alikes) once. Most lines need no meme.",
     "Stock queries must name filmable things (e.g. 'earthquake rubble street', 'hospital patient bed', 'person praying'), never abstract words alone. No God depicted as a person, no occult imagery.",
     "No identical box media twice in a row; no file or query used more than twice in the video.",
@@ -140,6 +140,7 @@ RULES = [
     "'gesture': the guide ACTS the line (word = the word the action lands on; for point, the drawing's word). Pick from guide_actions: point at the drawing being named, shrug on a question, think, realize on a twist, confused, celebrate good news, choose_path between two options, frustrated_at_screen... Use an action on at least every second line; a line may be the guide's moment alone (a strong action, no meme).",
     "'expression' every line, from the catalog's expressions, matching the line's emotion.",
     "'freeze': exactly one, on the line with the biggest twist or surprise, on its key word (a record-scratch freeze-frame).",
+    "already_decided lists what the director has already chosen from the narration (e.g. a whole diagram on screen for some lines): respect it.",
     "If fix_errors is not empty, your previous plan failed these checks: fix every one of them.",
 ]
 
@@ -154,7 +155,7 @@ def _lib_entry(m: dict, compact: bool) -> dict:
 
 
 def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], words_heard: list[list[str]],
-           compact: bool = False) -> str:
+           compact: bool = False, context: list[str] | None = None) -> str:
     """The planner prompt. compact=True (small-request providers): the golden scenes as their per-line summary
     only, the meme library without notes, and the script lines without the separate word lists."""
     sh = shapes(cat)
@@ -188,9 +189,10 @@ def prompt(lines: list[str], memes: list[dict], cat: dict, feedback: list[str], 
         "golden_examples": [{"name": g["name"], "per_line": g["per_line"]} for g in golden_examples()][:1 if compact else 2]
                            if compact else golden_examples(),
         "fix_errors": feedback,
+        "already_decided": context or [],
         "output_example": {"freeze": {"line": 2, "word": "word"}, "lines": [{
             "line": 1, "expression": "curious", "gesture": {"do": "point", "word": "graph"},
-            "box": [{"word": "graph", "kind": "stock", "query": "chalkboard diagram classroom"}],
+            "box": [{"word": "storm", "kind": "stock", "query": "storm clouds lightning"}],
             "drawings": [{"word": "graph", "type": "triangle_diagram", "concept": "three claims",
                           "fields": {"top": "ALL POWERFUL", "left": "ALL GOOD", "right": "ALL KNOWING", "center": "EVIL?"}},
                          {"word": "evil", "type": "question_big", "concept": "why evil", "fields": {"label": "WHY?"}}]}]},
@@ -432,7 +434,6 @@ def _repair_unknown_drawings(plan: dict, lines: list[str], cat: dict, lib: list[
     return notes
 
 
-FILL_VAGUE = {"god", "lord", "jesus", "christ", "people", "thing", "world", "life"}   # said in nearly every line
 
 
 def _repair_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
@@ -460,44 +461,26 @@ def _repair_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
             break
         box = L.get("box") or []
         L["box"] = [b for b in box if b.get("kind") != "meme" or keep(i, b.get("file"), "box", L.get("expression"))]
-        prev = plan["lines"][i - 1] if i else None
-        if i and not L["box"] and not L.get("verse") and (prev.get("verse") or not (prev.get("box") or [])):
-            # this line would hold a stale clip (or the verse card) another line: its most relevant unused library
-            # still, if one fits what it says (no meme is added just to fill the box)
-            best = None
-            said = _mwords(lines[i]) - FILL_VAGUE
-            for m in lib:
-                if m.get("role") != "still" or m.get("group", m["file"]) in groups:
-                    continue
-                shared = said & _mwords(" ".join((m.get("tags") or []) + [m.get(k, "") for k in ("description", "purpose")]))
-                if shared and (best is None or len(shared) > len(best[2])):   # a real word in common, not a mood
-                    best = (m, "shares " + ", ".join(sorted(shared)[:3]) + " with the line", shared)
-            if best:
-                m = best[0]
-                spoken = [w for w in lines[i].split() if key(w)]
-                word = next((w for w in spoken if _tokens(w) & _tokens(*(m.get("tags") or []), m.get("description", ""))), spoken[0])
-                L["box"] = [{"word": word, "kind": "meme", "file": m["file"]}]
-                groups.add(m.get("group", m["file"]))
-                notes.append(f"line {i + 1}: library still {m['file']!r} added to the clip box ({best[1]}): the previous "
-                             "media would otherwise stay up")
         p = L.get("pop")
         if isinstance(p, dict) and not keep(i, p.get("file"), "pop-up", L.get("expression")):
             L["pop"] = None
     return notes
 
 
-def validate(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict) -> list[str]:
+def validate(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict,
+             covered: set[int] | None = None) -> list[str]:
     """Every error is phrased so Gemini can fix it in the next round. Never raises on a malformed plan."""
     errs = shape_errors(plan)
     if errs:
         return errs
     try:
-        return _rules(plan, lines, line_keys, memes, cat)
+        return _rules(plan, lines, line_keys, memes, cat, covered or set())
     except (AttributeError, TypeError, KeyError, ValueError) as e:     # a shape the checks above did not foresee
         return [f"the plan's JSON has an unexpected shape ({type(e).__name__}: {e}); follow output_example exactly"]
 
 
-def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict) -> list[str]:
+def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list[dict], cat: dict,
+           covered: set[int] = frozenset()) -> list[str]:
     errs: list[str] = []
     P = plan["lines"]
     if len(P) != len(lines):
@@ -521,8 +504,9 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
         elif g.get("do") != "none":
             word_ok(i, g.get("word"), "gesture")
         dr = L.get("drawings") or []
-        if not dr:
-            errs.append(f"line {n}: no drawing; every line needs at least one new illustration")
+        if not dr and not (L.get("box") or L.get("verse")) and i not in covered:
+            errs.append(f"line {n}: nothing on screen shows this line: give it a drawing of what it says (or box media "
+                        "that truly shows it)")
         if len(dr) > 3:
             errs.append(f"line {n}: {len(dr)} drawings; at most 3 per line")
         sh = shapes(cat)
@@ -563,16 +547,7 @@ def _rules(plan: dict, lines: list[str], line_keys: list[list[str]], memes: list
                 ok, _ = scripture.check(v.get("ref", ""), q) if q else (False, "")
                 if not ok:
                     errs.append(f"line {n}: verse marked quoted but the line has no quote that matches {v.get('ref')} in the WEB; set quoted false")
-        box = L.get("box") or []
-        if not box and not v and i == 0:
-            errs.append(f"line {n}: the hook line needs clip-box media; give 1-3 'box' items (stock query or a media_library file)")
-        elif not box and not v:
-            prev = P[i - 1]
-            if prev.get("verse"):
-                errs.append(f"line {n}: the verse card of line {i} would stay up through this line: give it its own box media")
-            elif not (prev.get("box") or []):
-                errs.append(f"line {n}: the clip box would still show line {i - 1}'s media (3 lines): give this line its own "
-                            "box media that shows what it says")
+        box = L.get("box") or []                     # may be empty: no media, no frame
         for b in box:
             word_ok(i, b.get("word"), "box")
             if b.get("kind") == "meme" and b.get("file") not in files:

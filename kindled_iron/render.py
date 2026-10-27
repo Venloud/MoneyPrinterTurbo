@@ -277,7 +277,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
             "captionSize": (scene.get("captions_box") or {}).get("size", CAPTION["size"]), "hud": HUD, "paper": None, "inboxReactions": [],
-            "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {}}
+            "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {},
+            "captionWindows": scene.get("caption_windows") or []}
 
 
 def _norm_words(text: str) -> list[str]:

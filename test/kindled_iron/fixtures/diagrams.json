@@ -1,0 +1,40 @@
+{
+ "_note": "Offline fixtures for the general diagram rules: library entries (metadata only, no image files) and scripts on unrelated topics. Not real media.",
+ "library": [
+  {"file": "epicurean_paradox_problem_of_evil_flowchart.png", "type": "diagram", "size": [940, 1672], "min_text_px": 20,
+   "subject": "Epicurean Paradox", "topics": ["problem of evil", "philosophy", "theology", "omnipotence", "omniscience", "benevolence"],
+   "aliases": ["epicurus", "epicurean paradox", "problem of evil", "evil exists", "can god prevent evil", "can god know evil", "free will"],
+   "description": "flowchart of the Epicurean Paradox (the problem of evil): evil exists; can God prevent it, does He know about it, does He want to prevent it; then why is there evil; three answers (necessary for the universe, free will, to test us) and their objections",
+   "region_rendering": false,
+   "regions": {"all_powerful": {"rect": [20, 172, 795, 162], "text": "CAN GOD PREVENT EVIL? THEN GOD IS NOT ALL POWERFUL", "keywords": ["all powerful", "prevent evil"]},
+               "free_will": {"rect": [350, 930, 275, 440], "text": "COULD GOD HAVE CREATED A UNIVERSE WITH FREE WILL BUT WITHOUT EVIL?", "keywords": ["free will"]}}},
+  {"file": "water_cycle_diagram.png", "type": "diagram", "size": [1600, 1000], "min_text_px": 30,
+   "subject": "water cycle", "topics": ["evaporation", "condensation", "precipitation", "collection"],
+   "aliases": ["hydrologic cycle"],
+   "description": "the water cycle: the sun heats oceans and lakes, water evaporates into vapor, vapor cools and condenses into clouds, rain and snow fall as precipitation, rivers and groundwater collect it back to the sea",
+   "region_rendering": true,
+   "regions": {"evaporation": {"rect": [900, 500, 600, 400], "text": "EVAPORATION", "keywords": ["evaporates", "evaporation"]},
+               "condensation": {"rect": [500, 40, 600, 300], "text": "CONDENSATION", "keywords": ["condenses", "condensation", "clouds"]},
+               "precipitation": {"rect": [100, 100, 450, 500], "text": "PRECIPITATION", "keywords": ["rain", "precipitation", "snow"]}}},
+  {"file": "roman_roads_map.jpg", "type": "map", "size": [1400, 1050], "min_text_px": 12,
+   "subject": "Roman road network", "topics": ["Roman Empire", "Via Appia", "trade routes"],
+   "aliases": ["roman roads", "all roads lead to rome"],
+   "description": "map of the main Roman roads around the year 125: Rome, the Via Appia to Brindisi, roads across Gaul, Hispania, Britain and the eastern provinces, milestones and trade routes",
+   "region_rendering": false},
+  {"file": "cpr_steps_chart.png", "type": "chart", "size": [1080, 1600], "min_text_px": 26,
+   "subject": "CPR steps", "topics": ["cardiopulmonary resuscitation", "chest compressions", "first aid"],
+   "aliases": ["hands only cpr", "chest compressions"],
+   "description": "instructional chart: check the scene is safe, call emergency services, place hands in the center of the chest, push hard and fast at 100 to 120 compressions a minute, let the chest rise between compressions, keep going until help arrives",
+   "region_rendering": true,
+   "regions": {"call": {"rect": [40, 260, 1000, 300], "text": "CALL EMERGENCY SERVICES", "keywords": ["call", "emergency services"]},
+               "compress": {"rect": [40, 600, 1000, 500], "text": "PUSH HARD AND FAST 100-120 A MINUTE", "keywords": ["push hard", "compressions"]}}},
+  {"file": "surprised_cat.png", "type": "meme", "size": [500, 500], "description": "a surprised cat"}
+ ],
+ "scripts": {
+  "epicurean": "I'm sure y'all have seen this graph before. And if you haven't, according to this graph, the God of the Bible shouldn't even exist. Sounds crazy, right? But look at the argument.\n\nIf God is all powerful, He can stop evil. If He's all knowing, He knows about evil. And if He's all good, He should want to stop it. So why does evil exist?\n\nWell, there's something this graph leaves out. Free will. Think about it. If God controlled every decision you made, would you really have a choice?\n\nYou couldn't lie, steal, or hurt anyone, because God would stop you. But then you wouldn't be choosing good either.",
+  "water": "Ever wonder where rain actually comes from? Look at this diagram. The sun heats the ocean and the water evaporates into vapor. Up high, the vapor cools and condenses into clouds. When the clouds get heavy, it falls back down as rain or snow. Rivers and groundwater carry it back to the sea, and the cycle starts again.\n\nSo the water in your glass might be millions of years old.",
+  "roman": "They say all roads lead to Rome. On this map you can see why. From Rome, the Via Appia ran south all the way to Brindisi. Other roads crossed Gaul, Hispania and even Britain. Milestones marked every Roman mile along the trade routes.\n\nThat network held an empire together for centuries.",
+  "cpr": "Someone collapses in front of you. What do you do? Follow this chart. First, check the scene is safe and call emergency services. Then put your hands in the center of the chest. Push hard and fast, about one hundred to one hundred twenty compressions a minute. Let the chest rise between compressions and keep going until help arrives.",
+  "unrelated": "My grandmother made bread every Sunday. The kitchen smelled like yeast and butter. She never measured anything. She said the dough tells you when it is ready. I still think about her hands when I bake."
+ }
+}

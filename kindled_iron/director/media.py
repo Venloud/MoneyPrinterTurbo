@@ -25,7 +25,13 @@ STOP = {"the", "and", "with", "from", "into", "over", "under", "for", "person", 
 
 WRITING = {"chalkboard", "blackboard", "whiteboard", "sign", "signboard", "poster", "newspaper", "headline", "text",
            "letter", "word", "writing", "handwriting", "typing", "book", "page", "note", "notebook", "menu", "banner",
-           "billboard", "screen", "phone", "laptop", "calendar", "map"}
+           "billboard", "screen", "phone", "laptop", "calendar", "map", "graph", "chart", "diagram", "monitor", "slide",
+           "presentation", "document", "label", "school"}
+# words that place or frame a shot but are not its subject: a clip sharing only these with the query is not a match
+# ("classroom" is how a BACK TO SCHOOL chalkboard clip matched a "chalkboard diagram classroom" query)
+WEAK = {"classroom", "room", "office", "studio", "street", "city", "indoor", "outdoor", "background", "table", "desk",
+        "wall", "white", "black", "dark", "light", "looking", "look", "man", "woman", "young", "old", "closeup", "top",
+        "aerial", "drone", "camera", "scene", "concept", "abstract", "beautiful", "school"}
 
 
 def _words(s: str) -> set[str]:
@@ -74,13 +80,17 @@ def library(root: Path | None, log=print) -> list[dict]:
             if it.get("show") is False:
                 continue
             name_words = " ".join(re.findall(r"[A-Za-z]+", f.stem)).lower()
-            role = "still" if it.get("type") in ("still", "footage") else "meme"
+            from kindled_iron.director.diagram import is_diagram
+            role = "diagram" if is_diagram(it) else "still" if it.get("type") in ("still", "footage") else "meme"
             e = {"file": f.name, "path": f"{folder}/{f.name}", "role": role,
                  "kind": "video" if f.suffix.lower() in (".mp4", ".mov", ".webm") else
                  ("gif" if f.suffix.lower() == ".gif" else "image"),
                  "tags": sorted(set(it.get("tags") or []) | set(name_words.split())),
                  "note": it.get("note") or it.get("cue") or "", "same_as": list(it.get("same_meme_as") or [])}
             e.update({k: it[k] for k in META if it.get(k)})
+            if role == "diagram":          # a complete composition: its own presentation (diagram.py), never a box meme
+                e.update({k: it[k] for k in ("type", "subject", "topics", "aliases", "size", "regions", "region_rendering",
+                                             "min_text_px", "display", "source", "license") if k in it})
             found.append(e)
     names = {}
     for e in found:
@@ -151,12 +161,48 @@ def relevance(item: dict, line: str, expression: str | None = None) -> str | Non
     return None
 
 
-def stock(query: str, avoid: list[str], counts: dict, log) -> dict | None:
-    """First Pexels/Pixabay video whose own words match the query, not the previous clip, used < 2 times."""
+# ideas a camera cannot film: a line that only shares these with a footage query gets a drawing, not a sky clip
+ABSTRACT = {"heaven", "hope", "future", "faith", "love", "evil", "good", "suffering", "suffer", "sin", "soul", "spirit",
+            "peace", "forever", "promise", "eternity", "eternal", "glory", "grace", "truth", "power", "freedom", "free",
+            "will", "choice", "meaning", "idea", "reason", "question", "answer", "problem", "argument", "belief"}
+
+
+def query_fits_line(query: str, line: str) -> str | None:
+    """Is the planner's footage query about something the line names that a camera can show? A shared concrete
+    subject word, else None: the footage would illustrate a mood or an abstract idea (a long sky clip for "heaven"),
+    which a drawing shows better. Reaction families count only for memes (relevance), never for footage."""
+    from kindled_iron.director.story import VAGUE as SAID_VAGUE      # god, people, thing...: said in nearly every line
+    q, said = _words(query) - WEAK - VAGUE - SAID_VAGUE, _words(line) - VAGUE - SAID_VAGUE
+    shared = sorted((q & said) - ABSTRACT)
+    if shared:
+        return "the query shares " + ", ".join(shared[:3]) + " with the line"
+    return None
+
+
+def judge(cand: dict, query: str, line: str) -> tuple[bool, str]:
+    """One stock result against the query AND the line it would illustrate (its title / page words: the provider's
+    description of what is filmed). -> (ok, reason)."""
+    want, said = _words(query) - WEAK, _words(line)
+    have = _words(cand.get("title", "") + " " + cand.get("page", ""))
+    strong = want & have
+    if not strong:
+        weak = (_words(query) & have) - strong
+        return False, ("only shares setting words (" + ", ".join(sorted(weak)) + ") with the query" if weak
+                       else "shares no subject word with the query")
+    shows_writing = (have & WRITING) - said
+    if shows_writing:
+        return False, ("shows " + ", ".join(sorted(shows_writing)) + ": visible text or a chart the narration does not "
+                       "talk about")
+    return True, "shares " + ", ".join(sorted(strong)) + " with the query"
+
+
+def stock(query: str, avoid: list[str], counts: dict, log, line: str = "", rejected: list | None = None) -> dict | None:
+    """First Pexels/Pixabay video that judge() accepts for this line, not the previous clip, used < 2 times.
+    rejected collects every result turned down and why (media.json)."""
+    rejected = [] if rejected is None else rejected
     if os.environ.get("KI_BOX_PLACEHOLDER") == "1" and not os.environ.get("PEXELS_API_KEY"):
         pid = "ph" + str(abs(hash(query)) % 10 ** 6)
         return {"source": "pexels", "id": pid, "title": f"placeholder for {query!r}", "page": "", "why": "offline placeholder"}
-    want = _words(query)
     for search in (insets._pexels, insets._pixabay):
         try:
             cands = search(query, None)
@@ -164,16 +210,15 @@ def stock(query: str, avoid: list[str], counts: dict, log) -> dict | None:
             log(f"media: {search.__name__} failed for {query!r}: {type(e).__name__}: {e}")
             continue
         for c in cands:
-            have = _words(c.get("title", "") + " " + c.get("page", ""))
-            if not want & have:
-                continue
-            if (have & WRITING) - want:                # footage whose subject is writing (a chalkboard, a sign...)
-                continue                               # shows words the line does not say
+            ok, why = judge(c, query, line)
             ident = f"{c['source']}:{c['id']}"
-            if (avoid and avoid[-1] == ident) or counts.get(ident, 0) >= 2:
+            if ok and ((avoid and avoid[-1] == ident) or counts.get(ident, 0) >= 2):
+                ok, why = False, "already shown (twice, or just before)"
+            if not ok:
+                rejected.append({"id": ident, "title": c.get("title", "")[:120], "why": why})
                 continue
             return {"source": c["source"], "id": c["id"], "title": c.get("title", ""), "page": c.get("page", ""),
-                    "why": "shares " + ", ".join(sorted(want & have)) + " with the query"}
+                    "why": why, "verified": "title/page words (no frame inspection)"}
     return None
 
 
@@ -208,16 +253,23 @@ def resolve(plan: dict, lib: list[dict], log, lines: list[str] | None = None) ->
                             "why": relevance(m, text(i), L.get("expression")) or "planner's pick"})
             else:
                 q = b.get("query", "")
-                hit = stock(q, order, counts, log)
-                if not hit:
-                    errors.append(f"line {i + 1}: no stock video matches {q!r}: give a different concrete query "
-                                  "(things a camera films) or a meme from the library")
-                    rec.update({"query": q, "result": "nothing matched"})
+                fits = query_fits_line(q, text(i)) if lines else "no line text"
+                if not fits:                          # footage about something the line does not say: no frame
+                    rec.update({"query": q, "result": "left out: the query is not about what the line says"})
                     records.append(rec)
+                    log(f"media: line {i + 1}: stock query {q!r} left out (not about what the line says)")
+                    continue
+                turned_down: list = []
+                hit = stock(q, order, counts, log, text(i), turned_down)
+                if not hit:                           # nothing that truly shows it: the line goes without a frame
+                    rec.update({"query": q, "result": "left out: no result shows what the line says",
+                                "rejected": turned_down[:8]})
+                    records.append(rec)
+                    log(f"media: line {i + 1}: no stock result for {q!r} shows the line ({len(turned_down)} turned down)")
                     continue
                 ident = f"{hit['source']}:{hit['id']}"
                 items.append({"kind": "stock", "word": b["word"], **hit})
-                rec.update({"query": q, **hit})
+                rec.update({"query": q, "query_fits": fits, **hit, **({"rejected": turned_down[:8]} if turned_down else {})})
             records.append(rec)
             order.append(ident)
             counts[ident] = counts.get(ident, 0) + 1
@@ -231,6 +283,4 @@ def resolve(plan: dict, lib: list[dict], log, lines: list[str] | None = None) ->
                             "why": relevance(m, text(i), L.get("expression")) or "planner's pick"})
         elif isinstance(p, dict):
             errors.append(f"line {i + 1}: pop meme {p.get('file')!r} is not in the library")
-    if not any(it for line in per_line for it in line):
-        errors.append("the video has no clip-box media at all: give stock queries or memes")
     return per_line, records, errors

@@ -1,6 +1,7 @@
 {
  "box_kinds": [
   "clip",
+  "diagram",
   "heart",
   "media",
   "off",
@@ -9,6 +10,9 @@
  ],
  "doodles_sha256": "3021bd97c7e5fb66ab7e2268273800bdf35c7efcae3a6908fa518cb6f22672ff",
  "events": {
+  "appear": {
+   "fields": []
+  },
   "camera": {
    "fields": [
     "dur",
@@ -2969,6 +2973,8 @@
    "director": false,
    "doc": "ONE framed box for the whole video: real clips, or a verse typed on in it",
    "params": [
+    "bare",
+    "gk",
     "h",
     "max_lines",
     "pad_x",
@@ -5073,7 +5079,7 @@
    ]
   }
  },
- "runtime_sha256": "10705a90f5d4bf6a7be8ce525815d3e88d0f5b3c91f64c5ad5d2f0c518819a97",
+ "runtime_sha256": "911e91cc2e6496e9da7b1105975fc2a091c94acc51a809d56d5b6169b443fe24",
  "zones": {
   "box": {
    "h": 380,

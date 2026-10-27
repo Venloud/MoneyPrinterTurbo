@@ -157,7 +157,7 @@ class Library(unittest.TestCase):
     # 9
     def test_doodle_only_lines_pass_the_media_gates(self):
         work = Path(tempfile.mkdtemp())
-        (work / "box_segments.json").write_text(json.dumps([{"kind": "clip", "from": 0, "to": 9}]))
+        (work / "box_segments.json").write_text(json.dumps([{"kind": "clip", "t0": 0, "t1": 9, "geom": {"w": 676, "h": 380}}]))
         scene = {"beats": [
             {"events": [{"do": "draw", "type": "question_big"}, {"box": "clip", "clip": "s1"}]},
             {"events": [{"do": "draw", "type": "earthquake"}]},                  # drawings + guide only
@@ -166,17 +166,19 @@ class Library(unittest.TestCase):
         res = gates.run(work, scene, plan, LINES, self.cat, 1.0, False, None)
         self.assertTrue(res["per_line"]["ok"], res["per_line"])
         self.assertTrue(res["box_media"]["ok"])
-        scene["beats"][0]["events"].pop()                                       # the hook still needs box media
+        scene["beats"][0]["events"].pop()                                       # no media, no frame: the hook
+        (work / "box_segments.json").write_text("[]")                           # may go without the box too
         res = gates.run(work, scene, plan, LINES, self.cat, 1.0, False, None)
-        self.assertFalse(res["per_line"]["ok"])
-        self.assertIn("line 1", res["per_line"]["fix"])
+        self.assertTrue(res["per_line"]["ok"], res["per_line"])
+        self.assertTrue(res["box_media"]["ok"])
         p = self._plan(box1=[{"word": "crazy", "kind": "stock", "query": "chalkboard argument"}])
-        self.assertEqual(planmod.validate(p, LINES, self.keys, self.lib, self.cat), [])     # line 2 has no box
-        p["lines"][2]["box"] = []                       # but a clip never stays up a third line (run 40446183634)
-        self.assertIn("line 3: the clip box would still show line 1's media", " ".join(
-            planmod.validate(p, LINES, self.keys, self.lib, self.cat)))
         p["lines"][0]["box"] = []
-        self.assertIn("hook line needs clip-box media", " ".join(planmod.validate(p, LINES, self.keys, self.lib, self.cat)))
+        self.assertEqual(planmod.validate(p, LINES, self.keys, self.lib, self.cat), [])
+        # a frame that would show no media fails the gate
+        (work / "box_segments.json").write_text(json.dumps([{"kind": "media", "t0": 0, "t1": 3}]))
+        (work / "media_failures.json").write_text(json.dumps(["movie_reference/missing.png"]))
+        res = gates.run(work, scene, plan, LINES, self.cat, 1.0, False, None)
+        self.assertFalse(res["box_media"]["ok"])
 
     # 10
     def test_memes_are_not_selected_unnecessarily(self):
@@ -241,7 +243,7 @@ class Library(unittest.TestCase):
         work = Path(tempfile.mkdtemp())
         (work / "checks.json").write_text(json.dumps([{"issue": "OVERLAP d1/guide", "from": 3.0}]))
         (work / "audit.json").write_text(json.dumps({"issues": [{"issue": "drawing touches the guide", "from": 4.0}]}))
-        (work / "box_segments.json").write_text(json.dumps([{"kind": "clip"}]))
+        (work / "box_segments.json").write_text(json.dumps([{"kind": "clip", "t0": 0, "t1": 2, "geom": {"w": 676, "h": 380}}]))
         scene = {"beats": [{"events": [{"do": "draw", "type": "heart"}, {"box": "clip"}]}]}
         res = gates.run(work, scene, {"lines": [{}]}, LINES[:1], self.cat, 1.0, False, None)
         self.assertFalse(res["layout"]["ok"])

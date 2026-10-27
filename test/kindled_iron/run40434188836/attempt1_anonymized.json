@@ -1,0 +1,1335 @@
+{
+"lines": [
+"w1 w2 w3 w4 w5 w6 w7 w8 w9 w10 w11 w12 w13 w14 w6 w7 w15 w16 w17 w15 w18 w19 w20 w21 w22 w23 w24 w25 w26 w27 w15 w28",
+"w10 w16 w29 w30 w31 w32 w33 w34 w35 w10 w36 w30 w37 w32 w38 w39 w35 w9 w10 w36 w30 w40 w32 w41 w42 w14 w34 w43 w44 w45 w46 w35 w21",
+"w47 w48 w49 w6 w7 w50 w51 w52 w53 w54 w39 w43 w10 w16 w55 w56 w57 w11 w58 w59 w11 w60 w4 w61 w62",
+"w11 w63 w64 w65 w66 w67 w68 w69 w16 w59 w34 w11 w25 w70 w11 w71 w72 w73 w40 w74",
+"w75 w76 w39 w77 w78 w79 w80 w81 w82 w83 w84 w52 w53 w85 w86 w87 w88",
+"w89 w90 w91 w92 w93 w29 w94 w9 w95 w14 w77 w25 w91 w85 w96 w56 w97 w29 w98",
+"w15 w18 w99 w100 w91 w77 w101 w102 w103 w104 w105 w106 w61 w107 w108 w109 w110 w66 w111",
+"w44 w16 w112 w35 w85 w113 w96 w32 w114 w17 w43 w66 w115 w15 w116 w14 w34 w43 w25 w45 w46 w32 w117 w82 w118 w14 w119 w120 w61 w121 w122 w123 w124 w125"
+],
+"words": [
+[
+{
+"word": "w1",
+"start": 0.0,
+"end": 0.3
+},
+{
+"word": "w2",
+"start": 0.3,
+"end": 0.6
+},
+{
+"word": "w3",
+"start": 0.6,
+"end": 0.86
+},
+{
+"word": "w4",
+"start": 0.86,
+"end": 1.02
+},
+{
+"word": "w5",
+"start": 1.02,
+"end": 1.22
+},
+{
+"word": "w6",
+"start": 1.22,
+"end": 1.46
+},
+{
+"word": "w7",
+"start": 1.46,
+"end": 1.7
+},
+{
+"word": "w8",
+"start": 1.7,
+"end": 2.14
+},
+{
+"word": "w9",
+"start": 2.72,
+"end": 2.8
+},
+{
+"word": "w10",
+"start": 2.8,
+"end": 2.9
+},
+{
+"word": "w11",
+"start": 2.9,
+"end": 3.04
+},
+{
+"word": "w12",
+"start": 3.04,
+"end": 3.54
+},
+{
+"word": "w13",
+"start": 3.78,
+"end": 4.04
+},
+{
+"word": "w14",
+"start": 4.04,
+"end": 4.36
+},
+{
+"word": "w6",
+"start": 4.36,
+"end": 4.5
+},
+{
+"word": "w7",
+"start": 4.5,
+"end": 4.82
+},
+{
+"word": "w15",
+"start": 5.18,
+"end": 5.24
+},
+{
+"word": "w16",
+"start": 5.24,
+"end": 5.44
+},
+{
+"word": "w17",
+"start": 5.44,
+"end": 5.58
+},
+{
+"word": "w15",
+"start": 5.58,
+"end": 5.74
+},
+{
+"word": "w18",
+"start": 5.74,
+"end": 5.96
+},
+{
+"word": "w19",
+"start": 5.96,
+"end": 6.46
+},
+{
+"word": "w20",
+"start": 6.46,
+"end": 6.68
+},
+{
+"word": "w21",
+"start": 6.68,
+"end": 7.08
+},
+{
+"word": "w22",
+"start": 7.8,
+"end": 7.96
+},
+{
+"word": "w23",
+"start": 7.96,
+"end": 8.34
+},
+{
+"word": "w24",
+"start": 8.34,
+"end": 8.7
+},
+{
+"word": "w25",
+"start": 9.16,
+"end": 9.3
+},
+{
+"word": "w26",
+"start": 9.3,
+"end": 9.44
+},
+{
+"word": "w27",
+"start": 9.44,
+"end": 9.56
+},
+{
+"word": "w15",
+"start": 9.56,
+"end": 9.68
+},
+{
+"word": "w28",
+"start": 9.68,
+"end": 9.98
+}
+],
+[
+{
+"word": "w10",
+"start": 10.58,
+"end": 10.68
+},
+{
+"word": "w16",
+"start": 10.68,
+"end": 10.9
+},
+{
+"word": "w29",
+"start": 10.9,
+"end": 11.06
+},
+{
+"word": "w30",
+"start": 11.06,
+"end": 11.36
+},
+{
+"word": "w31",
+"start": 11.36,
+"end": 11.76
+},
+{
+"word": "w32",
+"start": 12.26,
+"end": 12.32
+},
+{
+"word": "w33",
+"start": 12.32,
+"end": 12.48
+},
+{
+"word": "w34",
+"start": 12.48,
+"end": 12.78
+},
+{
+"word": "w35",
+"start": 12.78,
+"end": 13.08
+},
+{
+"word": "w10",
+"start": 13.52,
+"end": 13.7
+},
+{
+"word": "w36",
+"start": 13.7,
+"end": 13.88
+},
+{
+"word": "w30",
+"start": 13.88,
+"end": 14.04
+},
+{
+"word": "w37",
+"start": 14.04,
+"end": 14.58
+},
+{
+"word": "w32",
+"start": 14.74,
+"end": 14.9
+},
+{
+"word": "w38",
+"start": 14.9,
+"end": 15.18
+},
+{
+"word": "w39",
+"start": 15.18,
+"end": 15.46
+},
+{
+"word": "w35",
+"start": 15.46,
+"end": 15.78
+},
+{
+"word": "w9",
+"start": 16.22,
+"end": 16.32
+},
+{
+"word": "w10",
+"start": 16.32,
+"end": 16.44
+},
+{
+"word": "w36",
+"start": 16.44,
+"end": 16.7
+},
+{
+"word": "w30",
+"start": 16.7,
+"end": 16.86
+},
+{
+"word": "w40",
+"start": 16.86,
+"end": 17.18
+},
+{
+"word": "w32",
+"start": 17.6,
+"end": 17.68
+},
+{
+"word": "w41",
+"start": 17.68,
+"end": 17.84
+},
+{
+"word": "w42",
+"start": 17.84,
+"end": 18.06
+},
+{
+"word": "w14",
+"start": 18.06,
+"end": 18.24
+},
+{
+"word": "w34",
+"start": 18.24,
+"end": 18.52
+},
+{
+"word": "w43",
+"start": 18.52,
+"end": 18.72
+},
+{
+"word": "w44",
+"start": 19.18,
+"end": 19.42
+},
+{
+"word": "w45",
+"start": 19.42,
+"end": 19.8
+},
+{
+"word": "w46",
+"start": 19.8,
+"end": 20.02
+},
+{
+"word": "w35",
+"start": 20.02,
+"end": 20.24
+},
+{
+"word": "w21",
+"start": 20.24,
+"end": 20.66
+}
+],
+[
+{
+"word": "w47",
+"start": 21.36,
+"end": 21.84
+},
+{
+"word": "w48",
+"start": 22.22,
+"end": 22.54
+},
+{
+"word": "w49",
+"start": 22.54,
+"end": 22.74
+},
+{
+"word": "w6",
+"start": 22.74,
+"end": 23.08
+},
+{
+"word": "w7",
+"start": 23.08,
+"end": 23.3
+},
+{
+"word": "w50",
+"start": 23.3,
+"end": 23.56
+},
+{
+"word": "w51",
+"start": 23.56,
+"end": 23.9
+},
+{
+"word": "w52",
+"start": 24.56,
+"end": 24.72
+},
+{
+"word": "w53",
+"start": 24.72,
+"end": 25.0
+},
+{
+"word": "w54",
+"start": 25.68,
+"end": 25.82
+},
+{
+"word": "w39",
+"start": 25.82,
+"end": 26.06
+},
+{
+"word": "w43",
+"start": 26.06,
+"end": 26.24
+},
+{
+"word": "w10",
+"start": 26.24,
+"end": 26.7
+},
+{
+"word": "w16",
+"start": 26.7,
+"end": 26.92
+},
+{
+"word": "w55",
+"start": 26.92,
+"end": 27.34
+},
+{
+"word": "w56",
+"start": 27.34,
+"end": 27.78
+},
+{
+"word": "w57",
+"start": 27.78,
+"end": 28.12
+},
+{
+"word": "w11",
+"start": 28.12,
+"end": 28.38
+},
+{
+"word": "w58",
+"start": 28.38,
+"end": 28.7
+},
+{
+"word": "w59",
+"start": 29.04,
+"end": 29.14
+},
+{
+"word": "w11",
+"start": 29.14,
+"end": 29.28
+},
+{
+"word": "w60",
+"start": 29.28,
+"end": 29.56
+},
+{
+"word": "w4",
+"start": 29.56,
+"end": 29.78
+},
+{
+"word": "w61",
+"start": 29.78,
+"end": 29.92
+},
+{
+"word": "w62",
+"start": 29.92,
+"end": 30.16
+}
+],
+[
+{
+"word": "w11",
+"start": 30.8,
+"end": 30.9
+},
+{
+"word": "w63",
+"start": 30.9,
+"end": 31.16
+},
+{
+"word": "w64",
+"start": 31.16,
+"end": 31.56
+},
+{
+"word": "w65",
+"start": 31.88,
+"end": 32.2
+},
+{
+"word": "w66",
+"start": 32.46,
+"end": 32.58
+},
+{
+"word": "w67",
+"start": 32.58,
+"end": 32.82
+},
+{
+"word": "w68",
+"start": 32.82,
+"end": 33.2
+},
+{
+"word": "w69",
+"start": 33.2,
+"end": 33.52
+},
+{
+"word": "w16",
+"start": 33.52,
+"end": 33.78
+},
+{
+"word": "w59",
+"start": 33.78,
+"end": 33.96
+},
+{
+"word": "w34",
+"start": 33.96,
+"end": 34.24
+},
+{
+"word": "w11",
+"start": 34.24,
+"end": 34.54
+},
+{
+"word": "w25",
+"start": 34.88,
+"end": 35.06
+},
+{
+"word": "w70",
+"start": 35.06,
+"end": 35.32
+},
+{
+"word": "w11",
+"start": 35.54,
+"end": 35.66
+},
+{
+"word": "w71",
+"start": 35.66,
+"end": 35.86
+},
+{
+"word": "w72",
+"start": 35.86,
+"end": 36.0
+},
+{
+"word": "w73",
+"start": 36.0,
+"end": 36.3
+},
+{
+"word": "w40",
+"start": 36.3,
+"end": 36.64
+},
+{
+"word": "w74",
+"start": 36.64,
+"end": 37.0
+}
+],
+[
+{
+"word": "w75",
+"start": 37.78,
+"end": 37.94
+},
+{
+"word": "w76",
+"start": 38.18,
+"end": 38.36
+},
+{
+"word": "w39",
+"start": 38.36,
+"end": 38.58
+},
+{
+"word": "w77",
+"start": 38.58,
+"end": 39.04
+},
+{
+"word": "w78",
+"start": 39.04,
+"end": 39.5
+},
+{
+"word": "w79",
+"start": 39.5,
+"end": 39.94
+},
+{
+"word": "w80",
+"start": 40.58,
+"end": 41.14
+},
+{
+"word": "w81",
+"start": 41.4,
+"end": 41.78
+},
+{
+"word": "w82",
+"start": 42.32,
+"end": 42.58
+},
+{
+"word": "w83",
+"start": 42.58,
+"end": 42.98
+},
+{
+"word": "w84",
+"start": 42.98,
+"end": 43.3
+},
+{
+"word": "w52",
+"start": 43.78,
+"end": 44.1
+},
+{
+"word": "w53",
+"start": 44.1,
+"end": 44.32
+},
+{
+"word": "w85",
+"start": 44.32,
+"end": 44.7
+},
+{
+"word": "w86",
+"start": 44.7,
+"end": 45.1
+},
+{
+"word": "w87",
+"start": 45.1,
+"end": 45.32
+},
+{
+"word": "w88",
+"start": 45.32,
+"end": 45.74
+}
+],
+[
+{
+"word": "w89",
+"start": 46.44,
+"end": 46.76
+},
+{
+"word": "w90",
+"start": 46.76,
+"end": 47.32
+},
+{
+"word": "w91",
+"start": 47.32,
+"end": 47.7
+},
+{
+"word": "w92",
+"start": 47.7,
+"end": 48.02
+},
+{
+"word": "w93",
+"start": 48.02,
+"end": 48.54
+},
+{
+"word": "w29",
+"start": 48.54,
+"end": 48.88
+},
+{
+"word": "w94",
+"start": 48.88,
+"end": 49.2
+},
+{
+"word": "w9",
+"start": 49.2,
+"end": 49.56
+},
+{
+"word": "w95",
+"start": 49.56,
+"end": 49.92
+},
+{
+"word": "w14",
+"start": 49.92,
+"end": 50.18
+},
+{
+"word": "w77",
+"start": 50.18,
+"end": 50.6
+},
+{
+"word": "w25",
+"start": 50.86,
+"end": 51.06
+},
+{
+"word": "w91",
+"start": 51.06,
+"end": 51.2
+},
+{
+"word": "w85",
+"start": 51.2,
+"end": 51.46
+},
+{
+"word": "w96",
+"start": 51.46,
+"end": 51.62
+},
+{
+"word": "w56",
+"start": 51.62,
+"end": 52.04
+},
+{
+"word": "w97",
+"start": 52.04,
+"end": 52.48
+},
+{
+"word": "w29",
+"start": 52.48,
+"end": 52.7
+},
+{
+"word": "w98",
+"start": 52.7,
+"end": 53.12
+}
+],
+[
+{
+"word": "w15",
+"start": 53.12,
+"end": 53.76
+},
+{
+"word": "w18",
+"start": 53.76,
+"end": 54.0
+},
+{
+"word": "w99",
+"start": 54.0,
+"end": 54.48
+},
+{
+"word": "w100",
+"start": 54.48,
+"end": 54.88
+},
+{
+"word": "w91",
+"start": 54.88,
+"end": 55.24
+},
+{
+"word": "w77",
+"start": 55.24,
+"end": 55.62
+},
+{
+"word": "w101",
+"start": 55.62,
+"end": 56.04
+},
+{
+"word": "w102",
+"start": 56.04,
+"end": 56.3
+},
+{
+"word": "w103",
+"start": 56.3,
+"end": 56.76
+},
+{
+"word": "w104",
+"start": 57.6,
+"end": 57.65
+},
+{
+"word": "w105",
+"start": 57.6,
+"end": 58.52
+},
+{
+"word": "w106",
+"start": 58.52,
+"end": 58.94
+},
+{
+"word": "w61",
+"start": 58.94,
+"end": 59.16
+},
+{
+"word": "w107",
+"start": 59.16,
+"end": 59.46
+},
+{
+"word": "w108",
+"start": 59.46,
+"end": 59.82
+},
+{
+"word": "w109",
+"start": 59.82,
+"end": 60.24
+},
+{
+"word": "w110",
+"start": 60.5,
+"end": 60.8
+},
+{
+"word": "w66",
+"start": 61.04,
+"end": 61.1
+},
+{
+"word": "w111",
+"start": 61.1,
+"end": 61.42
+}
+],
+[
+{
+"word": "w44",
+"start": 62.02,
+"end": 62.08
+},
+{
+"word": "w16",
+"start": 62.08,
+"end": 62.46
+},
+{
+"word": "w112",
+"start": 62.46,
+"end": 62.88
+},
+{
+"word": "w35",
+"start": 62.88,
+"end": 63.24
+},
+{
+"word": "w85",
+"start": 63.24,
+"end": 63.72
+},
+{
+"word": "w113",
+"start": 63.72,
+"end": 64.12
+},
+{
+"word": "w96",
+"start": 64.12,
+"end": 64.48
+},
+{
+"word": "w32",
+"start": 64.48,
+"end": 64.7
+},
+{
+"word": "w114",
+"start": 64.7,
+"end": 65.06
+},
+{
+"word": "w17",
+"start": 65.06,
+"end": 65.28
+},
+{
+"word": "w43",
+"start": 65.28,
+"end": 65.46
+},
+{
+"word": "w66",
+"start": 65.46,
+"end": 65.72
+},
+{
+"word": "w115",
+"start": 65.72,
+"end": 65.98
+},
+{
+"word": "w15",
+"start": 65.98,
+"end": 66.18
+},
+{
+"word": "w116",
+"start": 66.18,
+"end": 66.36
+},
+{
+"word": "w14",
+"start": 66.36,
+"end": 66.54
+},
+{
+"word": "w34",
+"start": 66.54,
+"end": 66.8
+},
+{
+"word": "w43",
+"start": 66.8,
+"end": 67.04
+},
+{
+"word": "w25",
+"start": 67.42,
+"end": 67.6
+},
+{
+"word": "w45",
+"start": 67.6,
+"end": 67.98
+},
+{
+"word": "w46",
+"start": 67.98,
+"end": 68.14
+},
+{
+"word": "w32",
+"start": 68.14,
+"end": 68.28
+},
+{
+"word": "w117",
+"start": 68.28,
+"end": 68.54
+},
+{
+"word": "w82",
+"start": 68.54,
+"end": 69.0
+},
+{
+"word": "w118",
+"start": 69.0,
+"end": 69.3
+},
+{
+"word": "w14",
+"start": 69.3,
+"end": 69.52
+},
+{
+"word": "w119",
+"start": 69.52,
+"end": 69.82
+},
+{
+"word": "w120",
+"start": 70.56,
+"end": 71.16
+},
+{
+"word": "w61",
+"start": 71.16,
+"end": 71.22
+},
+{
+"word": "w121",
+"start": 71.22,
+"end": 71.52
+},
+{
+"word": "w122",
+"start": 71.52,
+"end": 71.92
+},
+{
+"word": "w123",
+"start": 71.92,
+"end": 72.4
+},
+{
+"word": "w124",
+"start": 72.4,
+"end": 72.68
+},
+{
+"word": "w125",
+"start": 72.68,
+"end": 73.16
+}
+]
+],
+"plan": {
+"freeze": {
+"line": 3,
+"word": "w53"
+},
+"lines": [
+{
+"line": 1,
+"expression": "curious",
+"gesture": {
+"do": "point",
+"word": "w7"
+},
+"box": [
+{
+"word": "w7",
+"kind": "stock",
+"query": "placeholder footage query"
+}
+],
+"drawings": [
+{
+"word": "w7",
+"type": "bar_chart",
+"fields": {
+"a": "LABEL",
+"b": "LABEL",
+"c": "LABEL",
+"label": "LABEL"
+}
+},
+{
+"word": "w18",
+"type": "bible",
+"fields": {
+"label": "LABEL",
+"on": "LABEL"
+}
+},
+{
+"word": "w28",
+"type": "thinker",
+"fields": {
+"label": "LABEL",
+"thought": "LABEL"
+}
+}
+]
+},
+{
+"line": 2,
+"expression": "puzzled",
+"gesture": {
+"do": "point_explain",
+"word": "w35"
+},
+"pop": {
+"word": "w35",
+"file": "meme_a.png",
+"path": "reactions/meme_a.png"
+},
+"box": [],
+"drawings": [
+{
+"word": "w31",
+"type": "triangle_diagram",
+"miss": "trilemma",
+"fields": {
+"top": "LABEL",
+"left": "LABEL",
+"right": "LABEL",
+"center": "LABEL"
+}
+},
+{
+"word": "w35",
+"type": "storm",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w45",
+"type": "question_big",
+"fields": {
+"label": "LABEL"
+}
+}
+]
+},
+{
+"line": 3,
+"expression": "mind_blown",
+"gesture": {
+"do": "realize",
+"word": "w53"
+},
+"box": [],
+"drawings": [
+{
+"word": "w53",
+"type": "signpost_big",
+"fields": {
+"left": "LABEL",
+"right": "LABEL",
+"label": "LABEL"
+}
+},
+{
+"word": "w55",
+"type": "puppet",
+"miss": "puppet control",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w62",
+"type": "road_fork",
+"fields": {
+"left": "LABEL",
+"right": "LABEL",
+"label": "LABEL"
+}
+}
+]
+},
+{
+"line": 4,
+"expression": "thinking",
+"gesture": {
+"do": "shrug",
+"word": "w74"
+},
+"box": [],
+"drawings": [
+{
+"word": "w40",
+"type": "check_big",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w34",
+"type": "hand_open",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w63",
+"type": "robot",
+"fields": {
+"label": "LABEL"
+}
+}
+]
+},
+{
+"line": 5,
+"expression": "sad",
+"gesture": {
+"do": "confused",
+"word": "w86"
+},
+"pop": null,
+"box": [
+{
+"word": "w80",
+"kind": "stock",
+"query": "placeholder footage query"
+}
+],
+"drawings": [
+{
+"word": "w80",
+"type": "earthquake",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w81",
+"type": "germ_big",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w83",
+"type": "child",
+"fields": {
+"label": "LABEL"
+}
+}
+]
+},
+{
+"line": 6,
+"expression": "focused",
+"gesture": {
+"do": "point_explain",
+"word": "w94"
+},
+"box": [],
+"drawings": [
+{
+"word": "w92",
+"type": "planet_earth",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w98",
+"type": "gavel",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w89",
+"type": "wooden_cross",
+"fields": {
+"label": "LABEL"
+}
+}
+]
+},
+{
+"line": 7,
+"expression": "awe",
+"gesture": {
+"do": "present",
+"word": "w106"
+},
+"box": [],
+"drawings": [
+{
+"word": "w100",
+"type": "rainbow",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w109",
+"type": "grave",
+"fields": {
+"label": "LABEL",
+"on": "LABEL"
+}
+},
+{
+"word": "w107",
+"type": "anchor",
+"fields": {
+"label": "LABEL"
+}
+}
+]
+},
+{
+"line": 8,
+"expression": "puzzled",
+"gesture": {
+"do": "shrug",
+"word": "w121"
+},
+"pop": {
+"word": "w119",
+"file": "meme_b.gif",
+"path": "reactions/meme_b.gif"
+},
+"box": [
+{
+"word": "w119",
+"kind": "stock",
+"query": "placeholder footage query"
+}
+],
+"drawings": [
+{
+"word": "w121",
+"type": "question_big",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w116",
+"type": "shield",
+"fields": {
+"label": "LABEL"
+}
+},
+{
+"word": "w124",
+"type": "thinker",
+"fields": {
+"label": "LABEL",
+"thought": "LABEL"
+}
+}
+]
+}
+]
+},
+"source": "Director run 40434188836, attempt 1: words and narration replaced by tokens; timings, drawings and pop-ups as in the run"
+}

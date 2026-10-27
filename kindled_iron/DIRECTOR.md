@@ -136,6 +136,21 @@ Rules the code enforces (plan.repair, no AI call):
   clip stays up), so the bot never adds a meme just to fill the box.
 - pop-ups: at most 3 per video, at least 2 lines apart, never on a verse line or on the word "God", 380 px wide,
   1.2 s; no file twice in a row and no file more than twice per video.
+- box items without a word are anchored on a spoken word of their line (the word their query or file names, else the
+  line's first word); empty box items are dropped (a line may have no box); a box item `kind: "verse"` becomes the
+  line's verse card; a line that names a reference gets one; `quoted: true` without a word-for-word quote of the WEB
+  text becomes `quoted: false` (the card types the WEB text itself). The scripture checks themselves are unchanged.
+- a drawing type that is not in the catalog (e.g. a media file name) becomes the closest verified catalog drawing
+  (name, concept and labels against the catalog's names, tags and descriptions), or is dropped when the line keeps
+  another one; otherwise the plan is rejected.
+
+### The timeline check (before any render)
+
+compile.py records every drawing's box and show/clear times and every meme card's window, and checks them the way
+the renderer's per-frame audit does: no drawing under a meme card, no two drawings over each other. What it finds is
+fixed in code (the drawing makes way for the card, appears after it, or the earlier drawing is cleared first; listed
+in `scene.json` director.timeline_fixes); anything left rejects the plan before rendering. The per-frame audit
+still runs on every render.
 
 ### Guide actions (director/actions.py)
 

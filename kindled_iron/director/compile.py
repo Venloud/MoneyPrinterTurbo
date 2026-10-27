@@ -182,6 +182,136 @@ def _walks_into(walk: tuple, side) -> bool:
     return (walk[1] - walk[0]) * side > 0
 
 
+def _spans(tl: dict) -> dict:
+    """id -> (rect, t_on, [(shown_from, shown_to)]) from the draw and fade times (a fade takes 0.1 s)."""
+    out = {}
+    for did, (rect, t_on) in tl["draw"].items():
+        ev = sorted((t, op) for t, ids, op in tl["fade"] if did in ids and t >= t_on - 1e-6)
+        sp, on, start = [], True, t_on
+        for t, op in ev:
+            if on and op == 0:
+                sp.append((start, t + 0.1))
+                on = False
+            elif not on and op == 1:
+                on, start = True, t
+        if on:
+            sp.append((start, 1e9))
+        out[did] = (rect, t_on, sp)
+    return out
+
+
+def _found(tl: dict, eps: float = 0.06) -> list[dict]:
+    sp, out = _spans(tl), []
+    for did, (rect, _, spans) in sp.items():
+        for crect, c0, c1 in tl["cards"]:
+            if _overlap(rect, crect):
+                for s0, s1 in spans:
+                    a, b = max(s0, c0), min(s1, c1)
+                    if b - a > eps:
+                        out.append({"kind": "card", "id": did, "a": a, "b": b, "c0": c0, "c1": c1})
+    ids = sorted(sp)
+    for x, did in enumerate(ids):
+        for oid in ids[x + 1:]:
+            if not _overlap(sp[did][0], sp[oid][0]):
+                continue
+            for s0, s1 in sp[did][2]:
+                for o0, o1 in sp[oid][2]:
+                    a, b = max(s0, o0), min(s1, o1)
+                    if b - a > eps:
+                        out.append({"kind": "overlap", "id": did, "other": oid, "a": a, "b": b,
+                                    "first": did if s0 < o0 else oid if o0 < s0 else None,
+                                    "later_from": max(s0, o0)})
+    return out
+
+
+def _say(c: dict) -> str:
+    if c["kind"] == "card":
+        return f"DRAWING {c['id']} UNDER MEME at {c['a']:.2f}-{c['b']:.2f}s"
+    return f"{c['id']} overlaps {c['other']} at {c['a']:.2f}-{c['b']:.2f}s"
+
+
+def conflicts(tl: dict, eps: float = 0.06) -> list[str]:
+    """The compiled timeline checked the way the renderer's per-frame audit checks it, before any render: a drawing
+    on screen under a meme card, or two drawings on screen over each other. tl = {"draw": {id: (rect, t_on)},
+    "fade": [(t, ids, opacity)], "cards": [(rect, t0, t1)]}. Fades take 0.1 s; the overlap must last > eps."""
+    return [_say(c) for c in _found(tl, eps)]
+
+
+def _beat_at(words: list[list[dict]], t: float) -> int:
+    b = 0
+    for k, ws in enumerate(words):
+        if ws and ws[0]["start"] - 0.6 <= t:
+            b = k
+    return b
+
+
+def resolve_conflicts(tl: dict, beats: list[dict], words: list[list[dict]]) -> tuple[list[str], list[str]]:
+    """Fix what the timeline check finds, in code (no AI call): a drawing under a meme card makes way for it (faded
+    just before, back after it) or, when it would appear under it, appears after it; of two drawings over each
+    other the one shown first is cleared just before the other appears. -> (notes, what is left: a reason to reject
+    the plan before rendering)."""
+    notes: list[str] = []
+
+    def fade(t, did, op):
+        b = _beat_at(words, t)
+        beats[b]["events"].append({"at": _at_time(words[b], t), "do": "fade", "ids": [did], "opacity": op, "dur": 0.1})
+        tl["fade"].append((t, [did], op))
+
+    for _ in range(4 * len(tl["draw"]) + 4):         # every fix removes one conflict; bounded either way
+        found = _found(tl)
+        if not found:
+            return notes, []
+        c = found[0]
+        sp = _spans(tl)
+        if c["kind"] == "card":
+            rect, t_on, spans = sp[c["id"]]
+            if t_on >= c["c0"] - 0.25:                     # it would appear under the card: after it instead
+                new_t = round(c["c1"] + 0.05, 3)
+                for bt in beats:
+                    for e in list(bt["events"]):
+                        if e.get("do") == "draw" and e.get("id") == c["id"]:
+                            bt["events"].remove(e)
+                            b = _beat_at(words, new_t)
+                            beats[b]["events"].append(dict(e, at=_at_time(words[b], new_t)))
+                tl["draw"][c["id"]] = (rect, new_t)
+                notes.append(f"{c['id']} now appears after the meme card ({new_t:.2f}s)")
+            else:
+                fade(round(c["c0"] - 0.2, 3), c["id"], 0)
+                if any(s0 <= c["c1"] < s1 for s0, s1 in spans):
+                    fade(round(c["c1"], 3), c["id"], 1)
+                notes.append(f"{c['id']} makes way for the meme card at {c['c0']:.2f}s")
+        else:
+            if not c["first"]:
+                break                                       # both appear at once: no order to fix it by
+            t_out = round(max(0.0, c["later_from"] - 0.05), 3)
+            back = [f for f in tl["fade"] if c["first"] in f[1] and f[2] == 1 and t_out - 0.4 <= f[0] <= c["later_from"] + 0.06]
+            if back:                                        # it was coming back (after a meme card) just as the
+                for f in back:                              # other appears: it stays cleared instead
+                    tl["fade"].remove(f)
+                    for b, bt in enumerate(beats):
+                        for e in list(bt["events"]):
+                            if e.get("do") == "fade" and e.get("opacity") == 1 and e.get("ids") == f[1] and \
+                                    abs(_anchor_time(words[b], e["at"]) - f[0]) < 0.02:
+                                bt["events"].remove(e)
+                notes.append(f"{c['first']} stays cleared at {c['later_from']:.2f}s (the next drawing takes its place)")
+            else:
+                fade(t_out, c["first"], 0)
+                notes.append(f"{c['first']} cleared at {c['later_from']:.2f}s (the next drawing covers its place)")
+    return notes, conflicts(tl)
+
+
+def _anchor_time(words: list[dict], at) -> float:
+    """The absolute time of an anchor ("word#n+0.25") written by _at_time / _anchor within its line's words."""
+    if isinstance(at, (int, float)):
+        return float(at)
+    m = re.match(r"(.+)#(\d+)([+-][\d.]+)$", str(at))
+    if not m:
+        return -1.0
+    w, n, off = m.group(1), int(m.group(2)), float(m.group(3))
+    hits = [x for x in words if key(x["word"]) == w]
+    return hits[n - 1]["start"] + off if len(hits) >= n else -1.0
+
+
 def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: dict, media: list[list[dict]],
                   meta: dict, measure=None) -> tuple[dict, list[dict]]:
     """-> (scene, frames). frames = the 8 review stills: [{beat, at, line}].
@@ -274,6 +404,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     old_lane_side = None
     last_gesture_line = -2
     acted_log: list[dict] = []                  # the guide actions asked for and whether the rig performed them
+    tl: dict = {"draw": {}, "fade": [], "cards": []}   # absolute times, for the pre-render collision check
     for i, (L, text) in enumerate(zip(P, lines)):
         W = words[i]
         t_start, t_last = W[0]["start"], W[-1]["end"]
@@ -377,6 +508,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             fw, fh = obj["size"][0] * s, obj["size"][1] * s
             slot_of[did] = (x + obj.get("center", [0, 0])[0] * s - fw / 2, y + obj.get("center", [0, 0])[1] * s - fh / 2,
                             x + obj.get("center", [0, 0])[0] * s + fw / 2, y + obj.get("center", [0, 0])[1] * s + fh / 2)
+            tl["draw"][did] = (slot_of[did], t)
             first_t = t if first_t is None else min(first_t, t)
             if new_in[zone] is None or t < new_in[zone]:
                 new_in[zone] = t
@@ -409,6 +541,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             fades.setdefault(round(pop_t[i] - 0.2, 3), []).append(did_)
             ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [did_], "opacity": 1,
                        "dur": 0.1})                    # the card is hidden at its end time (it shrinks just before)
+            tl["fade"].append((pop_t[i] + POP_CARD["dur"], [did_], 1))
         # an old side drawing cleared early (a new band drawing covers it): the new side drawing takes its place at
         # once instead of waiting for its word, so the side never stands empty
         old_lane = set(shown["lane"])
@@ -416,18 +549,30 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         if cleared:
             tf = min(cleared)
             for nd in [d for d in ids if draw_pos[d][4] == "lane" and draw_pos[d][3] > tf + 0.3]:
+                tn = round(tf + 0.05, 3)
                 if i in walks and _path_hits(walks[i], [slot_of[nd]], G):
                     continue
-                if i in pop_t and pop_t[i] - 0.3 <= tf + 0.05 <= pop_t[i] + POP_CARD["dur"] + 0.2:
-                    continue
+                if i in pop_t and tn > pop_t[i] - 1.4:
+                    continue                           # it would sit under (or flash just before) this line's card
                 for e in ev:
                     if e.get("do") == "draw" and e.get("id") == nd:
-                        e["at"] = _at_time(W, tf + 0.05)
-                draw_pos[nd] = draw_pos[nd][:3] + (round(tf + 0.05, 3),) + draw_pos[nd][4:]
+                        e["at"] = _at_time(W, tn)
+                draw_pos[nd] = draw_pos[nd][:3] + (tn,) + draw_pos[nd][4:]
+                tl["draw"][nd] = (slot_of[nd], tn)
+                if i in pop_t and tn < pop_t[i]:      # now shown before the card: it makes way for it like the others
+                    fades.setdefault(round(pop_t[i] - 0.2, 3), []).append(nd)
+                    ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [nd], "opacity": 1,
+                               "dur": 0.1})
+                    tl["fade"].append((pop_t[i] + POP_CARD["dur"], [nd], 1))
+                for zone in ("area", "lane"):          # what it now covers earlier is cleared earlier too
+                    for od in shown[zone]:
+                        if od != nd and _overlap(slot_of[od], slot_of[nd]):
+                            fades.setdefault(round(max(t_start - 0.4, tn - 0.05), 3), []).append(od)
         for ft, fids in sorted(fades.items()):
             fids = sorted(set(fids))
             ev.append({"at": _at_time(W, ft) if ft >= t_start else _anchor(W, first, ft - t_start)[0], "do": "fade",
                        "ids": fids, "opacity": 0, "dur": 0.1})
+            tl["fade"].append((ft, fids, 0))
         prev_old = shown["area"] + shown["lane"]
         prev_lane = list(shown["lane"])
         for zone in ("area", "lane"):
@@ -482,6 +627,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             # the freeze zooms the whole board: drawings on screen would be pushed off the safe box
             on_screen = prev_old + [d for d, p in draw_pos.items() if p[3] < fz[1]]
             if on_screen:
+                tl["fade"].append((_anchor(W, freeze["word"], -0.12)[1], sorted(set(on_screen)), 0))
                 ev.append({"at": _anchor(W, freeze["word"], -0.12)[0], "do": "fade", "ids": sorted(set(on_screen)),
                            "opacity": 0, "dur": 0.1})
             ev.append({"at": _anchor(W, freeze["word"])[0], "do": "freeze", "who": "guide", "dur": FREEZE["dur"],
@@ -518,6 +664,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if ls[2] - ls[0] < Z["pop"]["w"] + 10:
                 raise CompileError(f"line {i + 1}: no room for the pop-up beside the guide")
             cx = (ls[0] + ls[2]) / 2
+            tl["cards"].append(((cx - Z["pop"]["w"] / 2, ls[1], cx + Z["pop"]["w"] / 2, ls[3]),
+                                _anchor(W, p["word"])[1], _anchor(W, p["word"])[1] + POP_CARD["dur"]))
             ev.append({"at": _anchor(W, p["word"])[0], "reaction": FACE_OF.get(L["expression"], "surprised"),
                        "face": FACE_OF.get(L["expression"], "surprised"), "file": p.get("path") or "movie_reference/" + p["file"],
                        "dur": POP_CARD["dur"], "card": {"x": cx, "y": Z["pop"]["y"], "w": Z["pop"]["w"], "rotate": 0}})
@@ -530,6 +678,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             # a still once the line's last drawing is complete (draw 0.6 s + margin for the renderer's own timing)
             frames.append({"beat": beat["id"], "t": max(draw_pos[d][3] for d in ids) + 1.5, "line": text})
 
+    fixed, left = resolve_conflicts(tl, beats, words)
+    scene_notes += [f"timeline: {n}" for n in fixed]
+    if left:
+        raise CompileError("drawings would collide on screen (rejected before rendering): " + "; ".join(left[:4]))
+    scene_conflicts = fixed
     # ---------------- the 8 review stills: spread over the lines
     picks = frames if len(frames) <= 8 else [frames[round(k * (len(frames) - 1) / 7)] for k in range(8)]
     while len(picks) < 8 and frames:
@@ -557,7 +710,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",
                     "frames": [{"beat": f["beat"], "at": f["at"]} for f in pv]},
         "post": {"title": meta.get("title") or meta["id"].replace("-", " ").title()},
-        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}, "notes": scene_notes,
+        "director": {"plan_lines": n_lines, "route": route, "walks": {str(k + 1): v[:2] for k, v in walks.items()}, "notes": scene_notes, "timeline_fixes": scene_conflicts,
                      "actions": acted_log + list(plan.get("unsupported_actions") or [])},
         "beats": beats,
     }

@@ -265,6 +265,9 @@ def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict, 
     if shape_errors(plan):
         return notes
     sh, exprs = shapes(cat), list(cat["expressions"])
+    if len(plan["lines"]) == len(lines):
+        notes += _repair_box_and_verse(plan, lines, line_keys)
+        notes += _repair_unknown_drawings(plan, lines, cat, lib)
     pops = []
     for i, L in enumerate(plan["lines"]):
         n = i + 1
@@ -308,6 +311,124 @@ def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict, 
                 pops.append(i)
     if lib is not None:
         notes += _repair_media(plan, lines, lib)
+    return notes
+
+
+def _tokens(*parts) -> set[str]:
+    out = set()
+    for part in parts:
+        for w in re.findall(r"[a-z]+", str(part).lower().replace("_", " ")):
+            if len(w) >= 3:
+                out.add(w[:-1] if w.endswith("s") and len(w) > 4 else w)
+    return out
+
+
+def _anchor_word(line: str, keys: list[str], hint: set[str]) -> str | None:
+    """The spoken word of the line a box item belongs on: the first one that shares a word with the item's
+    query / file / tags, else the line's first spoken word."""
+    spoken = [w for w in line.split() if key(w) in keys]
+    for w in spoken:
+        if _tokens(w) & hint:
+            return w
+    return spoken[0] if spoken else None
+
+
+def _repair_box_and_verse(plan: dict, lines: list[str], line_keys: list[list[str]]) -> list[str]:
+    """Box items and verse cards fixed in code:
+      - an empty box item (no query, no file) is dropped: a line may have no box at all;
+      - a box item 'verse' / with a 'ref' becomes the line's verse card;
+      - a box item with no kind gets one from what it has (query -> stock, file -> meme);
+      - a real box item whose word is missing or not spoken in its line is anchored on a spoken word;
+      - a line that names a reference (Revelation 21:4) but has no verse card gets one; a verse marked quoted
+        whose line has no quote that matches the WEB text is set to quoted false (the card then types the WEB
+        text itself). The scripture checks in validate stay as they are."""
+    notes = []
+    for i, L in enumerate(plan["lines"]):
+        n, text, keys = i + 1, lines[i], line_keys[i]
+        box = L.get("box")
+        if box is None:
+            L["box"] = box = []
+        keep = []
+        for b in box:
+            if b.get("kind") == "verse" or (b.get("ref") and not b.get("query") and not b.get("file")):
+                if not L.get("verse") and b.get("ref"):
+                    L["verse"] = {"ref": b["ref"], "word": b.get("word"), "quoted": bool(b.get("quoted"))}
+                    notes.append(f"line {n}: verse moved from the box to the verse card ({b['ref']})")
+                continue
+            if not b.get("query") and not b.get("file"):
+                notes.append(f"line {n}: an empty box item dropped")
+                continue
+            if b.get("kind") not in ("stock", "meme"):
+                b["kind"] = "stock" if b.get("query") else "meme"
+            if not b.get("word") or key(b["word"]) not in keys:
+                w = _anchor_word(text, keys, _tokens(b.get("query", ""), b.get("file", "")))
+                if w:
+                    notes.append(f"line {n}: box word {b.get('word')!r} -> {w!r} (a word spoken in the line)")
+                    b["word"] = w
+            keep.append(b)
+        L["box"] = keep
+        refs = scripture_refs(text)
+        if refs and not L.get("verse"):
+            L["verse"] = {"ref": refs[0], "word": None, "quoted": False}
+            notes.append(f"line {n}: names {refs[0]}: verse card added")
+        v = L.get("verse")
+        if isinstance(v, dict) and v.get("ref"):
+            if not v.get("word") or key(v["word"]) not in keys:
+                book = str(v["ref"]).split()[-2] if len(str(v["ref"]).split()) > 2 else str(v["ref"]).split()[0]
+                w = next((w for w in text.split() if key(w) == key(book)), None) or \
+                    next((w for w in text.split() if key(w) in keys), None)
+                if w:
+                    v["word"] = w
+            if v.get("quoted"):
+                ok = any(scripture.check(v["ref"], q)[0] for q in quoted_spans(text)) if quoted_spans(text) else False
+                if not ok:
+                    v["quoted"] = False
+                    notes.append(f"line {n}: verse {v['ref']} is named, not quoted word for word: quoted -> false")
+            if L["box"]:
+                notes.append(f"line {n}: box media dropped (the verse card fills the box)")
+                L["box"] = []
+    return notes
+
+
+def _repair_unknown_drawings(plan: dict, lines: list[str], cat: dict, lib: list[dict] | None) -> list[str]:
+    """A drawing type that is not in the catalog becomes the verified catalog drawing closest to it (its name,
+    concept and labels against the catalog's names, tags and descriptions; never one already on that line), its
+    fields carried over where the new type takes them. With no close match it is dropped when the line keeps
+    another drawing; otherwise validate rejects it."""
+    types, sh, notes = director_types(cat), shapes(cat), []
+    media_names = {Path(m["file"]).stem.lower() for m in (lib or [])}
+    for i, L in enumerate(plan["lines"]):
+        dr = L.get("drawings") or []
+        used = {d.get("type") for d in dr if isinstance(d, dict)}
+        for d in list(dr):
+            t = d.get("type") if isinstance(d, dict) else None
+            if not t or t in types:
+                continue
+            fields = d.get("fields") if isinstance(d.get("fields"), dict) else {}
+            labels = [v for v in fields.values() if isinstance(v, str)]
+            want_name, want = _tokens(t), _tokens(t, d.get("concept", ""), *labels)
+            best, score = None, 0
+            for n, o in types.items():
+                if n in used or n not in sh:
+                    continue
+                have = _tokens(n, *(o.get("tags") or []), o.get("doc", ""))
+                sc = 3 * len(_tokens(n) & want_name) + len(have & want)
+                if sc > score:
+                    best, score = n, sc
+            why = " (a media file name, not a drawing)" if t.lower() in media_names else ""
+            if best and score >= 2:
+                params = types[best]["params"]
+                new_f = {k: v for k, v in fields.items() if k in params}
+                if "label" in params and "label" not in new_f and labels:
+                    new_f["label"] = labels[0]
+                if "labels" in params and "labels" not in new_f and labels:
+                    new_f["labels"] = labels[:3]
+                d["type"], d["fields"] = best, new_f
+                used.add(best)
+                notes.append(f"line {i + 1}: drawing {t!r} is not in the catalog{why} -> {best}")
+            elif len(dr) > 1:
+                dr.remove(d)
+                notes.append(f"line {i + 1}: drawing {t!r} is not in the catalog{why} and nothing close is: dropped")
     return notes
 
 

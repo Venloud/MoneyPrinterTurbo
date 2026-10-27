@@ -39,7 +39,9 @@ THEMES: dict[str, dict] = {
 #          oversized hoodie and baggy cargo pants drawn as outlines only (approved 2026-10-27 for evaluation in
 #          Computer Bugs only; it never replaces another video's approved character)
 CHARACTERS: dict[str, dict] = {
-    "teen": {"style": "teen", "colors": {"hoodie": "#FF5F52", "pants": "#0B0D12"}},
+    # height: the figure's height relative to the default narrator (measured on the page: 577 / 499 px); the
+    # compiler scales it to fill the same guide box the layout is built around (proportions unchanged)
+    "teen": {"style": "teen", "colors": {"hoodie": "#FF5F52", "pants": "#0B0D12"}, "height": 1.157},
 }
 
 

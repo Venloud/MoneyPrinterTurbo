@@ -772,7 +772,8 @@
     if (teen) {   // the same joints and groups, the teen drawing (outline-only clothes, taller head ~1.3x)
       var limbT = function (cls, len1, len2, w, which, end, upper, lower) {
         return '<g class="' + cls + '1">' + TP.seg(w[0], w[1], len1, which) + (upper || '') +
-          '<g transform="translate(0,' + len1 + ')"><g class="' + cls + '2">' + TP.seg(w[1], w[2], len2, which) + (lower || '') + end + '</g></g></g>';
+          '<g transform="translate(0,' + len1 + ')"><g class="' + cls + '2">' + TP.seg(w[1], w[2], which === 'leg' ? len2 - 9 : len2, which) +   // (a baggy hem
+            (lower || '') + end + '</g></g></g>';   // stacks on the sneaker: its round end never reaches below the soles)
       };
       torso = TP.torso; dress = ''; scarf = '';
       leg = function (cls, x) {
@@ -2066,7 +2067,8 @@
     var mains = [], texts = [];
     Object.keys(objs).forEach(function (id) {
       var ob = objs[id];
-      if (!ob.def.main || !shown(ob.el) || parseFloat(getComputedStyle(ob.el).opacity) < 0.3) return;
+      if (!ob.def.main || !shown(ob.el) || parseFloat(getComputedStyle(ob.el).opacity) < 0.95) return;   // fully shown only:
+      // one fading out while the next draws in on its place is a handover, not a collision
       var rr = glyphBox(ob); if (!rr.width || offScreen(rr)) return;
       mains.push({ id: id, r: rr });
       Array.prototype.forEach.call(ob.el.querySelectorAll('text'), function (tx) {

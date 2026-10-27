@@ -678,8 +678,12 @@ class DrawingLifetimes(unittest.TestCase):
         return gone, words
 
     def test_it_leaves_when_the_narration_moves_on(self):
-        gone, words = self.compile("Storms still sank many of them anyway, why?")
-        self.assertLessEqual(gone, words[1][0]["start"])                   # gone by the time line 2 starts
+        from kindled_iron.director import compile as C
+        gone, words = self.compile("Storms still sank many of them anyway, why?")   # the next picture comes soon:
+        self.assertLessEqual(gone, words[1][0]["start"] + C.HOLD_MAX)              # it holds until then at most
+        gone, words = self.compile("Storms still sank many of them anyway because nobody on the cliffs ever kept watch "
+                                   "through the long dark winter nights, why?")    # the next picture comes late:
+        self.assertLessEqual(gone, words[1][0]["start"])                           # gone when the line starts
 
     def test_it_stays_while_the_narration_still_talks_about_it(self):
         gone, words = self.compile("The logbook told the next keeper what to watch for, right?")

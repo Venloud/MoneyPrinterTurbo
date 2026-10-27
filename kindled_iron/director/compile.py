@@ -35,6 +35,8 @@ SHOULDER_Y = 1110               # set from the measured guide (his top + 122) in
 FILL = 0.97                     # a drawing fills its slot to this share (the measured size includes its strokes)
 MIN_LABEL_SCALE = 0.72          # a labeled drawing smaller than this makes its labels too small to read on a phone
 HOOK_SECONDS = 3.0              # the opening: drawings for what is said in its first sentence / 3 s are up from frame one
+HOLD_MAX = 2.5                  # an earlier picture may hold this long into the next line, until that line's picture
+SWAP = 0.12                     # an old drawing has finished fading (0.1 s) before the new one in its place starts
 EARLY_MAX = 2.5                 # a drawing may come this long before its words (anticipation), not long before its idea
 
 
@@ -704,21 +706,28 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if zone == "area":                         # each old band drawing goes just before the new one on it
                 for od in old:
                     hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] == "area" and _overlap(slot_of[od], slot_of[nd])]
-                    fades.setdefault(round(max(t_start - 0.55, (min(hits) if hits else t_new) - 0.05), 3), []).append(od)
+                    fades.setdefault(round(max(t_start - 0.55, (min(hits) if hits else t_new) - SWAP), 3), []).append(od)
                 continue
             hand = zone == "top" and not open_line[i]          # the layout handover: exactly before the caption returns
-            fades.setdefault(round(t_new - 0.05 if hand else max(t_start - 0.55, t_new - 0.05), 3), []).extend(old)
+            fades.setdefault(round(t_new - 0.05 if hand else max(t_start - 0.55, t_new - SWAP), 3), []).extend(old)
         # an earlier line's drawing leaves when the narration moves on from it (at the line handover, in the pause),
         # not when its slot is next needed: it stays only while the new line still talks about it (its concept, word
         # or labels are said again). An empty part of the frame is better than a picture of what was said before.
+        # An answer or a continuation ("Yes.") rarely repeats the words, so the picture holds until the new line's
+        # picture for that place arrives, when it comes within HOLD_MAX of the line start (a cut to the next idea,
+        # no empty beat); a new idea that comes later than that does not keep an old picture up meanwhile.
         if i:
             pe = words[i - 1][-1]["end"]
             th = round(max(pe + 0.05, min(pe + 0.3, t_start - 0.05)), 3)
             said = _story.content(text)
+            soon = {z: min([max(draw_pos[d][3] - EARLY_MAX, t_start - 0.4) for d in ids if draw_pos[d][4] == z], default=None)
+                    for z in ("area", "lane", "top")}                  # the earliest each new picture may come
             for zone in ("area", "lane", "top"):
+                nz = soon[zone] if soon[zone] is not None else min([x for x in soon.values() if x is not None], default=None)
+                tz = round(nz - SWAP, 3) if nz is not None and nz - t_start <= HOLD_MAX and nz - SWAP > th else th
                 for od in shown[zone]:
                     if not (rel_terms.get(od, set()) & said):
-                        fades.setdefault(th, []).append(od)
+                        fades.setdefault(tz, []).append(od)
                         kept_area = [k_ for k_ in kept_area if k_ != od]
         # a new drawing whose slot covers an old drawing of the OTHER zone (a full-height side drawing after a
         # band, or the reverse) clears that one just before it appears
@@ -726,7 +735,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             for od in shown[zone]:
                 hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] != zone and _overlap(slot_of[od], slot_of[nd])]
                 if hits:
-                    fades.setdefault(round(max(t_start - 0.55, min(hits) - 0.05), 3), []).append(od)
+                    fades.setdefault(round(max(t_start - 0.55, min(hits) - SWAP), 3), []).append(od)
         for did_, _ in pop_redraw:
             fades.setdefault(round(pop_t[i] - POP_CLEAR, 3), []).append(did_)
             ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [did_], "opacity": 1,
@@ -750,8 +759,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     if o not in ids and _overlap(r, slot_of[did]) and max(b for _, b in spans) > lead]   # pause counts too)
             if any(e > 1e8 for e in ends):
                 continue                               # its place stays taken until its own word
-            # as the old one fades (the same 0.05 s overlap as every replacement): a drawing counts from its start
-            tn = round(max([lead + 0.1 + 0.35 * pulled, draw_pos[did][3] - EARLY_MAX] + [e - 0.05 for e in ends]), 3)
+            # after the old one has gone (a clean cut, no overlap while it fades): a drawing counts from its start
+            tn = round(max([lead + 0.1 + 0.35 * pulled, draw_pos[did][3] - EARLY_MAX] + [e + 0.02 for e in ends]), 3)   # a clean cut
             if draw_pos[did][4] != "lane":             # not while a clip box (and its caption handover) is up
                 for r_, c0_, c1_ in tl["cards"]:
                     if r_ == BOX and c0_ - 0.05 < tn < c1_ + 0.05:
@@ -979,6 +988,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         i = int(f["beat"][1:]) - 1
         pv.append({"beat": f["beat"], "at": _at_time(words[i], min(f["t"], words[i][-1]["end"] + 0.4)), "line": f["line"]})
     Zc = Z["caption"]
+    narrator = _themes.character(meta.get("character"))
     scene = {
         "id": meta["id"], "title": meta.get("title") or meta["id"].replace("-", " ").title(),
         "voice_profile": "kindled_iron", **({"theme": meta["theme"]} if meta.get("theme") else {}),
@@ -991,8 +1001,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                                   key=lambda w: w["t0"]),
         "audit": {"max_words": 3, "one_line": True}, "caption_color": "ink", "caption_on": "accent",
         "require_memes": sum(1 for L in P if L.get("pop")), "max_media_uses": 2,
-        "cast": {"guide": {"panel": 0, "x": route[0], "scale": 2.1, "facing": -1 if route[0] > 540 else 1, "accent": True,
-                           **_themes.character(meta.get("character"))}},
+        "cast": {"guide": {"panel": 0, "x": route[0], "facing": -1 if route[0] > 540 else 1, "accent": True,
+                           **{k: v for k, v in narrator.items() if k != "height"},
+                           "scale": round(2.1 / float(narrator.get("height", 1.0)), 4)}},   # fills the measured guide box
         "mediabox": {"x": Z["box"]["x"], "y": Z["box"]["y"], "w": Z["box"]["w"], "h": Z["box"]["h"], "verse_size": round(60 * Z["box"]["h"] / 420), "pad_x": 48},
         "clips": scene_clips,
         "preview": {"folder": meta["id"], "public_artifacts": False, "stage": "full",

@@ -131,9 +131,15 @@ Every visual is on screen while the narration is about it, not until something e
   frame one (the hook), later ideas of that line still come with their words;
 - the idea said first takes the line's biggest place; a line whose media comes late shows its idea in the
   media's place until the media arrives;
-- an earlier line's drawing leaves at the line handover (in the pause, before the new line's first drawing) when
-  the new line moves on from it, i.e. does not say its concept, word or labels again; it stays while the new line
-  still talks about it. An empty part of the frame is better than a picture of what was said before.
+- an earlier line's drawing leaves when the new line moves on from it (it does not say its concept, word or labels
+  again): it holds its place until the new line's picture for that place comes, when that is within `HOLD_MAX`
+  2.5 s of the line start (an answer like "Yes." rarely repeats the words: a cut to the next idea, no empty beat),
+  else it goes at the line handover; it stays while the new line still talks about it. An empty part of the frame
+  is better than a picture of what was said before;
+- a replacement is a clean cut: the old drawing has finished fading (`SWAP` 0.12 s) before the new one in its place
+  starts drawing (never both on screen);
+- a narrator character other than the default is scaled to the same measured guide box (its `height` relative to
+  the default narrator), so the layout around it is unchanged.
 Why these generalise: they read only the timing of the words and what the plan says each drawing is about (the AI's
 `concept`, its word and labels), never a video, topic or asset name.
 

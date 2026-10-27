@@ -8,7 +8,7 @@
   "split",
   "verse"
  ],
- "doodles_sha256": "3021bd97c7e5fb66ab7e2268273800bdf35c7efcae3a6908fa518cb6f22672ff",
+ "doodles_sha256": "6ad46356798b8cca88e9f9a7128fedab673abb0288891e6a292fe4221ace8294",
  "events": {
   "appear": {
    "fields": []
@@ -1211,6 +1211,32 @@
     "daughter"
    ]
   },
+  "chip_log": {
+   "center": [
+    3,
+    44
+   ],
+   "director": true,
+   "doc": "a sailor's chip log: a wooden board on a knotted rope paying out from a reel",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    355,
+    319
+   ],
+   "tags": [
+    "ship log",
+    "chip log",
+    "rope",
+    "knots",
+    "measure speed",
+    "speed at sea",
+    "sailors",
+    "log line"
+   ]
+  },
   "church": {
    "center": [
     0,
@@ -1305,6 +1331,34 @@
    "size": [
     237,
     313
+   ]
+  },
+  "code_window": {
+   "center": [
+    2,
+    34
+   ],
+   "director": true,
+   "doc": "a code editor window with lines of code",
+   "doodle": true,
+   "params": [
+    "label",
+    "code"
+   ],
+   "size": [
+    384,
+    309
+   ],
+   "tags": [
+    "code",
+    "program",
+    "console",
+    "terminal",
+    "software",
+    "programming",
+    "log output",
+    "debug",
+    "error message"
    ]
   },
   "coin_pile": {
@@ -1880,6 +1934,32 @@
    "size": [
     54,
     130
+   ]
+  },
+  "film_strip": {
+   "center": [
+    2,
+    37
+   ],
+   "director": true,
+   "doc": "a strip of film with sprocket holes and three frames",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    404,
+    244
+   ],
+   "tags": [
+    "film",
+    "movie",
+    "frames",
+    "scene",
+    "footage",
+    "hollywood",
+    "cinema",
+    "editing"
    ]
   },
   "fire": {
@@ -3148,6 +3228,31 @@
     "evening"
    ]
   },
+  "moth": {
+   "center": [
+    2,
+    34
+   ],
+   "director": true,
+   "doc": "a moth with four wings and feathery antennae",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    325,
+    310
+   ],
+   "tags": [
+    "moth",
+    "bug",
+    "insect",
+    "wings",
+    "first computer bug",
+    "creature",
+    "fly"
+   ]
+  },
   "mountain": {
    "center": [
     2,
@@ -3171,6 +3276,32 @@
     "summit",
     "hard",
     "faith moves mountains"
+   ]
+  },
+  "old_computer": {
+   "center": [
+    2,
+    30
+   ],
+   "director": true,
+   "doc": "a room-sized 1940s computer: tall cabinets with dials, switches and blinking lamps",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    405,
+    339
+   ],
+   "tags": [
+    "old computer",
+    "mainframe",
+    "machine",
+    "mark ii",
+    "1940s computer",
+    "relays",
+    "computer room",
+    "engineers"
    ]
   },
   "openbook": {
@@ -3911,6 +4042,31 @@
     "compare"
    ]
   },
+  "scissors_cut": {
+   "center": [
+    48,
+    35
+   ],
+   "director": true,
+   "doc": "scissors cutting along a dashed line",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    404,
+    228
+   ],
+   "tags": [
+    "cut",
+    "hard cut",
+    "edit",
+    "scissors",
+    "trim",
+    "splice",
+    "snip"
+   ]
+  },
   "scribble": {
    "director": false,
    "doc": "an orange scratch-out over text",
@@ -4263,6 +4419,31 @@
     "talk",
     "promise",
     "voice"
+   ]
+  },
+  "spin_effect": {
+   "center": [
+    -5,
+    34
+   ],
+   "director": true,
+   "doc": "a swirling spin effect with motion arrows",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    230,
+    289
+   ],
+   "tags": [
+    "spin",
+    "zoom",
+    "effect",
+    "flashy",
+    "transition effect",
+    "swirl",
+    "distracting"
    ]
   },
   "splash": {
@@ -5011,6 +5192,31 @@
     "color",
     "rows",
     "w"
+   ]
+  },
+  "wood_log": {
+   "center": [
+    -14,
+    24
+   ],
+   "director": true,
+   "doc": "a sawn wooden log with end-grain rings",
+   "doodle": true,
+   "params": [
+    "label"
+   ],
+   "size": [
+    348,
+    229
+   ],
+   "tags": [
+    "log",
+    "wood",
+    "wooden log",
+    "piece of wood",
+    "timber",
+    "firewood",
+    "tree trunk"
    ]
   },
   "wooden_cross": {

@@ -453,3 +453,78 @@ class HiddenBox(unittest.TestCase):
         js = (ROOT / "kindled_iron" / "runtime" / "runtime.js").read_text()
         self.assertIn("MB.el.style.display = sg ? '' : 'none';", js)
         self.assertIn("BOX CONTENT SHOWN WITHOUT ITS BOX", js)
+
+
+class Themes(unittest.TestCase):
+    """A theme swaps colours and paper only; the default (Kindled Iron) look is untouched."""
+
+    def test_default_is_unchanged_and_unknown_fails(self):
+        from kindled_iron import themes
+        pal, look = {"board": "#F7F3E9", "ink": "#222"}, {"colors": {"skin": "#8D5A3B"}}
+        self.assertIsNone(themes.apply(None, pal, look))
+        self.assertIsNone(themes.apply("kindled", pal, look))
+        self.assertEqual((pal, look), ({"board": "#F7F3E9", "ink": "#222"}, {"colors": {"skin": "#8D5A3B"}}))
+        with self.assertRaises(SystemExit):
+            themes.apply("neon", pal, look)
+
+    def test_blueprint_is_white_line_on_blue_grid(self):
+        from kindled_iron import themes
+        from kindled_iron.render import PALETTE, HOST_LOOK
+        pal, look = dict(PALETTE), json.loads(json.dumps(HOST_LOOK))
+        t = themes.apply("blueprint", pal, look)
+        self.assertEqual((pal["board"], pal["ink"]), (themes.BOARD, themes.WHITE))
+        self.assertTrue(all(pal[k] == themes.PANEL for k in ("skin", "robe", "page", "cloud", "water")))   # no colour fills
+        self.assertTrue(set(look["colors"].values()) == {themes.PANEL})
+        self.assertEqual(t["grid"], {"minor": 40, "major": 200})
+        self.assertNotEqual(PALETTE["board"], themes.BOARD)                  # the module palette itself is not touched here
+
+    def test_renderer_applies_the_scene_theme_and_survives_no_box(self):
+        src = (ROOT / "kindled_iron" / "render.py").read_text()
+        self.assertIn('themes.apply(scene.get("theme"), PALETTE, HOST_LOOK)', src)
+        self.assertIn("if box_segs:", src)                                  # a video with no media box renders
+
+
+class NewDrawings(unittest.TestCase):
+    def test_reusable_drawings_for_log_cuts_bugs_are_in_the_catalog(self):
+        from kindled_iron.director import plan as P
+        types = P.director_types(P.catalog())
+        for n in ("wood_log", "chip_log", "moth", "film_strip", "scissors_cut", "code_window", "spin_effect", "old_computer"):
+            self.assertTrue(types.get(n, {}).get("doodle"), n)
+
+
+class FreezeClearsTheBoard(unittest.TestCase):
+    """The freeze zooms the whole board: every drawing on screen (open-zone drawings included) is cleared first, and
+    the freeze line's next drawing refills the board as soon as the camera is back."""
+
+    def test_freeze_on_open_lines(self):
+        from kindled_iron.director import compile as C, plan as P
+        cat = P.catalog()
+        lines, words = timed(FIX["scripts"]["animation"])
+        plan = {"freeze": {"line": 2, "word": "first:"}, "lines": [
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [],
+             "drawings": [{"word": "cartoon", "type": "film_strip", "fields": {}}]},
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [],
+             "drawings": [{"word": "motion.", "type": "film_strip", "fields": {}}]},   # said long after the freeze
+            {"expression": "happy", "gesture": {"do": "none"}, "box": [],
+             "drawings": [{"word": "eyes", "type": "question_big", "fields": {"label": "?"}}]}]}
+        scene, _ = C.compile_scene(plan, lines, words, cat, [[], [], []], {"id": "a", "audio_path": "a", "sha256": "x"})
+        ev = []
+        for b, beat in enumerate(scene["beats"]):
+            for e in beat["events"]:
+                at = e.get("at")
+                ev.append((at if isinstance(at, (int, float)) else C._anchor_time(words[b], at), e))
+        tf = next(t for t, e in ev if e.get("do") == "freeze")
+        def visible(t):
+            on = set()
+            for t_, e in sorted(ev, key=lambda x: x[0]):
+                if t_ > t:
+                    break
+                if e.get("do") == "draw":
+                    on.add(e["id"])
+                elif e.get("do") == "fade":
+                    (on.update if e.get("opacity") else on.difference_update)(e["ids"])
+            return on
+        self.assertEqual(visible(tf + 0.01), set())                          # nothing on the board during the zoom
+        back = tf + C.FREEZE["dur"] + C.FREEZE["after"]
+        if words[1][-1]["end"] > back + 1.5:
+            self.assertTrue(visible(back + 0.8), "the board stays empty after the freeze")

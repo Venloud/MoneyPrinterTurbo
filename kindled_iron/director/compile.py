@@ -573,6 +573,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         after_freeze = cleared_by_freeze
         cleared_by_freeze = False
         new_in = {"area": None, "lane": None, "top": None}
+        refilled = False                               # a drawing already refills the board after this line's freeze
         for j, d in enumerate(dr):
             did = f"l{i + 1}_{d['type']}{j}"
             obj = objs[j]
@@ -615,6 +616,13 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             elif fz and t <= fz[1] + FREEZE["dur"] + FREEZE["after"]:
                 t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35 + 0.35 * j   # after it, the camera fully back
                 a = _at_time(W, t)
+            elif fz and not refilled and t > fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35 and t > fz[1] - 0.8:
+                # the freeze cleared the board: the line's next drawing comes as soon as the camera is back, not
+                # seconds later on its word (the frame would stand empty)
+                t = fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35
+                a = _at_time(W, t)
+            if fz and t > fz[1]:
+                refilled = True
             if ov and t_start < ov[1] < t_last and t > ov[1] + 0.1 + 0.35 * j:
                 t = round(ov[1] + 0.1 + 0.35 * j, 3)          # the board refills as soon as the diagram goes
                 a = _at_time(W, t)
@@ -759,7 +767,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             ev.append({"at": _at_time(W, ft) if ft >= t_start else _anchor(W, first, ft - t_start)[0], "do": "fade",
                        "ids": fids, "opacity": 0, "dur": 0.1})
             tl["fade"].append((ft, fids, 0))
-        prev_old = shown["area"] + shown["lane"]
+        prev_old = shown["area"] + shown["lane"] + shown["top"]
         prev_lane = list(shown["lane"])
         for zone in ("area", "lane", "top"):
             mine = [d for d in ids if draw_pos[d][4] == zone]
@@ -937,7 +945,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     Zc = Z["caption"]
     scene = {
         "id": meta["id"], "title": meta.get("title") or meta["id"].replace("-", " ").title(),
-        "voice_profile": "kindled_iron",
+        "voice_profile": "kindled_iron", **({"theme": meta["theme"]} if meta.get("theme") else {}),
         "voice_file": {"path": meta["audio_path"], "sha256": meta["sha256"], "provider": "owner", "voice": "owner"},
         "voice_as_is": True, "exact_narration": True, "end_hold": 1.4, "ground": Z["guide"]["ground"], "camera_y": 960,
         "fill_min": 0.3, "max_visual_gap": 2.5, "walk_speed": WALK_SPEED, "pencil": True,

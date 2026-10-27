@@ -297,6 +297,9 @@ def main() -> None:
               "rounds": [], "passed_plan": None}
     log(f"{len(lines)} lines, {sum(len(w) for w in words)} words; recording matches {ratio:.0%} of the script")
     meta = {"id": a.id, "audio_path": f"approved_audio/{a.id}/narration.mp3", "sha256": sha, "align": ratio}
+    settings_f = src / "settings.json"               # optional per video: {"theme": "blueprint"} (look only)
+    if settings_f.is_file():
+        meta["theme"] = (json.loads(settings_f.read_text(encoding="utf-8")) or {}).get("theme")
     cat = planmod.catalog()
     lib = media.library(a.private)
     diagrams = [m for m in lib if m.get("role") == "diagram"]

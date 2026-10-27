@@ -815,6 +815,8 @@ def main() -> None:
 
     scene_path = Path(a.scene)
     scene = json.loads(scene_path.read_text(encoding="utf-8"))
+    from kindled_iron import themes
+    theme = themes.apply(scene.get("theme"), PALETTE, HOST_LOOK)   # colours + paper only; no layout or timing
     sid = scene.get("id", scene_path.stem)
     from kindled_iron import script_check
 
@@ -952,7 +954,8 @@ def main() -> None:
         from kindled_iron import mediabox
         box_segs = mediabox.plan(scene, spans, beat_words, pauses, duration, resolve_at, log)
         box_bullets = mediabox.bullets(scene, spans, beat_words, pauses, resolve_at, box_segs)
-        duration = max(duration, round(box_segs[-1]["t1"], 3))
+        if box_segs:                    # a video may have no box at all (no media, no frame)
+            duration = max(duration, round(box_segs[-1]["t1"], 3))
         box_segs = mediabox.fetch(scene, box_segs, work, log)     # network step, BEFORE the render
         clips = {}
     else:
@@ -1013,7 +1016,7 @@ def main() -> None:
             data["duration"] = duration
             log(f"meme clip audio runs to {t0 + d:.1f} s: video length {duration:.1f} s")
     data["events"] = [e for e in data["events"] if not e.get("_drop")]
-    data["paper"] = effects.paper_texture(work, PALETTE["board"])
+    data["paper"] = effects.paper_texture(work, PALETTE["board"], (theme or {}).get("grid"))
     data["debugSafe"] = a.safe_box
     pacing_check(data["events"], duration, float(scene.get("max_visual_gap", 2.0)))
     (work / "captions.srt").write_text(srt(data["captions"]), encoding="utf-8")

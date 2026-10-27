@@ -820,6 +820,67 @@ WIDTH_OF = {("flow_arrows", "a"): 92, ("flow_arrows", "b"): 92, ("flow_arrows", 
             ("road_fork", "right"): 130}
 
 
+# ---- programming, editing and computing history (added for general explainers, 2026-10-28)
+doodle("wood_log", ["log", "wood", "wooden log", "piece of wood", "timber", "firewood", "tree trunk"],
+       "a sawn wooden log with end-grain rings",
+       [P("M-150,-55 L130,-55 C165,-55 165,55 130,55 L-150,55", fill="trunk", fo=0.55),
+        P(ell(-150, 0, 38, 55), fill="wool"), P(ell(-150, 0, 22, 33), w=5), P(ell(-150, 0, 8, 12), w=5),
+        P("M-80,-20 L40,-20 M-60,18 L90,18", w=5, c="inkSoft"), P("M60,-55 L85,-90 L100,-55", w=6, fill="leaf")],
+       {"label": [0, 110, 34]})
+doodle("chip_log", ["ship log", "chip log", "rope", "knots", "measure speed", "speed at sea", "sailors", "log line"],
+       "a sailor's chip log: a wooden board on a knotted rope paying out from a reel",
+       [P(circ(-120, -60, 55), fill="trunk", fo=0.45), P(circ(-120, -60, 14), w=6),
+        P("M-80,-25 C-20,30 40,40 100,60", w=6),
+        P(circ(-30, 22, 7), w=6, fill="ink", fo=1), P(circ(30, 43, 7), w=6, fill="ink", fo=1), P(circ(80, 55, 7), w=6, fill="ink", fo=1),
+        P("M100,60 L170,20 A80,80 0 0,1 150,110 Z", fill="trunk", fo=0.6), P("M95,140 C120,128 150,128 175,140", w=5, c="waterLine")],
+       {"label": [0, 175, 34]})
+doodle("moth", ["moth", "bug", "insect", "wings", "first computer bug", "creature", "fly"],
+       "a moth with four wings and feathery antennae",
+       [P("M0,-70 C-20,-40 -20,60 0,95 C20,60 20,-40 0,-70 Z", fill="trunk", fo=0.6),
+        P("M-10,-30 C-110,-130 -190,-60 -150,10 C-120,40 -50,20 -10,0 Z", fill="wool"),
+        P("M10,-30 C110,-130 190,-60 150,10 C120,40 50,20 10,0 Z", fill="wool"),
+        P("M-10,15 C-90,30 -120,100 -60,110 C-30,110 -12,70 -8,40 Z", fill="wool"),
+        P("M10,15 C90,30 120,100 60,110 C30,110 12,70 8,40 Z", fill="wool"),
+        P("M-5,-68 C-30,-110 -55,-125 -75,-120 M5,-68 C30,-110 55,-125 75,-120", w=5),
+        P(circ(-100, -45, 14), w=4), P(circ(100, -45, 14), w=4)],
+       {"label": [0, 160, 34]})
+doodle("film_strip", ["film", "movie", "frames", "scene", "footage", "hollywood", "cinema", "editing"],
+       "a strip of film with sprocket holes and three frames",
+       [P(rect(-200, -85, 400, 170, 8), fill="inkSoft", fo=0.3),
+        *[P(rect(-185 + 40 * k, -75, 18, 14, 3), w=4) for k in range(10)],
+        *[P(rect(-185 + 40 * k, 61, 18, 14, 3), w=4) for k in range(10)],
+        P(rect(-180, -48, 110, 96, 6), fill="water", fo=0.6), P(rect(-55, -48, 110, 96, 6), fill="water", fo=0.6),
+        P(rect(70, -48, 110, 96, 6), fill="water", fo=0.6)],
+       {"label": [0, 130, 34]})
+doodle("scissors_cut", ["cut", "hard cut", "edit", "scissors", "trim", "splice", "snip"],
+       "scissors cutting along a dashed line",
+       [P(circ(-120, -45, 34), w=8), P(circ(-120, 45, 34), w=8),
+        P("M-92,-28 L120,30 M-92,28 L120,-30", w=10), P(circ(0, 0, 7), w=5, fill="ink", fo=1),
+        P("M120,0 L150,0 M170,0 L200,0 M220,0 L250,0", w=6, c="accent")],
+       {"label": [0, 120, 34]})
+doodle("code_window", ["code", "program", "console", "terminal", "software", "programming", "log output", "debug", "error message"],
+       "a code editor window with lines of code",
+       [P(rect(-190, -120, 380, 240, 14), fill="page"), P("M-190,-80 L190,-80", w=6),
+        P(circ(-165, -100, 7), w=4), P(circ(-140, -100, 7), w=4), P(circ(-115, -100, 7), w=4),
+        P("M-160,-50 L-60,-50 M-140,-20 L20,-20 M-140,10 L-40,10 M-160,90 L-80,90", w=6, c="inkSoft")],
+       {"label": [0, 160, 34], "code": [0, 45, 30]})
+doodle("spin_effect", ["spin", "zoom", "effect", "flashy", "transition effect", "swirl", "distracting"],
+       "a swirling spin effect with motion arrows",
+       [P("M0,-110 A110,110 0 1,1 -95,55", w=9, c="accent"), P("M-95,55 L-120,10 M-95,55 L-50,40", w=9, c="accent"),
+        P("M0,-60 A60,60 0 1,0 52,30", w=7), P("M52,30 L70,-8 M52,30 L12,22", w=7),
+        P(star(0, 0, 22, 9), w=5, fill="starFill")],
+       {"label": [0, 150, 34]})
+doodle("old_computer", ["old computer", "mainframe", "machine", "mark ii", "1940s computer", "relays", "computer room", "engineers"],
+       "a room-sized 1940s computer: tall cabinets with dials, switches and blinking lamps",
+       [P(rect(-200, -140, 125, 260, 6), fill="woolGray", fo=0.4), P(rect(-62, -140, 125, 260, 6), fill="woolGray", fo=0.4),
+        P(rect(76, -140, 125, 260, 6), fill="woolGray", fo=0.4),
+        *[P(circ(-160 + 138 * c, -95 + 45 * r, 9), w=4, fill=("accent" if (r + c) % 2 else "page"), fo=0.9)
+          for c in range(3) for r in range(3)],
+        *[P(f"M{-170 + 138 * c},{50} L{-110 + 138 * c},{50} M{-170 + 138 * c},{80} L{-120 + 138 * c},{80}", w=5)
+          for c in range(3)]],
+       {"label": [0, 170, 34]})
+
+
 def main() -> None:
     for name, d in LIB.items():
         for slot, q in d["slots"].items():

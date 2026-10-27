@@ -723,3 +723,22 @@ class FrameAuditOverlaps(unittest.TestCase):
         self.assertIn("'DRAWINGS OVERLAP '", js)
         self.assertIn("'LABELS OVERLAP '", js)
         self.assertIn("ln, size, q[3], true)", js)                        # an already wrapped line is not wrapped again
+
+
+class EntrancesFollowTheNarration(unittest.TestCase):
+    """A drawing enters with its idea: at most EARLY_MAX before its words (not at the start of a long line), and the
+    idea said first takes the line's biggest place. Unseen script."""
+
+    def test_no_drawing_long_before_its_words(self):
+        from kindled_iron.director import compile as C, plan as P
+        lines, words = timed("A ship left the harbor at dawn and sailed past the long rocky coast for many hours before "
+                             "the storm finally came and nobody knew why it happened.", per_word=0.35)
+        plan = {"freeze": None, "lines": [{"expression": "curious", "gesture": {"do": "none"}, "box": [],
+                "drawings": [{"word": "ship", "type": "boat", "concept": "ship", "fields": {}},
+                             {"word": "why", "type": "question_big", "concept": "question", "fields": {"label": "?"}}]}]}
+        scene, _ = C.compile_scene(plan, lines, words, P.catalog(), [[]], {"id": "a", "audio_path": "a", "sha256": "x"})
+        ev = {e["id"]: C._anchor_time(words[0], e["at"]) for e in scene["beats"][0]["events"] if e.get("do") == "draw"}
+        why = next(w["start"] for w in words[0] if w["word"] == "why")
+        q = next(t for d, t in ev.items() if "question" in d)
+        self.assertGreaterEqual(q, why - C.EARLY_MAX - 0.01)               # not pulled to the start of the line
+        self.assertLess(next(t for d, t in ev.items() if "boat" in d), q)  # the ship (said first) is up first

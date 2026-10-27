@@ -34,6 +34,8 @@ FREEZE = {"dur": 1.0, "zoom": 1.45, "after": 0.45}   # the camera needs ~0.35 s 
 SHOULDER_Y = 1110               # set from the measured guide (his top + 122) in compile_scene
 FILL = 0.97                     # a drawing fills its slot to this share (the measured size includes its strokes)
 MIN_LABEL_SCALE = 0.72          # a labeled drawing smaller than this makes its labels too small to read on a phone
+HOOK_SECONDS = 3.0              # the opening: drawings for what is said in its first sentence / 3 s are up from frame one
+EARLY_MAX = 2.5                 # a drawing may come this long before its words (anticipation), not long before its idea
 
 
 class CompileError(Exception):
@@ -531,6 +533,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             sets = [o_ + l_ for o_ in opens for l_ in ([[]] + ([[("lane", lane)]] if lane else [])) if len(o_) + len(l_) <= 3]
             if full:
                 sets.append([("lane", full), ("top", (near[0], OPEN[1], near[2], OPEN[3]))])
+        said_at = [_anchor(W, d["word"], 0.0)[1] for d in dr]
+        first_said = min(range(len(dr)), key=lambda k: said_at[k]) if dr else 0
+
         def search(cands):
             best, best_area, pick = None, -1.0, ()
             for st in cands:
@@ -546,6 +551,12 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                         area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2
                     if open_line[i] and area >= 0:   # the open middle: keep the planner's drawings over one giant one
                         area += 1e7 * len(st)
+                    if area >= 0 and late[i] and any(z == "top" for z, _ in st):
+                        area += 2e6                  # the media comes late: until then its place shows the line's idea
+                    if area >= 0 and len(st) > 1:    # the idea said first gets the biggest place (the frame is not
+                        big = max(range(len(st)), key=lambda q: (st[q][1][2] - st[q][1][0]) * (st[q][1][3] - st[q][1][1]))
+                        if perm[big] == first_said:  # left waiting for a drawing whose words come seconds later)
+                            area += 5e5
                     if area > best_area:
                         best, best_area, pick = st, area, perm
             return best, best_area, pick
@@ -594,7 +605,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     t = pop_t[i] + POP_CARD["dur"] + POP_BACK
                     a = _at_time(W, t)
             k0 = 1 if zone == "lane" else j              # a lane drawing waits until the guide stands on his spot
-            if i == 0 and t - t_start > 0.1 * k0 and not (zone == "lane" and i in pop_t):   # first frame full (the hook)
+            hook_end = min(next((w["end"] for w in W if re.search(r"[.?!]['\"”’)]*$", w["word"])), W[-1]["end"]),
+                           t_start + HOOK_SECONDS) if i == 0 else 0
+            if i == 0 and t - t_start > 0.1 * k0 and t <= hook_end and not (zone == "lane" and i in pop_t):
+                # first frame full (the hook): the drawings of the opening sentence are there from frame one; a later
+                # idea of the first line still comes with its words
                 t = round(0.1 * k0, 3)
                 a = t
             first_top = next(k for k in range(len(places)) if places[k][0] == "top") if any(z == "top" for z, _ in places) else -1
@@ -693,6 +708,18 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 continue
             hand = zone == "top" and not open_line[i]          # the layout handover: exactly before the caption returns
             fades.setdefault(round(t_new - 0.05 if hand else max(t_start - 0.55, t_new - 0.05), 3), []).extend(old)
+        # an earlier line's drawing leaves when the narration moves on from it (at the line handover, in the pause),
+        # not when its slot is next needed: it stays only while the new line still talks about it (its concept, word
+        # or labels are said again). An empty part of the frame is better than a picture of what was said before.
+        if i:
+            pe = words[i - 1][-1]["end"]
+            th = round(max(pe + 0.05, min(pe + 0.3, t_start - 0.05)), 3)
+            said = _story.content(text)
+            for zone in ("area", "lane", "top"):
+                for od in shown[zone]:
+                    if not (rel_terms.get(od, set()) & said):
+                        fades.setdefault(th, []).append(od)
+                        kept_area = [k_ for k_ in kept_area if k_ != od]
         # a new drawing whose slot covers an old drawing of the OTHER zone (a full-height side drawing after a
         # band, or the reverse) clears that one just before it appears
         for zone in ("area", "lane", "top"):
@@ -719,17 +746,19 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     continue
                 if i in pop_t and _overlap(slot_of[did], _LANE_CARD(spot, G)):
                     continue
-            ends = [max(b for _, b in spans) for o, (r, _, spans) in sp_now.items()
-                    if o not in ids and _overlap(r, slot_of[did]) and max(b for _, b in spans) > t_start]
+            ends = [max(b for _, b in spans) for o, (r, _, spans) in sp_now.items()      # (an old drawing leaving in the
+                    if o not in ids and _overlap(r, slot_of[did]) and max(b for _, b in spans) > lead]   # pause counts too)
             if any(e > 1e8 for e in ends):
                 continue                               # its place stays taken until its own word
             # as the old one fades (the same 0.05 s overlap as every replacement): a drawing counts from its start
-            tn = round(max([lead + 0.1 + 0.35 * pulled] + [e - 0.05 for e in ends]), 3)
+            tn = round(max([lead + 0.1 + 0.35 * pulled, draw_pos[did][3] - EARLY_MAX] + [e - 0.05 for e in ends]), 3)
             if draw_pos[did][4] != "lane":             # not while a clip box (and its caption handover) is up
                 for r_, c0_, c1_ in tl["cards"]:
                     if r_ == BOX and c0_ - 0.05 < tn < c1_ + 0.05:
                         tn = round(c1_ + 0.05, 3)
             if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
+                continue
+            if fz and tn < fz[1] <= draw_pos[did][3]:     # never pulled across the freeze (it would clear it for good)
                 continue
             if i in pop_t and pop_t[i] - 0.3 < tn < pop_t[i] + POP_CARD["dur"] and _overlap(slot_of[did], _LANE_CARD(spot, G)):
                 continue
@@ -772,19 +801,6 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                     for od in shown[zone]:
                         if od != nd and _overlap(slot_of[od], slot_of[nd]):
                             fades.setdefault(round(max(t_start - 0.55, tn - 0.05), 3), []).append(od)
-        # an earlier line's drawing leaves when the narration moves on from it (at the line handover, in the pause),
-        # not when its slot is next needed: it stays only while the new line still talks about it (its concept, word
-        # or labels are said again). An empty part of the frame is better than a picture of what was said before.
-        if i:
-            pe = words[i - 1][-1]["end"]
-            first_new = min([draw_pos[d][3] for d in ids] + [t_start])   # before the new line's first drawing
-            th = round(max(pe + 0.05, min(pe + 0.3, t_start - 0.05, first_new - 0.05)), 3)
-            said = _story.content(text)
-            for zone in ("area", "lane", "top"):
-                for od in shown[zone]:
-                    if not (rel_terms.get(od, set()) & said):
-                        fades.setdefault(th, []).append(od)
-                        kept_area = [k_ for k_ in kept_area if k_ != od]
         if late[i]:                                    # the lead drawing gives way to the media for good
             for did_ in [d for d in ids if draw_pos[d][4] == "top" and draw_pos[d][3] < box_at[i] - 0.3]:
                 fades.setdefault(round(box_at[i] - 0.2, 3), []).append(did_)

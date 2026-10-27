@@ -473,14 +473,12 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 continue
             for perm in itertools.permutations(range(len(dr)), len(st)):
                 area = 0.0
-                for k, (_, sl) in zip(perm, st):  # _ = the slot's zone
+                for k, (_, sl) in zip(perm, st):
                     f = _fit(objs[k], sl, strict=False)
                     if f is None or (f[0] < MIN_LABEL_SCALE and objs[k].get("_labeled")):   # labels must stay readable
                         area = -1.0
                         break
-                    # on a meme-card line the side slot is the card's for a while: a drawing there counts half
-                    w_ = 0.5 if (_ == "lane" and i in pop_t) else 1.0
-                    area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2 * w_
+                    area += objs[k]["size"][0] * objs[k]["size"][1] * f[0] ** 2
                 if area > best_area:
                     best, best_area, pick = st, area, perm
         if best is None or best_area < 0:
@@ -546,6 +544,24 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             first_t = t if first_t is None else min(first_t, t)
             if new_in[zone] is None or t < new_in[zone]:
                 new_in[zone] = t
+        # a band drawing whose place is empty when its line starts is drawn at once (staggered) instead of waiting
+        # for its word: the band never stands half empty through a long line (the lane has its own refill below)
+        sp_now = _spans(tl)
+        for j, did in enumerate(ids):
+            if draw_pos[did][4] != "area":
+                continue
+            occupied = any(o not in ids and _overlap(r, slot_of[did]) and any(a <= t_start + 0.05 < b for a, b in spans)
+                           for o, (r, _, spans) in sp_now.items())
+            tn = round(t_start + 0.1 + 0.35 * j, 3)
+            if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
+                continue
+            if not occupied and draw_pos[did][3] > tn + 0.5:
+                for e in ev:
+                    if e.get("do") == "draw" and e.get("id") == did:
+                        e["at"] = _at_time(W, tn)
+                draw_pos[did] = draw_pos[did][:3] + (tn,) + draw_pos[did][4:]
+                tl["draw"][did] = (slot_of[did], tn)
+                new_in["area"] = min(new_in["area"] if new_in["area"] is not None else tn, tn)
         # clear each slot just before its new drawing; the lane also clears before a walk toward it, a pop-up
         # on that side, or when it gets no new drawing this line
         fades: dict[float, list[str]] = {}
@@ -568,6 +584,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 if t_new is None:
                     t_new = new_in["area"] if new_in["area"] is not None else t_start
             if t_new is None:
+                continue
+            if zone == "area":                         # each old band drawing goes just before the new one on it
+                for od in old:
+                    hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] == "area" and _overlap(slot_of[od], slot_of[nd])]
+                    fades.setdefault(round(max(t_start - 0.4, (min(hits) if hits else t_new) - 0.05), 3), []).append(od)
                 continue
             fades.setdefault(round(max(t_start - 0.4, t_new - 0.05), 3), []).extend(old)
         # a new drawing whose slot covers an old drawing of the OTHER zone (a full-height side drawing after a

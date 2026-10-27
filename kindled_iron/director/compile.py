@@ -130,12 +130,12 @@ LANES = {"left": (125, _LY[0], 410, _LY[1]), "right": (490, _LY[0], 775, _LY[1])
 def _lane_slot(spot: float, G: dict, full: bool = False) -> tuple[float, float, float, float] | None:
     """The drawing slot beside the guide, on the far side from him. The two side slots are fixed, so a walk
     between the two spots on one side never passes through the drawing on the other side. full=True: the whole
-    height from under the caption down to the safe box's bottom (a tall drawing beside him)."""
+    height from under the (middle) caption down to the safe box's bottom (a tall drawing beside him)."""
     slot = LANES["left"] if spot >= 540 else LANES["right"]
     body = (spot - G["half_width"] - 20, spot + G["half_width"] + 20)
     if not (body[1] < slot[0] or body[0] > slot[2]):
         return None
-    return (slot[0], _Z["draw"]["y0"], slot[2], slot[3]) if full else slot
+    return (slot[0], _Z["caption"]["y"] + _Z["caption"]["h"] + 15, slot[2], slot[3]) if full else slot
 
 
 def _near_top(lane: tuple) -> tuple[float, float, float, float]:
@@ -365,10 +365,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         return bool(ov) and any(_overlap(rect, o) for o in OBST) and t < ov[1] + 0.05 and (t_end or 1e9) > ov[0] - 0.05
     BOX = (Z["box"]["x"] - Z["box"]["w"] / 2, Z["box"]["y"] - Z["box"]["h"] / 2,
            Z["box"]["x"] + Z["box"]["w"] / 2, Z["box"]["y"] + Z["box"]["h"] / 2)
-    # a line with no clip-box media: the captions go to the top of the safe area (CAP_TOP) and the drawings get the
-    # middle of the frame, from under them to above the guide (OPEN)
-    CAP_TOP = {"x": 540, "y": 190, "w": 720}
-    OPEN = (dx0, 312, dx1, dz["y1"])
+    # a line with no clip-box media: the captions stay at the middle and the drawings get the whole space above them,
+    # from the top of the safe area down to the caption (OPEN)
+    OPEN = (dx0, 190, dx1, dz["y1"])
     has_box = [bool([b for b in media[i] if not b.get("skip")]) or bool(L.get("verse")) for i, L in enumerate(P)]
     box_at: list = []                            # when each line's own box media / verse card arrives
     for i, L in enumerate(P):
@@ -377,7 +376,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         if L.get("verse"):
             ts.append(_occ(words[i], L["verse"]["word"])[1]["start"] - 0.4)
         box_at.append(min(ts) if ts else None)
-    LEAD = (dx0, 312, dx1, 690)                  # a late-media line opens with a drawing here, until the media comes
+    LEAD = OPEN                                  # a late-media line opens with a drawing here, until the media comes
     late = [b is not None and b - words[i][0]["start"] > 1.2 and not (ov and words[i][0]["start"] < ov[1])
             for i, b in enumerate(box_at)]
     open_line = [not has_box[i] and not (ov and words[i][-1]["end"] < ov[1] + 1.0)   # (not a line the diagram covers)
@@ -633,6 +632,11 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 else:                                        # its line is over before the diagram goes
                     scene_notes.append(f"line {i + 1}: {d['type']} left out (the diagram is on screen for this line)")
                     continue
+            if zone != "lane":                         # the middle is the box's (and its caption's) while one is up:
+                for r_, c0_, c1_ in tl["cards"]:        # never drawn before the caption has gone back to the top
+                    if r_ == BOX and c0_ - 0.05 < t < c1_ + 0.05:
+                        t = round(c1_ + 0.05, 3)
+                        a = _at_time(W, t)
             if j and first_t is not None and abs(t - first_t) < 0.3 and i:
                 t = first_t + 0.35
                 a = _at_time(W, t)
@@ -715,6 +719,10 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 continue                               # its place stays taken until its own word
             # as the old one fades (the same 0.05 s overlap as every replacement): a drawing counts from its start
             tn = round(max([lead + 0.1 + 0.35 * pulled] + [e - 0.05 for e in ends]), 3)
+            if draw_pos[did][4] != "lane":             # not while a clip box (and its caption handover) is up
+                for r_, c0_, c1_ in tl["cards"]:
+                    if r_ == BOX and c0_ - 0.05 < tn < c1_ + 0.05:
+                        tn = round(c1_ + 0.05, 3)
             if fz and fz[1] - 0.8 < tn < fz[1] + FREEZE["dur"] + FREEZE["after"] + 0.35:
                 continue
             if i in pop_t and pop_t[i] - 0.3 < tn < pop_t[i] + POP_CARD["dur"] and _overlap(slot_of[did], _LANE_CARD(spot, G)):
@@ -894,16 +902,9 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             # a still once the line's last drawing is complete (draw 0.6 s + margin for the renderer's own timing)
             frames.append({"beat": beat["id"], "t": max(draw_pos[d][3] for d in ids) + 1.5, "line": text})
 
-    # captions: under the clip box while one is on screen, in their band under the diagram while it is up, and at
-    # the top of the safe area whenever there is no box (the middle is the drawings'); handovers 0.03 s apart
-    busy = sorted([(c0, c1) for r, c0, c1 in tl["cards"] if r == BOX] + ([(ov[0], ov[1])] if ov else []))
-    cap_wins, cur = [], 0.0
-    for c0, c1 in busy:
-        if c0 - 0.03 > cur + 0.3:
-            cap_wins.append({"t0": round(cur, 3), "t1": round(c0 - 0.03, 3), **CAP_TOP})
-        cur = max(cur, c1 + 0.03)
-    if words[-1][-1]["end"] + 5 > cur + 0.3:
-        cap_wins.append({"t0": round(cur, 3), "t1": round(words[-1][-1]["end"] + 5, 3), **CAP_TOP})
+    # captions: at the middle of the frame (the default anchor) with or without a clip box; only a diagram moves them
+    # to their band under it while it is up (no top-of-frame windows, no handovers between box and no-box lines)
+    cap_wins: list = []
     dg_info = None
     if diagram:
         b0, b1 = _beat_at(words, ov[0]), _beat_at(words, ov[1])

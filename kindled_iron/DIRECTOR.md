@@ -73,9 +73,12 @@ may start without it.
 
 Drawings are the house style, not a quota: a line gets the 0-3 illustrations that show what it says (one strong
 idea -> one drawing, shown large), never a decorative one. The layout follows what is on screen:
-- with the clip box up, the captions sit under it and the drawings in the band above the guide and beside him;
-- with no box, the captions move to the top of the safe area and the drawings get the middle (one big drawing, two
-  side by side or two stacked, plus one beside the guide);
+- the captions sit at the middle of the frame (their default anchor, about the centre line) with or without a clip
+  box; everything is arranged around them: the clip box at the top, the drawings between the box and the caption,
+  the guide below (owner, 2026-10-27: captions were too close to the top). The runtime still shifts or shrinks a
+  caption that would cover a face or a drawing, and a diagram brings its own caption band;
+- with no box, the drawings get the whole space above the caption (one big drawing, two side by side or two
+  stacked, plus one beside the guide);
 - a line whose media comes late in the sentence (over 1.2 s in) opens with its first drawing where the box will be;
   that drawing gives way just before the media arrives;
 - at a layout change the line's main drawing takes the middle at once (already in the pause before the line, once

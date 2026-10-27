@@ -5288,26 +5288,26 @@
  "runtime_sha256": "81e635380c45dfa8a0913ca4e3ca31b490ee949bfb1e59b85c1f9aa95bf85525",
  "zones": {
   "box": {
-   "h": 380,
+   "h": 360,
    "use": "clip box: footage, memes, verse cards",
    "w": 820,
    "x": 540,
-   "y": 370
+   "y": 360
   },
   "caption": {
    "h": 110,
    "size": 88,
-   "use": "one caption line, 1-3 words, spoken word orange",
-   "w": 720,
-   "x": 180,
-   "y": 586
+   "use": "one caption line, 1-3 words, spoken word orange, at the middle of the frame",
+   "w": 600,
+   "x": 150,
+   "y": 900
   },
   "draw": {
-   "use": "drawing area: the band above the guide's head",
+   "use": "drawing area: the band above the caption (the whole top when there is no clip box)",
    "x0": 125,
    "x1": 775,
-   "y0": 702,
-   "y1": 1020
+   "y0": 555,
+   "y1": 870
   },
   "guide": {
    "ground": 1570,

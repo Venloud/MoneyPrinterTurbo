@@ -29,11 +29,16 @@ DOODLES = KI / "doodles" / "library.json"     # built once by kindled_iron/doodl
 # Fixed layout (1080x1920, inside the safe box x 120-960, y 160-1440; the right button column x >= 780 at y >= 840
 # stays free). The director picks zones and slots; only the compiler turns them into coordinates.
 ZONES = {
-    "box": {"x": 540, "y": 370, "w": 820, "h": 380, "use": "clip box: footage, memes, verse cards"},
-    "caption": {"x": 180, "y": 586, "w": 720, "h": 110, "size": 88, "use": "one caption line, 1-3 words, spoken word orange"},
-    # the drawing area is everything from under the caption to the bottom of the safe box (41% of the frame
-    # height): a tall band above the guide's head ("draw") plus the guide lane beside him ("lane")
-    "draw": {"x0": 125, "x1": 775, "y0": 702, "y1": 1020, "use": "drawing area: the band above the guide's head"},
+    "box": {"x": 540, "y": 360, "w": 820, "h": 360, "use": "clip box: footage, memes, verse cards"},
+    # the captions sit at the middle of the frame (their default anchor, about the frame's centre line); the media box
+    # and the drawings are arranged above them and the guide below; across, they are centred on the width left of the
+    # right-hand button column (x 150-750, like the renderer's own caption), which starts at this height. The runtime
+    # still shifts or shrinks a caption that would cover a face or a drawing; a diagram brings its own caption band
+    "caption": {"x": 150, "y": 900, "w": 600, "h": 110, "size": 88, "use": "one caption line, 1-3 words, spoken word orange, at the middle of the frame"},
+    # the drawing area: the band between the clip box and the caption, 30 px clear of it so a drawing's label never
+    # reads as part of the caption ("draw"; with no box the drawings get the whole
+    # space above the caption) plus the guide lane beside him ("lane")
+    "draw": {"x0": 125, "x1": 775, "y0": 555, "y1": 870, "use": "drawing area: the band above the caption (the whole top when there is no clip box)"},
     "guide": {"ground": 1570, "spots": [230, 340, 560, 650], "size": 0.85, "use": "guide lane: the guide walks between spots"},
     "pop": {"y": 1250, "w": 380, "use": "meme pop-up card in the guide lane beside the guide (guide at an outer spot)"},
     "lane": {"y0": 1045, "y1": 1432, "use": "the drawing area beside the guide, on the side away from him"},

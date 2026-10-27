@@ -272,12 +272,22 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     mb = music_bed(music, n, smask, voice_lufs, duration, log)
     if mb is not None:
         beds.append({"t": 0.0, "to": round(duration, 2), "role": "music", "file": (music or {}).get("label", "music")})
-    _write(vn + ov + fx * k + (mb if mb is not None else 0), out, 0.0)
+    mix = vn + ov + fx * k + (mb if mb is not None else 0)
+    _write(mix, out, 0.0)
     _write(ov + fx * k + (mb if mb is not None else 0), out_novoice, 0.0)
     if out_nomusic is not None:
         _write(vn + ov + fx * k, out_nomusic, 0.0)
-    lufs = _measure_lufs(out)
     tp = true_peak(out)
+    if tp > TP_FAIL:
+        # the limiter works on samples; overs between samples (sharp transients) can still pass the fail line. One
+        # static gain trim down to the target (no compression), only when the mix would fail; measured again below
+        trim = round(TRUE_PEAK - tp, 2)
+        log(f"mix true peak {tp:.2f} dBTP is above {TP_FAIL:.1f}: static trim {trim:+.2f} dB to the {TRUE_PEAK:.1f} dBTP target")
+        _write(mix, out, trim)
+        if out_nomusic is not None:
+            _write(vn + ov + fx * k, out_nomusic, trim)
+        tp = true_peak(out)
+    lufs = _measure_lufs(out)
     burst = lf_burst(out, vn)
     log(f"mix: {len(cues)} effects + music {(music or {}).get('label') or 'none'}, voice {voice_lufs:.1f} LUFS (target {VOICE_LUFS:.0f}), "
         f"final mix {lufs:.1f} LUFS, true peak {tp:.1f} dBTP, worst low-frequency burst {burst:+.1f} dB vs the voice average")

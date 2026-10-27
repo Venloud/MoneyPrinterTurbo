@@ -383,9 +383,18 @@ class CrossTopic(unittest.TestCase):
                 continue
             for t in box_on:                                                # never a top caption over a box
                 self.assertFalse(w["t0"] < t < w["t1"] - 0.01, (w, t))
-        if dg:
+        if dg:                                                              # nothing drawn where the diagram (or
+            x_, y_, w_, h_ = dg["fit"]["rect"]                              # its caption band) is while it is up;
+            cp = dg["fit"]["caption"]                                       # beside the guide, clear of it, is fine
+            obst = [(x_, y_, x_ + w_, y_ + h_), (cp["x"] - cp["w"] / 2, cp["y"] - 6, cp["x"] + cp["w"] / 2, cp["y"] + 112)]
+            types = self.P.director_types(self.cat)
             for t, b, e in draws:
-                self.assertFalse(dg["t0"] <= t < dg["t1"], f"{e['id']} under the diagram")
+                o = types[e.get("doodle") or e.get("type")] if (e.get("doodle") or e.get("type")) in types else \
+                    next(v for k, v in types.items() if e["id"].split("_", 1)[1].startswith(k))
+                (w, h), (cx, cy), s_ = o["size"], o.get("center", [0, 0]), e["scale"]
+                r = (e["x"] + (cx - w / 2) * s_, e["y"] + (cy - h / 2) * s_, e["x"] + (cx + w / 2) * s_, e["y"] + (cy + h / 2) * s_)
+                hit = any(r[0] < q[2] and q[0] < r[2] and r[1] < q[3] and q[1] < r[3] for q in obst)
+                self.assertFalse(dg["t0"] <= t < dg["t1"] and hit, f"{e['id']} under the diagram")
         return draws
 
     def test_philosophy_science_history_instruction_entertainment(self):
@@ -528,3 +537,69 @@ class FreezeClearsTheBoard(unittest.TestCase):
         back = tf + C.FREEZE["dur"] + C.FREEZE["after"]
         if words[1][-1]["end"] > back + 1.5:
             self.assertTrue(visible(back + 0.8), "the board stays empty after the freeze")
+
+
+class CaptionsAtTheMiddle(unittest.TestCase):
+    """Owner, 2026-10-27: captions too close to the top. Their default anchor is the middle of the frame, with or
+    without a clip box; drawings, media and the guide are arranged around them; only a diagram moves them (to its
+    band). No top-of-frame caption windows."""
+
+    def test_caption_anchor_and_layout_around_it(self):
+        from kindled_iron.director import compile as C, plan as P
+        cat = P.catalog()
+        Z = cat["zones"]
+        cap0, cap1 = Z["caption"]["y"], Z["caption"]["y"] + Z["caption"]["h"]
+        self.assertTrue(880 <= (cap0 + cap1) / 2 <= 960)                  # about the frame's centre line (1920 / 2)
+        self.assertLessEqual(Z["box"]["y"] + Z["box"]["h"] / 2, Z["draw"]["y0"])   # box above the band ...
+        self.assertLess(Z["draw"]["y1"], cap0)                             # ... the band above the caption ...
+        self.assertLess(cap1, cat["guide"]["top"])                         # ... the guide's head below it
+        ct = CrossTopic(); ct.setUpClass()
+        for name, media_lines in (("animation", (1,)), ("water", (1,)), ("cpr", (0,))):
+            with self.subTest(topic=name):
+                scene, words, dg, plan = ct.compile(name, media_lines)
+                self.assertEqual(scene["captions_box"]["y"], cap0)
+                wins = scene["caption_windows"]
+                self.assertEqual(len(wins), 1 if dg else 0)               # only the diagram's band
+                for b, beat in enumerate(scene["beats"]):
+                    for e in beat["events"]:
+                        if e.get("do") == "draw" and e["y"] < cap0:     # a drawing above the caption stays above it
+                            types = P.director_types(cat)
+                            o = types.get(e.get("doodle") or e.get("type")) or {}
+                            if o:
+                                h, cy = o["size"][1], o.get("center", [0, 0])[1]
+                                self.assertLessEqual(e["y"] + (cy + h / 2) * e["scale"], cap0 + 1, e["id"])
+
+
+class AudioTruePeakTrim(unittest.TestCase):
+    """Computer Bugs failed its audio check (-1.9 dBTP over the -2.0 limit): the limiter works on samples and sharp
+    transients still overshoot between them. A mix that would fail gets ONE static gain trim to the -2.5 target (no
+    compression) and is measured again; a mix that passes is written exactly as before. The -2.0 gate is unchanged."""
+
+    def mix(self, bursts: bool):
+        import subprocess
+        import numpy as np
+        from kindled_iron import sound
+        d = Path(tempfile.mkdtemp())
+        n = int(3 * sound.SR)
+        x = (np.random.default_rng(1).standard_normal(n) * 0.02).astype(np.float32)
+        if bursts:                                     # +a +a -a -a: samples 3 dB under the peak between them
+            for k in range(1, 6):
+                i = int(k * 0.5 * sound.SR)
+                x[i:i + 400] = np.tile(np.array([1, 1, -1, -1], np.float32), 100) * 0.9
+        src = d / "n.wav"
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(sound.SR), "-ac", "1", "-i", "-", str(src)],
+                       input=x.tobytes(), check=True)
+        logs = []
+        r = sound.mix(src, [], {"voice_as_is": True}, [], [{"word": "a", "start": 0.1, "end": 2.9}], 3.0, d / "m.wav",
+                      d / "mv.wav", None, logs.append, out_nomusic=d / "mn.wav")
+        return r, logs, sound
+
+    def test_a_failing_mix_is_trimmed_once_and_passes(self):
+        r, logs, sound = self.mix(True)
+        self.assertTrue(any("static trim" in l for l in logs), logs)
+        self.assertLessEqual(r["true_peak"], sound.TP_FAIL)
+        self.assertEqual((sound.TRUE_PEAK, sound.TP_FAIL), (-2.5, -2.0))      # the gate itself is unchanged
+
+    def test_a_passing_mix_is_untouched(self):
+        r, logs, sound = self.mix(False)
+        self.assertFalse(any("static trim" in l for l in logs), logs)

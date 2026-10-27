@@ -62,7 +62,8 @@ def shapes(cat: dict) -> dict:
     from kindled_iron.director.compile import FILL, LANES, MIN_LABEL_SCALE
     dz = cat["zones"]["draw"]
     lx0, ly0, lx1, ly1 = LANES["left"]
-    slots = {"wide": (min(dz["x1"], 775) - dz["x0"], dz["y1"] - dz["y0"]), "tall": (lx1 - lx0, ly1 - dz["y0"])}   # tall: the full-height side slot
+    cz = cat["zones"]["caption"]               # tall: the full-height side slot, from under the (middle) caption
+    slots = {"wide": (min(dz["x1"], 775) - dz["x0"], dz["y1"] - dz["y0"]), "tall": (lx1 - lx0, ly1 - (cz["y"] + cz["h"] + 15))}
     out = {}
     for n, o in director_types(cat).items():
         w, h = o.get("size") or (1, 1)

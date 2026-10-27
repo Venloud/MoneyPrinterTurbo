@@ -3,9 +3,8 @@ name: Kindled Iron Director Preview
 # preview in kindled-iron-voice/previews/<id>/. No voice is generated, nothing is published, no public artifacts.
 # video_id empty = every approved_audio/<id>/ folder (script.txt + narration.mp3) that has no previews/<id>/review.json,
 # plus every video waiting for AI quota.
-# The daily schedule below ONLY resumes videos whose status is waiting_quota (all AI providers were out of quota);
-# picking up new folders on a schedule stays OFF until the owner says go. (GitHub runs schedules from the default
-# branch's copy of this file.)
+# Manual only: no schedule runs until the owner authorises one. (A schedule that resumes waiting_quota videos after
+# the 07:00 UTC Gemini reset exists below, commented out; GitHub runs schedules from the default branch's copy.)
 on:
   workflow_dispatch:
     inputs:
@@ -13,8 +12,8 @@ on:
         description: "Video id (folder in approved_audio/); empty = every new folder without a preview"
         required: false
         default: ""
-  schedule:
-    - cron: "17 7 * * *"     # after the 07:00 UTC Gemini quota reset: resume waiting_quota videos only
+  # schedule:                  # OFF until the owner authorises it
+  #   - cron: "17 7 * * *"     # after the 07:00 UTC Gemini quota reset: resume waiting_quota videos only
 
 permissions:
   contents: read

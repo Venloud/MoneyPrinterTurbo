@@ -376,7 +376,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         if L.get("verse"):
             ts.append(_occ(words[i], L["verse"]["word"])[1]["start"] - 0.4)
         box_at.append(min(ts) if ts else None)
-    LEAD = OPEN                                  # a late-media line opens with a drawing here, until the media comes
+    LEAD = (dx0, 190, dx1, dz["y0"] - 15)        # a late-media line opens with a drawing where the box will be (above
+                                                 # the band, never over it), until the media comes
     late = [b is not None and b - words[i][0]["start"] > 1.2 and not (ov and words[i][0]["start"] < ov[1])
             for i, b in enumerate(box_at)]
     open_line = [not has_box[i] and not (ov and words[i][-1]["end"] < ov[1] + 1.0)   # (not a line the diagram covers)
@@ -519,7 +520,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
         if full:
             sets += [[("lane", full)], [("lane", full), ("area", near)]]
         if late[i]:                            # its media comes late: one drawing leads in the box's place until then
-            sets += [[("top", LEAD)] + st for st in list(sets) if len(st) < 3]
+            sets += [[("top", LEAD)]] + [[("top", LEAD)] + st for st in list(sets) if len(st) < 3]   # (one drawing too)
         if open_line[i]:                       # no media: one big drawing, two side by side or two stacked (+ beside him)
             om, oh = (OPEN[0] + OPEN[2]) / 2, (OPEN[1] + OPEN[3]) / 2
             opens = [[("top", OPEN)], [("top", (OPEN[0], OPEN[1], om - 5, OPEN[3])), ("top", (om + 5, OPEN[1], OPEN[2], OPEN[3]))],

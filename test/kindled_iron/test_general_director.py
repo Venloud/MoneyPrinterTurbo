@@ -603,3 +603,30 @@ class AudioTruePeakTrim(unittest.TestCase):
     def test_a_passing_mix_is_untouched(self):
         r, logs, sound = self.mix(False)
         self.assertFalse(any("static trim" in l for l in logs), logs)
+
+
+class LateMediaLead(unittest.TestCase):
+    """Epicurean full MP4, 37-41 s: a line whose photo comes late left the top of the frame empty for 3 s (the lead
+    drawing was only offered to lines with 2+ drawings). Now one drawing leads where the box will be, above the
+    drawing band (never over it, or the band's drawing would clear it), and gives way just before the media."""
+
+    def test_one_drawing_leads_in_the_box_place_until_the_media(self):
+        from kindled_iron.director import compile as C, plan as P
+        cat = P.catalog()
+        lines, words = timed("One two three four five six seven eight earthquakes happen.\n\nThe end of it all comes now.")
+        plan = {"freeze": None, "lines": [
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [{"word": "earthquakes", "kind": "meme", "file": "x.png"}],
+             "drawings": [{"word": "One", "type": "earthquake", "fields": {}}]},
+            {"expression": "curious", "gesture": {"do": "none"}, "box": [], "drawings": [{"word": "end", "type": "question_big", "fields": {"label": "?"}}]}]}
+        media = [[{"kind": "meme", "file": "x.png", "path": "movie_reference/x.png", "word": "earthquakes"}], []]
+        scene, _ = C.compile_scene(plan, lines, words, cat, media, {"id": "a", "audio_path": "a", "sha256": "x"})
+        ev = [((e["at"] if isinstance(e["at"], (int, float)) else C._anchor_time(words[b], e["at"])), e)
+              for b, beat in enumerate(scene["beats"]) for e in beat["events"]]
+        d = next((t, e) for t, e in ev if e.get("do") == "draw" and e["id"].startswith("l1_"))
+        box = next(t for t, e in ev if e.get("box") == "media")
+        o = P.director_types(cat)["earthquake"]
+        bottom = d[1]["y"] + (o.get("center", [0, 0])[1] + o["size"][1] / 2) * d[1]["scale"]
+        self.assertLess(d[0], box - 1.0)                                    # it is on screen well before the media
+        self.assertLessEqual(bottom, cat["zones"]["draw"]["y0"])           # in the box's place, above the band
+        gone = [t for t, e in ev if e.get("do") == "fade" and d[1]["id"] in e["ids"] and not e.get("opacity")]
+        self.assertTrue(gone and d[0] < min(gone) <= box)                  # and gives way just before the media

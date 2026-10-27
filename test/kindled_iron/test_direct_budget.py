@@ -165,21 +165,35 @@ class Acceptance(unittest.TestCase):
         self.assertFalse(direct.accepted({}, {"verdict": "pass"})[0])
 
 
+def tiny_video(path: Path, seconds: float = 3.0) -> Path:
+    """A real, small 1080x1920 MP4 with audio (what the renderer would leave), for the save tests."""
+    import subprocess
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"testsrc2=s=1080x1920:r=30:d={seconds}",
+                    "-f", "lavfi", "-i", f"sine=f=440:d={seconds}", "-shortest", "-c:v", "libx264", "-preset",
+                    "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", str(path)], check=True)
+    return path
+
+
 class ReviewBlocks(Budget):
-    """The whole main(): every gate passes, then the vision review decides the status."""
+    """The whole main(): every gate passes, then the vision review decides the status, and the saved video, its
+    review, gates and status always belong together."""
 
-    def fake_result(self):
-        work = self.tmp / "work_ok"
+    def fake_result(self, n: int = 1, times: bool = True, video: bool = True):
+        work = self.tmp / f"work_ok{n}"
         work.mkdir(exist_ok=True)
-        (work / "preview_times.json").write_text("[]")
+        if times:
+            (work / "preview_times.json").write_text("[1.0, 2.0]")
         mp4 = work / "v.mp4"
-        mp4.write_bytes(b"mp4")
-        return {"plan": {"lines": []}, "scene": {}, "frames": [], "media": [], "gates": {"coverage": {"ok": True}},
-                "mp4": mp4, "work": work}
+        if video:
+            tiny_video(mp4)
+        else:
+            mp4.write_bytes(b"not a video")
+        return {"plan": {"lines": []}, "scene": {"tag": n}, "frames": [], "media": [], "gates": {"coverage": {"ok": True}},
+                "mp4": mp4, "work": work, "attempt": n}
 
-    def run_with_review(self, verdicts, fix_passes=True):
+    def run_with_review(self, verdicts, fix_passes=True, first=None, second=None):
         from kindled_iron.director import review as reviewmod
-        real = (reviewmod.review, reviewmod.fixes, direct.subprocess.run)
+        real = (reviewmod.review, reviewmod.fixes)
         it = iter(verdicts)
 
         def plan(kind, prompt, compact=None, **kw):
@@ -190,11 +204,12 @@ class ReviewBlocks(Budget):
 
         def attempt(*a):
             tries.append(1)
-            return self.fake_result() if fix_passes or len(tries) == 1 else None
+            if len(tries) == 1:
+                return first() if first else self.fake_result(1)
+            return (second() if second else self.fake_result(2)) if fix_passes else None
         direct.attempt = attempt
         reviewmod.review = lambda *a: {"verdict": next(it), "summary": "the review's words"}
         reviewmod.fixes = lambda rev, beats: ["fix it"]
-        direct.subprocess.run = lambda *a, **k: None
         sys.argv = ["direct", "--id", "test-video", "--private", str(self.tmp / "private"), "--out", str(self.out),
                     "--work", str(self.tmp / "work")]
         code = None
@@ -203,8 +218,24 @@ class ReviewBlocks(Budget):
         except SystemExit as e:
             code = e.code
         finally:
-            reviewmod.review, reviewmod.fixes, direct.subprocess.run = real
+            reviewmod.review, reviewmod.fixes = real
         return code, json.loads((self.out / "status.json").read_text())
+
+    def saved(self):
+        from kindled_iron.director import bundle
+        ok, why = bundle.consistent(self.out, "test-video")
+        self.assertTrue(ok, why)
+        return bundle.read_manifest(self.out), json.loads((self.out / "review.json").read_text())
+
+    def test_passing_review_is_ok_and_everything_matches_the_saved_video(self):
+        code, st = self.run_with_review(["pass"])
+        self.assertIsNone(code)
+        self.assertTrue(st["ok"])
+        self.assertEqual(st["state"], "done")
+        man, rev = self.saved()
+        self.assertEqual((man["review"], man["accepted"], rev["verdict"]), ("pass", True, "pass"))
+        self.assertEqual(st["video"]["sha256"], man["sha256"])
+        self.assertFalse((self.out / "fail_report.md").exists())
 
     def test_failed_review_is_not_ok(self):
         code, st = self.run_with_review(["fail"], fix_passes=False)     # the fix round fails its gates
@@ -212,15 +243,92 @@ class ReviewBlocks(Budget):
         self.assertFalse(st["ok"])
         self.assertEqual(st["state"], "failed")
         self.assertIn("vision review failed", (self.out / "fail_report.md").read_text())
+        man, rev = self.saved()                   # the reviewed render is saved, with ITS failed review
+        self.assertEqual((man["review"], man["accepted"], man["plan_attempt"]), ("fail", False, 1))
+        self.assertEqual(json.loads((self.out / "scene.json").read_text()), {"tag": 1})
 
-    def test_revised_after_review_is_not_ok(self):
+    def test_a_failed_revision_never_touches_the_reviewed_render(self):
+        """Run 40543404619: the fix round deleted the reviewed render's folder and the save crashed on
+        preview_times.json. Now the first render stays complete and is saved with its own review."""
+        first = self.fake_result(1)
+        mp4_before = first["mp4"].read_bytes()
+        code, st = self.run_with_review(["fail"], fix_passes=False, first=lambda: first)
+        self.assertEqual(first["mp4"].read_bytes(), mp4_before)
+        self.assertTrue((first["work"] / "preview_times.json").exists())
+        man, rev = self.saved()
+        from kindled_iron.director import bundle
+        self.assertEqual(man["sha256"], bundle.sha256(first["mp4"]))
+        self.assertEqual(rev["verdict"], "fail")
+        self.assertFalse(st["ok"])
+
+    def test_revised_after_review_is_saved_but_not_ok(self):
         code, st = self.run_with_review(["fail"])            # the fix round re-renders and passes the gates
         self.assertEqual(st["verdict"], "fixed_not_rereviewed")
         self.assertFalse(st["ok"])
         self.assertIn("not reviewed again", (self.out / "fail_report.md").read_text())
+        man, rev = self.saved()                   # the newest complete render, never inheriting the old review
+        self.assertEqual((man["plan_attempt"], man["review"], man["accepted"]), (2, "fixed_not_rereviewed", False))
+        self.assertEqual(rev["previous_review"]["verdict"], "fail")
 
-    def test_passing_review_is_ok(self):
-        code, st = self.run_with_review(["pass"])
-        self.assertIsNone(code)
-        self.assertTrue(st["ok"])
-        self.assertEqual(st["state"], "done")
+    def test_missing_preview_times_is_recorded_not_a_crash(self):
+        code, st = self.run_with_review(["pass"], first=lambda: self.fake_result(1, times=False))
+        self.assertIn("FAIL", str(code))
+        self.assertFalse(st["ok"])
+        self.assertEqual(st["verdict"], "not_reviewed")
+        man, rev = self.saved()
+        self.assertEqual(rev["verdict"], "not_reviewed")
+        self.assertIn("preview_times.json missing", " ".join(man["notes"]))
+
+    def test_an_invalid_render_never_replaces_the_complete_preview(self):
+        self.run_with_review(["pass"])                                   # a good preview exists
+        good, _ = self.saved()
+        direct.ROUNDS.clear(); CALLS.clear(); direct.ATTEMPTS[0] = 0
+        code, st = self.run_with_review(["pass"], first=lambda: self.fake_result(3, video=False))
+        self.assertFalse(st["ok"])
+        self.assertFalse(st["video_saved"])
+        self.assertIn("save_error", st)
+        man, rev = self.saved()
+        self.assertEqual(man["sha256"], good["sha256"])                 # the old one, untouched and still consistent
+
+
+class Bundle(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.out = self.tmp / "previews" / "v"
+        self.out.mkdir(parents=True)
+
+    def test_interrupted_save_changes_nothing(self):
+        from kindled_iron.director import bundle
+        good = tiny_video(self.tmp / "a.mp4")
+        bundle.write(self.out, "v", good, {"review.json": {"verdict": "pass"}}, manifest={"review": "pass"})
+        before = bundle.read_manifest(self.out)
+        new = tiny_video(self.tmp / "b.mp4", 3.5)
+        real = bundle.os.replace
+        calls = []
+
+        def boom(a, b):
+            calls.append(1)
+            if len(calls) == 1:
+                raise OSError("disk full")
+            return real(a, b)
+        bundle.os.replace = boom
+        try:
+            with self.assertRaises(OSError):
+                bundle.write(self.out, "v", new, {"review.json": {"verdict": "fail"}}, manifest={"review": "fail"})
+        finally:
+            bundle.os.replace = real
+        self.assertEqual(bundle.read_manifest(self.out)["sha256"], before["sha256"])
+        self.assertTrue(bundle.consistent(self.out, "v")[0])
+        self.assertFalse((self.out / ".staging").exists())
+
+    def test_incomplete_or_wrong_videos_are_refused(self):
+        from kindled_iron.director import bundle
+        short = tiny_video(self.tmp / "short.mp4", 1.0)
+        with self.assertRaises(bundle.BundleError):
+            bundle.verify_mp4(short, expect_seconds=10.0)               # stopped early
+        (self.tmp / "junk.mp4").write_bytes(b"x" * 60000)
+        with self.assertRaises(bundle.BundleError):
+            bundle.verify_mp4(self.tmp / "junk.mp4")
+        with self.assertRaises(bundle.BundleError):
+            bundle.verify_mp4(self.tmp / "missing.mp4")
+        self.assertEqual(bundle.verify_mp4(short)["width"], 1080)

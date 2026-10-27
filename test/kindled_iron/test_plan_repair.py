@@ -310,7 +310,11 @@ class Timeline(unittest.TestCase):
         back = {i for e in ev if e.get("do") == "fade" and e.get("opacity") == 1 for i in e["ids"]}
         self.assertEqual(back, set(draws))                                         # cleared for the zoom, then back
         self.assertTrue(all(compiler._anchor_time(ws, e["at"]) > fz for e in ev if e.get("do") == "fade" and e.get("opacity") == 1))
-        self.assertEqual(scene["director"]["timeline_fixes"], [])
+        # line 2 has no media: its main drawing takes the middle in the pause before it, clearing line 1's drawings
+        # there; nothing is fixed inside line 1 (the hook and the freeze)
+        import re as _re
+        fixed_at = [float(_re.search(r"at ([\d.]+)s", f).group(1)) for f in scene["director"]["timeline_fixes"]]
+        self.assertTrue(all(t >= ws[-1]["end"] for t in fixed_at), scene["director"]["timeline_fixes"])
 
     def test_meme_card_lines_keep_their_drawings_in_the_band(self):
         """Run 40434188836 attempt 1, 12.8 s: a full-height side drawing had to clear for the card and left the

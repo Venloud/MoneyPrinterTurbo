@@ -68,8 +68,19 @@ drawing, shrugs only where there is room, and a drawing is cleared before he wal
 The clip box exists only while it shows something real: a clip, a library picture, a verse card. Each item shows
 during its own line and the box goes when the line ends (unless the next line's own media follows at once). Its
 frame takes the media's shape (a 16:9 clip 674 x 380, a square picture 380 x 380, a tall one 212 x 380), so
-nothing is stretched or padded into an unrelated frame. A line with no fitting media has no box at all: its
-drawings use that space (one wide drawing or two side by side above the caption). A video may start without it.
+nothing is stretched or padded into an unrelated frame. A line with no fitting media has no box at all. A video
+may start without it.
+
+Drawings are the house style, not a quota: a line gets the 0-3 illustrations that show what it says (one strong
+idea -> one drawing, shown large), never a decorative one. The layout follows what is on screen:
+- with the clip box up, the captions sit under it and the drawings in the band above the guide and beside him;
+- with no box, the captions move to the top of the safe area and the drawings get the middle (one big drawing, two
+  side by side or two stacked, plus one beside the guide);
+- a line whose media comes late in the sentence (over 1.2 s in) opens with its first drawing where the box will be;
+  that drawing gives way just before the media arrives;
+- at a layout change the line's main drawing takes the middle at once (already in the pause before the line, once
+  the previous clip or verse card is gone), and the hand-over is ordered so nothing is ever under a caption: the
+  clip leaves, then the caption moves up; the middle drawings clear, then the caption comes back down.
 
 ### Diagrams, charts, maps, flowcharts (director/story.py + director/diagram.py)
 
@@ -185,6 +196,8 @@ Rules the code enforces (plan.repair, no AI call):
   on the shared word "classroom"; both are fixed. Verification is by the provider's title / page words (recorded
   as `"verified"`); frames of stock clips are not inspected by a vision model (the budget is 1 vision call per
   video, used on the final video).
+- a reaction meme is never put on a grave line (suffering, death, harm to children, grief): it would read as mockery,
+  whatever words it shares with the line.
 - pop-ups: at most 3 per video, at least 2 lines apart, never on a verse line or on the word "God", 380 px wide,
   1.2 s; no file twice in a row and no file more than twice per video.
 - box items without a word are anchored on a spoken word of their line (the word their query or file names, else the
@@ -247,6 +260,7 @@ record_scratch level; the sound library has no record-scratch variants, so witho
 | layout | zero layout warnings |
 | audit | zero every-frame audit issues |
 | coverage | at least 60 % of the usable frame (safe box minus the button column) is covered at every half second (from 0.25 s, skipping the freeze zoom and its redraw), and no single empty rectangle is larger than 20 % of it |
+| (proposed) composition | REPORT-ONLY until the owner approves it (`gates.json` -> `_proposed_composition`, never counted in the result): every third of the usable frame (top / middle / bottom) holds something and no empty region is over 30 %; failing for 1 s or more = an unfinished frame. Negative space between drawings is allowed; a whole empty part of the frame is not. Drawing-led frames like the owner's reference measure 0.4-0.55 bounding-box coverage, so the 60 % floor fails them although they are finished compositions |
 | doodles | every drawing is at least 250 px on its long side (measured on the page) |
 | empty | no empty card, no empty verse page |
 | per_line | every line brings a new drawing, unless the whole diagram is on screen for it |
@@ -271,7 +285,17 @@ fix_errors in the next round. Typical causes and what to do:
 
 ## Outputs (previews/<id>/)
 
-`<id>.mp4` (private preview), `<id>-8-frames.jpg`, `scene.json` (what was rendered), `plan.json` (the AI's plan),
+The same folder for every run. The video and its evidence are replaced together, only by a new render that is a
+complete, valid video (ffprobe: 1080x1920 video + audio, the narration's duration; a full decode without errors):
+the new files are staged in a hidden temporary folder (removed afterwards) and moved in place, `video.json` (the
+manifest: the MP4's sha256, size, duration, run, director commit, narration sha, review verdict, accepted) last. A
+failed or incomplete render never replaces the previous video; status.json says which video is current
+(`video.kept`: new | previous) and why a new one was not saved (`save_error`). Each attempt renders in its own
+temporary folder under storage/director/<id>/ (deleted at the end of the run), so a review fix round never touches
+the reviewed render. A revision that passed the gates is saved as the newest video with verdict
+`fixed_not_rereviewed` and the earlier review under `previous_review`: never accepted (1 vision call a video).
+
+`<id>.mp4` (private preview), `video.json`, `<id>-8-frames.jpg`, `scene.json` (what was rendered), `plan.json` (the AI's plan),
 `media.json` (every clip/meme pick, its source, page and why it matched), `gates.json`, `review.json` (vision
 verdict per still + the AI calls by provider), `ai_calls.json` (every AI call: provider, model, tokens, seconds),
 `doodle_misses.json`, `guide_actions.json` (each action asked for: performed or why not), `rounds.json`, `checkpoint.json`, `status.json` (state: done | failed | waiting_quota), and

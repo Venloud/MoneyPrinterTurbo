@@ -126,7 +126,7 @@ RULES = [
     "Never change, add or drop narration words. Every 'word' you give must be a word spoken in THAT line (copy it exactly).",
     "Imitate the golden scenes' density and pacing: something new on screen every 2-3 seconds, the drawing appears on the word that names it.",
     "The house style is drawing-led: hand-drawn illustrations of what is said, the guide acting it out, captions. 'drawings' (0-3 per line): give a line the illustrations that SHOW its ideas (the thing, the comparison, the turn of the argument), each on the word that names it; a line with one strong idea gets one drawing, a list or a comparison may get 2-3. Never add a decorative drawing to fill space: the code lays out whatever you give (one big drawing, two side by side or stacked, one beside the guide). A line may have no drawing only when its box media (or the verse card, or a diagram already decided) is its visual. Pick types from the catalog only; fill their fields.",
-    "Prefer the drawing library: the catalog entries with 'tags' are finished illustrations. For each drawing pick the one whose tags best match the thing or idea the line names (a graph -> bar_chart or line_graph, an earthquake -> earthquake, a child -> child, the Bible -> bible, money -> money, a choice -> road_fork). Put the idea it shows in 'concept' (1-3 words, e.g. 'free will').",
+    "Prefer the drawing library: the catalog entries with 'tags' are finished illustrations. For each drawing pick the one whose tags best match what the line MEANS, not a word it uses: an earthquake -> earthquake, a child -> child, the Bible -> bible, money -> money, a choice -> road_fork; 'this graph' about an argument is the argument (its claims, its question), never a bar chart (bar_chart / line_graph only for numbers that go up or down). When a line names several parallel things (three claims, a list), show each of them or none. Put the idea it shows in 'concept' (1-3 words, e.g. 'free will').",
     "Compose from the built-in diagrams (entries without tags: flow, timeline, scales, venn, crossout...) only when no library illustration fits the idea; then also set 'miss': the concept you could not find in the library (it is logged so the library can grow).",
     "Abstract ideas become diagrams: cause/effect -> 'flow'; two options -> 'signpost' or 'scales'; overlap -> 'venn'; a rejected idea -> 'crossout'; past/future -> 'timeline'; a question -> 'question'; control -> 'puppet'.",
     "Words appear only as LABELS inside a drawing (labels, title, center, label, text fields), short and in CAPS (max 28 characters).",
@@ -136,7 +136,7 @@ RULES = [
     "Stock queries must name filmable things (e.g. 'earthquake rubble street', 'hospital patient bed', 'person praying'), never abstract words alone. No God depicted as a person, no occult imagery.",
     "No identical box media twice in a row; no file or query used more than twice in the video.",
     "A line that quotes scripture word for word, or names a reference like 'Revelation 21:4', gets 'verse': {ref, word (the first word of the quote or the reference), quoted: true|false}. That line's box shows the typed verse card, so give it no other box media.",
-    "'pop' (optional): a meme from the library that pops up beside the guide on a reaction word; at most 3 in the video, at least 3 lines apart, never on line 1 (the hook), never on a verse line, never on the word 'God'.",
+    "'pop' (optional): a meme from the library that pops up beside the guide on a reaction word; at most 3 in the video, at least 3 lines apart, never on line 1 (the hook), never on a verse line, never on the word 'God', never a joke on a grave line (suffering, death, children, grief): a meme must fit the line's tone, not just a word.",
     "'gesture': the guide ACTS the line (word = the word the action lands on; for point, the drawing's word). Pick from guide_actions: point at the drawing being named, shrug on a question, think, realize on a twist, confused, celebrate good news, choose_path between two options, frustrated_at_screen... Use an action on at least every second line; a line may be the guide's moment alone (a strong action, no meme).",
     "'expression' every line, from the catalog's expressions, matching the line's emotion.",
     "'freeze': exactly one, on the line with the biggest twist or surprise, on its key word (a record-scratch freeze-frame).",
@@ -436,6 +436,15 @@ def _repair_unknown_drawings(plan: dict, lines: list[str], cat: dict, lib: list[
 
 
 
+GRAVE = ("suffer", "death", "dead", "dying", "die", "died", "kill", "murder", "abuse", "grief", "griev", "mourn", "cancer",
+         "tragedy", "funeral", "innocent", "children", "child", "pain", "cry", "crying", "tears", "disease")
+
+
+def grave(line: str) -> bool:
+    """A line about suffering, death or harm to people: a joke meme there reads as mockery, whatever its words."""
+    return any(w.startswith(g) for w in re.findall(r"[a-z]+", line.lower()) for g in GRAVE)
+
+
 def _repair_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
     from kindled_iron.director.media import relevance, _words as _mwords
     by_file = {m["file"]: m for m in lib}
@@ -447,6 +456,7 @@ def _repair_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
         if not m:
             return True                                # validate reports unknown files
         why = ("it has nothing to do with the line" if not relevance(m, lines[i], expression)
+               else "a reaction meme does not fit a grave line" if m.get("role", "meme") == "meme" and grave(lines[i])
                else "it (or a look-alike) is already in the video" if m.get("group", f) in groups
                else f"more than {MAX_MEMES} memes" if m.get("role", "meme") == "meme" and memes >= MAX_MEMES else "")
         if why:

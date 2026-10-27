@@ -317,3 +317,129 @@ class ApprovedRecording(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CrossTopic(unittest.TestCase):
+    """The same compiler on unrelated topics (philosophy, science, history, instruction, entertainment): a
+    deterministic stand-in plan (catalog drawings picked by tag, 1-2 per line, never forced to 3; library media on some
+    lines) -> compile. No AI call, no render (the renderer needs a real recording; Epicurean Paradox is rendered)."""
+
+    @classmethod
+    def setUpClass(cls):
+        from kindled_iron.director import compile as C, plan as P
+        cls.C, cls.P, cls.cat = C, P, P.catalog()
+        cls.types = {n: o for n, o in P.director_types(cls.cat).items() if o.get("doodle")}
+
+    def stand_in_plan(self, lines, words, media_lines):
+        P = self.P
+        plan = {"freeze": None, "lines": []}
+        for i, (line, ws) in enumerate(zip(lines, words)):
+            said = {P.key(w["word"]): w["word"] for w in ws}
+            picks = []
+            for n, o in self.types.items():
+                hit = next((said[k] for k in said if k and any(P.key(t) == k for t in o["tags"])), None)
+                if hit and n not in [p_["type"] for p_ in picks]:
+                    picks.append({"word": hit, "type": n, "fields": {}})
+                if len(picks) == 2:
+                    break
+            if not picks:
+                picks = [{"word": ws[0]["word"], "type": "question_big", "fields": {"label": "WHY?"}}]
+            plan["lines"].append({"expression": "curious", "gesture": {"do": "none"}, "box": [], "drawings": picks})
+        media = [[{"kind": "meme", "file": "x.png", "path": "movie_reference/x.png", "word": words[i][min(3, len(words[i]) - 1)]["word"]}]
+                 if i in media_lines else [] for i in range(len(lines))]
+        return plan, media
+
+    def compile(self, name, media_lines=()):
+        lines, words = timed(FIX["scripts"][name])
+        dg = diagram.select(story.analyze(lines, words)["sentences"], LIB)
+        if dg:
+            dg["fit"] = diagram.fit(dg["size"], SAFE)
+            dg["path"] = "movie_reference/" + dg["file"]
+        plan, media = self.stand_in_plan(lines, words, set(media_lines))
+        scene, frames = self.C.compile_scene(plan, lines, words, self.cat, media, {"id": name, "audio_path": "a", "sha256": "x"},
+                                             diagram=dg)
+        return scene, words, dg, plan
+
+    def check(self, scene, words, dg, plan):
+        C = self.C
+        draws, boxes, ev = [], [], []
+        for b, beat in enumerate(scene["beats"]):
+            for e in beat["events"]:
+                at = e.get("at")
+                t = at if isinstance(at, (int, float)) else C._anchor_time(words[b], at)
+                ev.append((t, b, e))
+        for t, b, e in ev:
+            if e.get("do") == "draw":
+                draws.append((t, b, e))
+                self.assertGreaterEqual(e["x"], SAFE["x0"] - 400)          # (x, y is the drawing's anchor; slots are checked below)
+        # every drawing slot inside the safe area, right of nothing: compile records the boxes it checked
+        n_planned = sum(len(L["drawings"]) for L in plan["lines"])
+        self.assertLessEqual(len(draws), n_planned)                         # never more drawings than asked for
+        box_on = [t for t, b, e in ev if e.get("box") in ("media", "clip", "verse")]
+        box_off = [t for t, b, e in ev if e.get("box") == "off"]
+        self.assertEqual(len(box_off), len(box_on) + (1 if dg else 0))     # every box (and the diagram) also goes
+        for w in scene["caption_windows"]:
+            if dg and w["t0"] == dg["t0"]:
+                continue
+            for t in box_on:                                                # never a top caption over a box
+                self.assertFalse(w["t0"] < t < w["t1"] - 0.01, (w, t))
+        if dg:
+            for t, b, e in draws:
+                self.assertFalse(dg["t0"] <= t < dg["t1"], f"{e['id']} under the diagram")
+        return draws
+
+    def test_philosophy_science_history_instruction_entertainment(self):
+        for name, media_lines in (("epicurean", (2,)), ("water", (1,)), ("roman", ()), ("cpr", (0,)), ("animation", (1,))):
+            with self.subTest(topic=name):
+                scene, words, dg, plan = self.compile(name, media_lines)
+                draws = self.check(scene, words, dg, plan)
+                self.assertTrue(draws or dg, name)
+                self.assertEqual(bool(dg), name != "animation")             # the cartoon script introduces no diagram
+                self.assertEqual(scene["director"]["timeline_fixes"] is not None, True)
+
+    def test_a_line_may_have_one_drawing_or_none(self):
+        lines, words = timed(FIX["scripts"]["animation"])
+        plan, media = self.stand_in_plan(lines, words, {1})
+        plan["lines"][0]["drawings"] = plan["lines"][0]["drawings"][:1]
+        plan["lines"][1]["drawings"] = []                                   # its media is its visual
+        plan["lines"][1]["box"] = [{"word": media[1][0]["word"], "kind": "meme", "file": "x.png"}]
+        scene, _ = self.C.compile_scene(plan, lines, words, self.cat, media, {"id": "a", "audio_path": "a", "sha256": "x"})
+        per = [sum(1 for e in b["events"] if e.get("do") == "draw") for b in scene["beats"]]
+        self.assertEqual(per[0], 1)
+        self.assertEqual(per[1], 0)
+        self.assertTrue(any(e.get("box") == "media" for e in scene["beats"][1]["events"]))
+        self.assertEqual(self.P.validate(plan, lines, [[self.P.key(w["word"]) for w in ws] for ws in words], [], self.cat)
+                         and [x for x in self.P.validate(plan, lines, [[self.P.key(w["word"]) for w in ws] for ws in words], [], self.cat)
+                              if "nothing on screen" in x], [])
+
+    def test_grave_lines_get_no_joke_meme(self):
+        self.assertTrue(self.P.grave("Innocent children dying? Free will doesn't explain those things."))
+        lib = [{"file": "shrug.png", "path": "reactions/shrug.png", "role": "meme", "group": "s", "tags": ["shrug", "awkward", "wrestle"]}]
+        lines = ["Why does He allow innocent people to suffer? That's a question we still wrestle with."]
+        plan = {"lines": [{"expression": "sad", "box": [], "drawings": [], "pop": {"word": "wrestle", "file": "shrug.png"}}]}
+        notes = self.P._repair_media(plan, lines, lib)
+        self.assertIsNone(plan["lines"][0]["pop"])
+        self.assertIn("grave line", " ".join(notes))
+
+
+class ProposedComposition(unittest.TestCase):
+    """The proposed replacement for the 60 % coverage floor (report-only until the owner approves it)."""
+
+    def test_drawing_led_frames_pass_unfinished_frames_fail(self):
+        from kindled_iron.director import gates
+        cap_top, guide = [380, 180, 700, 300], [439, 1068, 642, 1567]
+        liked = [cap_top, [130, 330, 420, 690], [450, 330, 770, 690], [125, 1045, 410, 1432], guide]   # two drawings + one beside him
+        self.assertEqual(gates.composition(liked, SAFE, 0.22), (True, []))
+        only_guide = [guide]
+        ok, why = gates.composition(only_guide, SAFE, 0.55)
+        self.assertFalse(ok)
+        self.assertIn("nothing in the top third", why)
+        empty_middle = [cap_top, guide]
+        self.assertFalse(gates.composition(empty_middle, SAFE, 0.36)[0])
+
+    def test_report_only_never_decides_acceptance(self):
+        from kindled_iron.director import gates
+        src = (ROOT / "kindled_iron" / "director" / "gates.py").read_text()
+        self.assertIn('res["_proposed_composition"]', src)               # stored under a "_" key ...
+        self.assertIn('all(v["ok"] for k, v in res.items() if not k.startswith("_"))', src)   # ... which _passed skips
+        self.assertEqual((gates.MIN_COVER, gates.MAX_EMPTY), (0.60, 0.20))   # the existing gate is unchanged

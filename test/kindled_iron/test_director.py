@@ -137,7 +137,7 @@ class Director(unittest.TestCase):
         draws = [e for e in evs if e.get("do") == "draw"]
         self.assertEqual(len(draws), 4)
         for d in draws:                                   # every drawing inside the drawing area or a guide-lane slot
-            self.assertTrue(Z["draw"]["y0"] - 5 <= d["y"] <= 1430, d)
+            self.assertTrue(300 <= d["y"] <= 1430, d)      # the band, or the middle / lead space on a line without media
         self.assertTrue(any(e.get("do") == "freeze" and e.get("sound") == "record_scratch" for e in evs))
         self.assertTrue(any(e.get("do") == "look_viewer" for e in scene["beats"][-1]["events"]))
         verse = [e for e in evs if e.get("box") == "verse"]

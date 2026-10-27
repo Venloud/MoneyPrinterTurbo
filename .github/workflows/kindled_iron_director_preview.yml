@@ -129,7 +129,7 @@ jobs:
           python -m kindled_iron.director.catalog
           # every required module must exist (a missing one used to run 0 tests silently), every test file runs,
           # and a skipped test fails the step: a skip is not a pass
-          for m in test_director test_llm test_direct_budget test_media_library test_import_media; do
+          for m in test_director test_llm test_direct_budget test_media_library test_import_media test_plan_repair test_general_director; do
             [ -f "test/kindled_iron/$m.py" ] || { echo "::error::required test module test/kindled_iron/$m.py is missing"; exit 1; }
           done
           mods=$(ls test/kindled_iron/test_*.py | sed 's#\.py$##; s#/#.#g')
@@ -166,7 +166,9 @@ jobs:
             id=$(basename "$f")
             mkdir -p "$d/previews/$id"
             cp -r "$f"/. "$d/previews/$id/"
-            git -C "$d" add "previews/$id"
+            # a run that did not fail leaves no fail report: an older one must not sit beside the new video
+            [ -f "$f/fail_report.md" ] || rm -f "$d/previews/$id/fail_report.md"
+            git -C "$d" add -A "previews/$id"
           done
           git -C "$d" config user.name "kindled-iron-director"; git -C "$d" config user.email "kindled-iron-director@users.noreply.github.com"
           git -C "$d" commit -q -m "Director preview: $(ls "$RUNNER_TEMP/out" | tr '\n' ' ')(run ${{ github.run_id }})" || { echo "nothing new"; exit 0; }

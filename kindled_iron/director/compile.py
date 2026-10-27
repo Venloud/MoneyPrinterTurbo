@@ -370,19 +370,18 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
     CAP_TOP = {"x": 540, "y": 190, "w": 720}
     OPEN = (dx0, 312, dx1, dz["y1"])
     has_box = [bool([b for b in media[i] if not b.get("skip")]) or bool(L.get("verse")) for i, L in enumerate(P)]
+    box_at: list = []                            # when each line's own box media / verse card arrives
+    for i, L in enumerate(P):
+        ts = [_occ(words[i], b["word"])[1]["start"] - 0.15 for b in media[i] if not b.get("skip")]
+        ts = [t for t in ts if not (ov and ov[0] - 0.2 <= t + 0.15 < ov[1])]
+        if L.get("verse"):
+            ts.append(_occ(words[i], L["verse"]["word"])[1]["start"] - 0.4)
+        box_at.append(min(ts) if ts else None)
+    LEAD = (dx0, 312, dx1, 690)                  # a late-media line opens with a drawing here, until the media comes
+    late = [b is not None and b - words[i][0]["start"] > 1.2 and not (ov and words[i][0]["start"] < ov[1])
+            for i, b in enumerate(box_at)]
     open_line = [not has_box[i] and not (ov and words[i][-1]["end"] < ov[1] + 1.0)   # (not a line the diagram covers)
                  for i in range(len(P))]
-    cap_wins: list[dict] = []                    # where the captions sit at the top (lines without media)
-    for i in range(len(P)):
-        if open_line[i]:
-            # the handover at a layout change: the clip leaves (+0.01), then the caption moves up (+0.03); at the next
-            # media line the middle drawings clear (gone by +0.02), then the caption comes back down (+0.03)
-            a_ = max(words[i - 1][-1]["end"] + 0.03 if i else 0.0, ov[1] if ov else 0.0)
-            b_ = words[i][-1]["end"] + 0.03 if i + 1 < len(P) else words[i][-1]["end"] + 5
-            if cap_wins and a_ <= cap_wins[-1]["t1"] + 0.11:
-                cap_wins[-1]["t1"] = round(b_, 3)
-            else:
-                cap_wins.append({"t0": round(a_, 3), "t1": round(b_, 3), **CAP_TOP})
 
     # ---------------- times we must keep clear of walks: pop cards, verse typing, the freeze
     pop_t, verse_t, freeze_t = {}, {}, None
@@ -520,6 +519,8 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             sets += [[("area", slots1[0]), ("lane", lane)], [("area", slots2[0]), ("area", slots2[1]), ("lane", lane)]]
         if full:
             sets += [[("lane", full)], [("lane", full), ("area", near)]]
+        if late[i]:                            # its media comes late: one drawing leads in the box's place until then
+            sets += [[("top", LEAD)] + st for st in list(sets) if len(st) < 3]
         if open_line[i]:                       # no media: one big drawing, two side by side or two stacked (+ beside him)
             om, oh = (OPEN[0] + OPEN[2]) / 2, (OPEN[1] + OPEN[3]) / 2
             opens = [[("top", OPEN)], [("top", (OPEN[0], OPEN[1], om - 5, OPEN[3])), ("top", (om + 5, OPEN[1], OPEN[2], OPEN[3]))],
@@ -592,8 +593,14 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if i == 0 and t - t_start > 0.1 * k0 and not (zone == "lane" and i in pop_t):   # first frame full (the hook)
                 t = round(0.1 * k0, 3)
                 a = t
-            if open_line[i] and (i == 0 or not open_line[i - 1]) and zone == "top" and j == 0 and t - t_start > 0.1:
-                t = round(t_start + 0.1, 3)            # the media left: the line's main drawing takes the middle at once
+            first_top = next(k for k in range(len(places)) if places[k][0] == "top") if any(z == "top" for z, _ in places) else -1
+            if zone == "top" and j == first_top and t - t_start > 0.1 and (
+                    late[i] or (open_line[i] and (i == 0 or not open_line[i - 1]))):
+                # the media left (or comes late): the line's main drawing takes the middle at once, already in the
+                # pause before the line once the previous box / verse card is gone
+                gone = max([c1 for r_, c0_, c1 in tl["cards"] if r_ == BOX and c0_ < t_start] + [0.0]) + 0.05
+                t = round(max(t_start - 0.35, gone, words[i - 1][-1]["end"] + 0.05 if i else 0.0), 3) if i else round(t_start + 0.1, 3)
+                t = min(t, round(t_start + 0.1, 3)) if gone <= t_start + 0.1 else t
                 a = _at_time(W, t)
             if after_freeze and t - t_start > 0.1 + 0.35 * j:   # the freeze cleared the board: refill at once
                 t = round(t_start + 0.1 + 0.35 * j, 3)
@@ -664,17 +671,17 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             if zone == "area":                         # each old band drawing goes just before the new one on it
                 for od in old:
                     hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] == "area" and _overlap(slot_of[od], slot_of[nd])]
-                    fades.setdefault(round(max(t_start - 0.4, (min(hits) if hits else t_new) - 0.05), 3), []).append(od)
+                    fades.setdefault(round(max(t_start - 0.55, (min(hits) if hits else t_new) - 0.05), 3), []).append(od)
                 continue
             hand = zone == "top" and not open_line[i]          # the layout handover: exactly before the caption returns
-            fades.setdefault(round(t_new - 0.05 if hand else max(t_start - 0.4, t_new - 0.05), 3), []).extend(old)
+            fades.setdefault(round(t_new - 0.05 if hand else max(t_start - 0.55, t_new - 0.05), 3), []).extend(old)
         # a new drawing whose slot covers an old drawing of the OTHER zone (a full-height side drawing after a
         # band, or the reverse) clears that one just before it appears
         for zone in ("area", "lane", "top"):
             for od in shown[zone]:
                 hits = [draw_pos[nd][3] for nd in ids if draw_pos[nd][4] != zone and _overlap(slot_of[od], slot_of[nd])]
                 if hits:
-                    fades.setdefault(round(max(t_start - 0.4, min(hits) - 0.05), 3), []).append(od)
+                    fades.setdefault(round(max(t_start - 0.55, min(hits) - 0.05), 3), []).append(od)
         for did_, _ in pop_redraw:
             fades.setdefault(round(pop_t[i] - POP_CLEAR, 3), []).append(did_)
             ev.append({"at": _at_time(W, pop_t[i] + POP_CARD["dur"]), "do": "fade", "ids": [did_], "opacity": 1,
@@ -742,7 +749,10 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
                 for zone in ("area", "lane", "top"):          # what it now covers earlier is cleared earlier too
                     for od in shown[zone]:
                         if od != nd and _overlap(slot_of[od], slot_of[nd]):
-                            fades.setdefault(round(max(t_start - 0.4, tn - 0.05), 3), []).append(od)
+                            fades.setdefault(round(max(t_start - 0.55, tn - 0.05), 3), []).append(od)
+        if late[i]:                                    # the lead drawing gives way to the media for good
+            for did_ in [d for d in ids if draw_pos[d][4] == "top" and draw_pos[d][3] < box_at[i] - 0.3]:
+                fades.setdefault(round(box_at[i] - 0.2, 3), []).append(did_)
         faded_now = {d for fids in fades.values() for d in fids}
         for ft, fids in sorted(fades.items()):
             fids = sorted(set(fids))
@@ -851,7 +861,7 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             t_off = round(t_last + (0.01 if i + 1 < n_lines and open_line[i + 1] else 0.15), 3)
             if not nxt or min(nxt) - t_off > 0.8:
                 ev.append({"at": _at_time(W, t_off), "box": "off"})
-                tl["cards"].append((BOX, box_on, max(t_off, verse_t[i][1]) if i in verse_t else t_off))
+                tl["cards"].append((BOX, box_on, max(t_off, t_last + 1.1) if i in verse_t else t_off))   # (the card holds 1.05 s)
             else:
                 tl["cards"].append((BOX, box_on, min(nxt)))
 
@@ -876,6 +886,16 @@ def compile_scene(plan: dict, lines: list[str], words: list[list[dict]], cat: di
             # a still once the line's last drawing is complete (draw 0.6 s + margin for the renderer's own timing)
             frames.append({"beat": beat["id"], "t": max(draw_pos[d][3] for d in ids) + 1.5, "line": text})
 
+    # captions: under the clip box while one is on screen, in their band under the diagram while it is up, and at
+    # the top of the safe area whenever there is no box (the middle is the drawings'); handovers 0.03 s apart
+    busy = sorted([(c0, c1) for r, c0, c1 in tl["cards"] if r == BOX] + ([(ov[0], ov[1])] if ov else []))
+    cap_wins, cur = [], 0.0
+    for c0, c1 in busy:
+        if c0 - 0.03 > cur + 0.3:
+            cap_wins.append({"t0": round(cur, 3), "t1": round(c0 - 0.03, 3), **CAP_TOP})
+        cur = max(cur, c1 + 0.03)
+    if words[-1][-1]["end"] + 5 > cur + 0.3:
+        cap_wins.append({"t0": round(cur, 3), "t1": round(words[-1][-1]["end"] + 5, 3), **CAP_TOP})
     dg_info = None
     if diagram:
         b0, b1 = _beat_at(words, ov[0]), _beat_at(words, ov[1])

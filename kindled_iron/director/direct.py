@@ -33,6 +33,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 from kindled_iron.director import compile as compiler, diagram as diagmod, gates, llm, media, plan as planmod, review as reviewmod
+from kindled_iron.director import bundle
 from kindled_iron.director import story as storymod
 from kindled_iron.director.calls import CALLS
 
@@ -43,6 +44,7 @@ ROUNDS: list[dict] = []   # every attempt's plan + errors (kept for the fail rep
 PLAN_CALLS = 3            # AI plan calls per video (code repairs come first; every re-plan counts)
 VISION_CALLS = 1          # AI vision calls per video
 WAIT_EXIT = 75            # exit code: waiting for AI quota (EX_TEMPFAIL), not a failure
+ATTEMPTS = [0]            # each attempt renders in its own folder: a later attempt never touches an earlier render
 
 
 def log(msg: str) -> None:
@@ -153,12 +155,15 @@ def attempt(p: dict, lines, words, cat, lib, meta, work: Path, rec: dict) -> dic
         log(f"plan: {len(errs)} problem(s): " + "; ".join(errs[:6]))
         rec["errors"].append({"stage": "plan", "errors": errs})
         return None
-    scene_file = work / "scene.json"
+    ATTEMPTS[0] += 1
+    sub = work / f"attempt{ATTEMPTS[0]}"          # its own folder: the reviewed render of an earlier attempt stays
+    shutil.rmtree(sub, ignore_errors=True)        # intact whatever this one does
+    sub.mkdir(parents=True)
+    rec["attempt"] = ATTEMPTS[0]
+    scene_file = sub / "scene.json"
     scene_file.write_text(json.dumps(scene, indent=1, ensure_ascii=False), encoding="utf-8")
-    mp4 = work / f"{meta['id']}.mp4"
-    pre_work, full_work = work / "pre", work / "full"
-    for d in (pre_work, full_work):
-        shutil.rmtree(d, ignore_errors=True)
+    mp4 = sub / f"{meta['id']}.mp4"
+    pre_work, full_work = sub / "pre", sub / "full"
     err = run_render(scene_file, mp4, pre_work, preflight=True)
     g = gates.run(pre_work, scene, p, lines, cat, meta["align"], False, err)
     rec["preflight_gates"] = g
@@ -173,7 +178,22 @@ def attempt(p: dict, lines, words, cat, lib, meta, work: Path, rec: dict) -> dic
         rec["errors"].append({"stage": "final", "errors": gates.errors(g)})
         log("final gates failed: " + "; ".join(rec["errors"][-1]["errors"][:8]))
         return None
-    return {"plan": p, "scene": scene, "frames": frames, "media": records, "gates": g, "mp4": mp4, "work": full_work}
+    try:
+        bundle.verify_mp4(mp4, _expected_seconds(scene, words), decode=False)
+    except bundle.BundleError as e:                # the renderer said ok but the file is not a complete video
+        rec["errors"].append({"stage": "final", "errors": [f"the rendered video is incomplete: {e}"]})
+        log(f"final render incomplete: {e}")
+        return None
+    return {"plan": p, "scene": scene, "frames": frames, "media": records, "gates": g, "mp4": mp4, "work": full_work,
+            "attempt": ATTEMPTS[0]}
+
+
+def _expected_seconds(scene: dict, words: list[list[dict]]) -> float | None:
+    """How long the finished video must be: the narration's last word plus the scene's end hold."""
+    try:
+        return round(words[-1][-1]["end"] + float(scene.get("end_hold", 0)), 2)
+    except (IndexError, KeyError, TypeError):
+        return None
 
 
 def _coverage_lines(g: dict, words: list[list[dict]]) -> list[str]:
@@ -205,6 +225,11 @@ def fail_report(out: Path, vid: str, rounds: list[dict], why: str) -> str:
     text = "\n".join(lines)
     (out / "fail_report.md").write_text(text, encoding="utf-8")
     return text
+
+
+def _video_summary(man: dict | None) -> dict:
+    return {k: man.get(k) for k in ("video", "sha256", "duration", "bytes", "run", "director_commit", "review",
+                                    "accepted", "saved_at")} if man else {}
 
 
 def accepted(gate_ok: dict, review: dict | None) -> tuple[bool, str]:
@@ -256,6 +281,7 @@ def main() -> None:
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     a.out.mkdir(parents=True, exist_ok=True)
+    ev = a.out                                    # the run's evidence sits beside the video, as always
     t0 = time.time()
     lines = split_beats(script.read_text(encoding="utf-8").strip())
     sha = hashlib.sha256(mp3.read_bytes()).hexdigest()
@@ -279,7 +305,7 @@ def main() -> None:
         f"{len(diagrams)} diagram(s)")
     # 1. story understanding (no AI call): the spoken sentences and what each one does
     story = storymod.analyze(lines, words)
-    (a.out / "story.json").write_text(json.dumps({"sentences": [{**storymod.evidence(s_), "intent": s_["intent"]}
+    (ev / "story.json").write_text(json.dumps({"sentences": [{**storymod.evidence(s_), "intent": s_["intent"]}
                                                                 for s_ in story["sentences"]]}, indent=1, ensure_ascii=False),
                                       encoding="utf-8")
     # 2. a whole diagram, where the narration introduces one from the library and explains what it shows
@@ -293,7 +319,9 @@ def main() -> None:
         log(f"diagram: {dg['file']} {dg['t0']:.1f}-{dg['t1']:.1f}s at {dg['fit']['rect']} (scale {dg['fit']['scale']}); "
             f"{dg['why']}" + (f"; LIMITATION: {dg['readability']['note']}" if dg["readability"].get("ok") is False else ""))
     rounds: list[dict] = ROUNDS
-    status = {"id": a.id, "lines": len(lines), "alignment": round(ratio, 3)}
+    previous = bundle.read_manifest(a.private / "previews" / a.id)     # the video saved by an earlier run, if any
+    status = {"id": a.id, "lines": len(lines), "alignment": round(ratio, 3), "video_saved": False,
+              "video": {"kept": "previous", **_video_summary(previous)} if previous else None}
     if dg:
         status["diagram"] = {"file": dg["file"], "shown": [dg["t0"], dg["t1"]], "readability": dg["readability"]}
         if dg["readability"].get("ok") is False:
@@ -312,8 +340,8 @@ def main() -> None:
                 "vision": VISION_CALLS}, "by_provider": by}
 
     def write_common() -> None:
-        (a.out / "ai_calls.json").write_text(json.dumps(CALLS, indent=1), encoding="utf-8")
-        (a.out / "rounds.json").write_text(json.dumps(rounds, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+        (ev / "ai_calls.json").write_text(json.dumps(CALLS, indent=1), encoding="utf-8")
+        (ev / "rounds.json").write_text(json.dumps(rounds, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
         ck["rounds"] = rounds
         (a.out / "checkpoint.json").write_text(json.dumps(ck, ensure_ascii=False, default=str), encoding="utf-8")
         status.update({"minutes": round((time.time() - t0) / 60, 1), "ai": calls_summary()})
@@ -323,10 +351,10 @@ def main() -> None:
         status.update({"ok": ok, "state": "done" if ok else "failed"})
         write_common()
         if not ok:
-            text = fail_report(a.out, a.id, rounds, why)
+            text = fail_report(ev, a.id, rounds, why)
             ntfy(f"Kindled Iron director FAILED: {a.id}", why + "\n" + text[:1500])
             sys.exit(f"FAIL: {why} (see fail_report.md)")
-        (a.out / "fail_report.md").unlink(missing_ok=True)
+        (ev / "fail_report.md").unlink(missing_ok=True)
         ntfy(f"Kindled Iron preview accepted: {a.id}",
              f"Gates passed and the vision review passed. {rev.get('summary', '')}\nPrivate: previews/{a.id}/")
 
@@ -380,34 +408,58 @@ def main() -> None:
         finish(False, None, f"no plan passed every gate within the budget of {PLAN_CALLS} plan calls")
     ck["passed_plan"] = result["plan"]
 
-    def save(res: dict, rev: dict) -> None:
-        shutil.copy(res["mp4"], a.out / f"{a.id}.mp4")
-        (a.out / "scene.json").write_text(json.dumps(res["scene"], indent=1, ensure_ascii=False), encoding="utf-8")
-        (a.out / "plan.json").write_text(json.dumps(res["plan"], indent=1, ensure_ascii=False), encoding="utf-8")
-        (a.out / "media.json").write_text(json.dumps(res["media"], indent=1, ensure_ascii=False), encoding="utf-8")
-        (a.out / "gates.json").write_text(json.dumps(res["gates"], indent=1, ensure_ascii=False), encoding="utf-8")
+    def save(res: dict, rev: dict) -> bool:
+        """Replace the saved video bundle with this render, or keep the previous one (a render that is not a
+        complete, valid video never replaces it). Its review, gates and status always describe this video."""
         miss = planmod.misses(res["plan"], cat)                 # concepts the doodle library did not have
-        (a.out / "doodle_misses.json").write_text(json.dumps(miss, indent=1, ensure_ascii=False), encoding="utf-8")
-        status["doodle_misses"] = len(miss)
         acts = res["scene"].get("director", {}).get("actions", [])      # guide actions asked for, performed or not
-        (a.out / "guide_actions.json").write_text(json.dumps(acts, indent=1, ensure_ascii=False), encoding="utf-8")
-        status["guide_actions"] = {"performed": sum(1 for x in acts if x.get("performed")),
-                                   "not_performed": [f"line {x['line']}: {x['action']} ({x['status']})" for x in acts if not x.get("performed")]}
         used = [d.get("type") for L in res["plan"]["lines"] for d in L.get("drawings", [])]
-        status["drawings"] = {"library": sum(1 for t in used if cat["objects"].get(t, {}).get("doodle")), "built_in":
-                              sum(1 for t in used if not cat["objects"].get(t, {}).get("doodle"))}
-        times = json.loads((res["work"] / "preview_times.json").read_text())
-        subprocess.run([sys.executable, str(ROOT / "tools" / "frame_sheet.py"), str(res["mp4"]), "--work", str(res["work"]),
-                        "--out", str(a.out / f"{a.id}-8-frames.jpg")], check=True)
-        for f in ("box_contact.jpg",):
-            if (res["work"] / f).exists():
-                shutil.copy(res["work"] / f, a.out / f"{a.id}-{f}")
+        notes = []
+        tf = res["work"] / "preview_times.json"
+        times = json.loads(tf.read_text()) if tf.is_file() else None
+        if times is None:
+            notes.append("preview_times.json missing: the 8 review stills could not be placed")
+        sheet = res["work"] / "frames-8.jpg"
+        try:
+            subprocess.run([sys.executable, str(ROOT / "tools" / "frame_sheet.py"), str(res["mp4"]), "--work", str(res["work"]),
+                            "--out", str(sheet)], check=True, capture_output=True)
+        except (subprocess.CalledProcessError, OSError) as e:
+            notes.append(f"frame sheet failed: {str(e)[:200]}")
+        gate_ok = {k: v["ok"] for k, v in res["gates"].items() if not k.startswith("_")}
+        ok, why = accepted(gate_ok, rev)
         rev = dict(rev, ai=calls_summary(), calls=CALLS)
-        (a.out / "review.json").write_text(json.dumps(rev, indent=1, ensure_ascii=False), encoding="utf-8")
-        status["preview_times"] = times
-        status["gates"] = {k: v["ok"] for k, v in res["gates"].items() if not k.startswith("_")}
+        manifest = {"id": a.id, "run": os.environ.get("GITHUB_RUN_ID"), "director_commit": bundle.git_commit(REPO),
+                    "narration_sha256": sha, "plan_attempt": res.get("attempt"), "review": rev.get("verdict"),
+                    "accepted": ok, "not_accepted_because": None if ok else why, "gates": gate_ok, "notes": notes,
+                    "proposed_composition": (res["gates"].get("_proposed_composition") or {}).get("ok")}
+        data = {"review.json": rev, "gates.json": res["gates"], "scene.json": res["scene"], "plan.json": res["plan"],
+                "media.json": res["media"], "doodle_misses.json": miss, "guide_actions.json": acts}
+        try:
+            man = bundle.write(a.out, a.id, res["mp4"], data, {f"{a.id}-8-frames.jpg": sheet,
+                               f"{a.id}-box_contact.jpg": res["work"] / "box_contact.jpg"}, manifest,
+                               _expected_seconds(res["scene"], words))
+        except bundle.BundleError as e:
+            log(f"NOT SAVED: {e}; the previous video stays")
+            status.update({"video_saved": False, "save_error": str(e)})
+            return False
+        status.update({"video_saved": True, "video": {"kept": "new", **_video_summary(man)}, "gates": gate_ok,
+                       "preview_times": times, "doodle_misses": len(miss), "save_notes": notes,
+                       "guide_actions": {"performed": sum(1 for x in acts if x.get("performed")),
+                                         "not_performed": [f"line {x['line']}: {x['action']} ({x['status']})"
+                                                           for x in acts if not x.get("performed")]},
+                       "drawings": {"library": sum(1 for t in used if cat["objects"].get(t, {}).get("doodle")),
+                                    "built_in": sum(1 for t in used if not cat["objects"].get(t, {}).get("doodle"))}})
+        log(f"saved {a.id}.mp4 ({man['duration']:.1f} s, sha {man['sha256'][:12]}), review {rev.get('verdict')}, "
+            f"accepted {ok}")
+        return True
 
-    times = json.loads((result["work"] / "preview_times.json").read_text())
+    tf = result["work"] / "preview_times.json"
+    if not tf.is_file():                           # no stills to review: saved, recorded, never accepted
+        final = {"verdict": "not_reviewed", "summary": "preview_times.json is missing: the vision review could not run"}
+        status["verdict"] = final["verdict"]
+        saved = save(result, final)
+        finish(False, final, final["summary"] + ("" if saved else "; the video was not saved either"))
+    times = json.loads(tf.read_text())
     n_before = len(CALLS)
     try:
         rev = reviewmod.review(result["mp4"], times, [f["line"] for f in result["frames"]], result["work"])
@@ -417,8 +469,7 @@ def main() -> None:
         wait("review", e)
     rev["provider"] = next((c["provider"] for c in reversed(CALLS[n_before:]) if not c.get("error")), "?")
     log(f"vision review ({rev['provider']}): {rev['verdict']} ({rev.get('summary', '')})")
-    reviews = [rev]
-    final_verdict = rev["verdict"]
+    final = {"verdict": rev["verdict"], "summary": rev.get("summary", ""), "rounds": [rev]}
     if rev["verdict"] != "pass" and ck["plan_calls"] < PLAN_CALLS:
         fb = reviewmod.fixes(rev, [f"line {int(f['beat'][1:])}" for f in result["frames"]])
         log("review fix round: " + "; ".join(fb[:6]))
@@ -428,23 +479,38 @@ def main() -> None:
         except llm.QuotaWait as e:
             log(f"no AI quota for the review fix round ({str(e)[:200]}): keeping the reviewed video")
             better = None
-        if better:
-            result = better
-            final_verdict = "fixed_not_rereviewed"      # the vision budget is one call per video
+        if better:                                 # the newest complete render is saved, but it was not reviewed
+            result = better                        # (the vision budget is 1 call a video): never accepted
+            final = {"verdict": "fixed_not_rereviewed", "summary": "revised after a failed vision review; the revision "
+                     "passed every gate but was not reviewed (1 vision call a video)", "previous_review": rev}
             log("the review fix passed every gate; the vision budget (1 call) leaves it not re-reviewed")
         else:
-            log("the review fix round did not pass the gates: keeping the reviewed video")
+            log("the review fix round did not pass the gates: keeping the reviewed video (its own render is untouched)")
     elif rev["verdict"] != "pass":
         log("vision review failed and the plan budget is spent: keeping the video with the failed verdict")
-    final = {"verdict": final_verdict, "summary": rev.get("summary", ""), "rounds": reviews}
-    status.update({"verdict": final_verdict})
-    save(result, final)                         # the video and its review stay in the private preview either way
-    ok, why = accepted(status.get("gates") or {}, final)
+    status["verdict"] = final["verdict"]
+    saved = save(result, final)                    # the video and ITS review are saved together, or not at all
+    ok, why = accepted(status.get("gates") or {}, final) if saved else (False, "the video could not be saved: "
+                                                                         + str(status.get("save_error")))
     finish(ok, final, why)
     log(f"done: {a.out}")
 
 
+def _clean_work() -> None:
+    """The temporary render folders go when the run ends (the preview folder keeps the saved video)."""
+    if "--keep-work" in sys.argv:
+        return
+    w = sys.argv[sys.argv.index("--work") + 1] if "--work" in sys.argv else None
+    vid = sys.argv[sys.argv.index("--id") + 1] if "--id" in sys.argv else None
+    d = Path(w) if w else (REPO / "storage" / "director" / vid if vid and ID.fullmatch(vid) else None)
+    if d and d.is_dir():
+        for sub in d.glob("attempt*"):
+            shutil.rmtree(sub, ignore_errors=True)
+
+
 if __name__ == "__main__":
+    import atexit
+    atexit.register(_clean_work)
     try:
         main()
     except SystemExit:
@@ -457,10 +523,20 @@ if __name__ == "__main__":
         vid = sys.argv[sys.argv.index("--id") + 1] if "--id" in sys.argv else "?"
         why = f"crashed: {type(e).__name__}: {e}"
         if out:
-            out.mkdir(parents=True, exist_ok=True)
-            (out / "ai_calls.json").write_text(json.dumps(CALLS, indent=1), encoding="utf-8")
-            (out / "rounds.json").write_text(json.dumps(ROUNDS, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
-            (out / "status.json").write_text(json.dumps({"id": vid, "ok": False, "state": "failed", "error": why}, indent=1), encoding="utf-8")
-            (out / "fail_report.md").write_text(f"# Director failed: {vid}\n\n{why}\n\n```\n{tb[-3000:]}\n```\n", encoding="utf-8")
+            ev = out
+            ev.mkdir(parents=True, exist_ok=True)
+            (ev / "ai_calls.json").write_text(json.dumps(CALLS, indent=1), encoding="utf-8")
+            (ev / "rounds.json").write_text(json.dumps(ROUNDS, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+            st = {}
+            try:                                   # keep what the run already knew (which video is current...)
+                st = json.loads((out / "status.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                pass
+            st.update({"id": vid, "ok": False, "state": "failed", "error": why})
+            man = bundle.read_manifest(out)        # a bundle this run saved stays described; never accepted now
+            if man:
+                st["video"] = {"kept": "new", **_video_summary(man), "accepted": False}
+            (out / "status.json").write_text(json.dumps(st, indent=1, default=str), encoding="utf-8")
+            (ev / "fail_report.md").write_text(f"# Director failed: {vid}\n\n{why}\n\n```\n{tb[-3000:]}\n```\n", encoding="utf-8")
         ntfy(f"Kindled Iron director FAILED: {vid}", why)
         sys.exit(f"FAIL: {why}")

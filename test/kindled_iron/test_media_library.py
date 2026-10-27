@@ -190,7 +190,13 @@ class Library(unittest.TestCase):
         self.assertEqual(p["lines"][1]["box"], [])
         self.assertIsNone(p["lines"][2]["pop"])
         self.assertIn("nothing to do with the line", notes)
-        self.assertIn("look-alike", notes)
+        self.assertIn("a reaction meme does not fit a grave line", notes)    # line 3 is about innocent people suffering
+        p = self._plan(box1=[{"word": "crazy", "kind": "meme", "file": "confused_question_marks.png"}],
+                       pop3={"word": "argument", "file": "000_love_money_confused.jpg"})           # look-alike of line 1
+        neutral = LINES[:2] + ["So what about the argument? Crazy, right?"]
+        keys = [[planmod.key(w) for w in l.split()] for l in neutral]
+        p["lines"][2]["expression"] = "puzzled"
+        self.assertIn("look-alike", " | ".join(planmod.repair(p, neutral, keys, self.cat, self.lib)))
         many = [{"file": f"m{k}.png", "role": "meme", "group": f"m{k}", "tags": ["crazy"]} for k in range(6)]
         p = self._plan(box1=[{"word": "crazy", "kind": "meme", "file": m["file"]} for m in many])
         planmod.repair(p, LINES, self.keys, self.cat, many)

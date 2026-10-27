@@ -1648,6 +1648,8 @@
     if (!MB) return;
     var sg = mbSegment(t);
     MB.el.setAttribute('visibility', sg ? 'visible' : 'hidden');
+    // display too: SVG children with their own visibility="visible" (the verse text, the picture) would still show
+    MB.el.style.display = sg ? '' : 'none';
     if (!sg) return;
     mbGeom(sg);
     renderBullets(t);
@@ -1928,6 +1930,13 @@
     var guides = Object.keys(chars).map(charRect).filter(Boolean);
     if (!box && !guides.length) out.push('NOTHING ON SCREEN');
     if (MB && MB.overflow.length) out.push('VERSE DOES NOT FIT: ' + MB.overflow.join(', '));
+    if (MB && !box) {            // the box is gone: nothing of it (verse text, picture) may still be painted
+      var left = Array.prototype.some.call(MB.el.querySelectorAll('text, image'), function (el) {
+        var r = el.getBoundingClientRect();
+        return r.width > 2 && r.height > 2 && getComputedStyle(el).visibility !== 'hidden' && (el.tagName !== 'text' || el.textContent.trim());
+      });
+      if (left) out.push('BOX CONTENT SHOWN WITHOUT ITS BOX');
+    }
     if (box) guides.forEach(function (g) { if (inter(box, g) > 0) out.push('GUIDE TOUCHES BOX'); });
     var capOn = capEl.textContent.trim() && capEl.style.visibility !== 'hidden';
     if (capOn && window.kiVerseOn(t)) out.push('CAPTION DURING VERSE');

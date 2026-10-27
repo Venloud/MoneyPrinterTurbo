@@ -443,3 +443,13 @@ class ProposedComposition(unittest.TestCase):
         self.assertIn('res["_proposed_composition"]', src)               # stored under a "_" key ...
         self.assertIn('all(v["ok"] for k, v in res.items() if not k.startswith("_"))', src)   # ... which _passed skips
         self.assertEqual((gates.MIN_COVER, gates.MAX_EMPTY), (0.60, 0.20))   # the existing gate is unchanged
+
+
+class HiddenBox(unittest.TestCase):
+    def test_a_hidden_box_paints_nothing_and_the_audit_checks_it(self):
+        """The full render of the drawing-first build showed the Revelation 21:4 text after its card had gone: SVG
+        children with their own visibility="visible" ignore a hidden parent. The box is now display:none when it
+        is gone, and the per-frame audit fails any box content still painted without its box."""
+        js = (ROOT / "kindled_iron" / "runtime" / "runtime.js").read_text()
+        self.assertIn("MB.el.style.display = sg ? '' : 'none';", js)
+        self.assertIn("BOX CONTENT SHOWN WITHOUT ITS BOX", js)

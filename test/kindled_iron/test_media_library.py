@@ -196,7 +196,7 @@ class Library(unittest.TestCase):
         p = self._plan(box1=[{"word": "crazy", "kind": "meme", "file": "confused_question_marks.png"}],
                        pop3={"word": "argument", "file": "000_love_money_confused.jpg"})           # look-alike of line 1
         neutral = LINES[:2] + ["So what about the argument? Crazy, right?"]
-        keys = [[planmod.key(w) for w in l.split()] for l in neutral]
+        keys = [[planmod.key(w) for w in line.split()] for line in neutral]
         p["lines"][2]["expression"] = "puzzled"
         self.assertIn("look-alike", " | ".join(planmod.repair(p, neutral, keys, self.cat, self.lib)))
         many = [{"file": f"m{k}.png", "role": "meme", "group": f"m{k}", "tags": ["crazy"]} for k in range(6)]
@@ -371,7 +371,8 @@ class Library(unittest.TestCase):
         return z
 
     def _plan(self, box1=None, box2=None, pop3=None):
-        dr = lambda w, t, f: {"word": w, "type": t, "fields": f}
+        def dr(w, t, f):
+            return {"word": w, "type": t, "fields": f}
         return {"freeze": {"line": 2, "word": "Earthquakes"}, "lines": [
             {"expression": "curious", "gesture": {"do": "point", "word": "argument"}, "box": box1 or [],
              "drawings": [dr("argument", "question_big", {"label": "REALLY?"}), dr("money", "coin_pile", {"label": "MONEY"})]},

@@ -440,7 +440,10 @@ def main() -> None:
                 "media.json": res["media"], "doodle_misses.json": miss, "guide_actions.json": acts}
         try:
             man = bundle.write(a.out, a.id, res["mp4"], data, {f"{a.id}-8-frames.jpg": sheet,
-                               f"{a.id}-box_contact.jpg": res["work"] / "box_contact.jpg"}, manifest,
+                               f"{a.id}-box_contact.jpg": res["work"] / "box_contact.jpg",
+                               # the render's voice / scripture / audio checks: what the publisher's gate reads
+                               f"{a.id}-meta.json": res["mp4"].with_name(res["mp4"].stem + "_meta.json"),
+                               f"{a.id}.srt": res["mp4"].with_suffix(".srt")}, manifest,
                                _expected_seconds(res["scene"], words))
         except bundle.BundleError as e:
             log(f"NOT SAVED: {e}; the previous video stays")

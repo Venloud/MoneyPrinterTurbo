@@ -132,7 +132,6 @@ class Director(unittest.TestCase):
         self.assertEqual(errs, [])
         scene, frames = compiler.compile_scene(p, LINES, words(LINES), self.cat, per_line,
                                                {"id": "t", "audio_path": "approved_audio/t/narration.mp3", "sha256": "x", "align": 1})
-        Z = self.cat["zones"]
         evs = [e for b in scene["beats"] for e in b["events"]]
         draws = [e for e in evs if e.get("do") == "draw"]
         self.assertEqual(len(draws), 4)

@@ -129,8 +129,10 @@ class WholeDiagram(unittest.TestCase):
             self.assertAlmostEqual(w / h, w0 / h0, delta=0.01, msg=item["file"])            # never stretched
             self.assertAlmostEqual(w, w0 * f["scale"], delta=1)
             self.assertAlmostEqual(h, h0 * f["scale"], delta=1)
-            self.assertGreaterEqual(x, SAFE["x0"]); self.assertGreaterEqual(y, SAFE["y0"])
-            self.assertLessEqual(x + w, SAFE["x1"]); self.assertLessEqual(y + h, SAFE["y1"])
+            self.assertGreaterEqual(x, SAFE["x0"])
+            self.assertGreaterEqual(y, SAFE["y0"])
+            self.assertLessEqual(x + w, SAFE["x1"])
+            self.assertLessEqual(y + h, SAFE["y1"])
             if y + h > SAFE["column"]["y0"]:
                 self.assertLessEqual(x + w, SAFE["column"]["x0"])                             # clear of the buttons
             c = f["caption"]
@@ -234,7 +236,8 @@ class Frames(unittest.TestCase):
         scene = {"mediabox": {"x": 540, "y": 370, "w": 820, "h": 380}, "clips": {"c": {"pexels": "1"}},
                  "beats": [{"events": []}, {"events": [{"at": 0.0, "box": "clip", "clip": "c"}, {"at": 0.5, "box": "off"}]},
                            {"events": []}]}
-        at = lambda a, ws, s, e, u, p: s + (a or 0)
+        def at(a, ws, s, e, u, p):
+            return s + (a or 0)
         segs = mediabox.plan(scene, [(0, 2), (2, 4), (4, 6)], [[], [], []], [], 6.0, at, lambda m: None)
         self.assertEqual([(s["kind"], s["t0"], s["t1"]) for s in segs], [("clip", 2.0, 2.5)])   # nothing before, nothing after
         js = (ROOT / "kindled_iron" / "runtime" / "runtime.js").read_text()
@@ -254,8 +257,9 @@ class OverlayAndGuide(unittest.TestCase):
         dg["fit"] = diagram.fit(dg["size"], SAFE)
         dg["path"] = "movie_reference/" + dg["file"]
         cls.dg, cls.lines, cls.words = dg, lines, words
-        mk = lambda i, a, b: [{"word": a, "type": "question_big", "fields": {"label": "WHY?"}},
-                              {"word": b, "type": "heart", "fields": {"label": "LOVE"}}]
+        def mk(i, a, b):
+            return [{"word": a, "type": "question_big", "fields": {"label": "WHY?"}},
+                                      {"word": b, "type": "heart", "fields": {"label": "LOVE"}}]
         cls.plan = {"freeze": {"line": 4, "word": "choosing"}, "lines": [
             {"expression": "curious", "gesture": {"do": "none"}, "box": [], "drawings": mk(0, "graph", "argument.")},
             {"expression": "thinking", "gesture": {"do": "none"}, "box": [], "drawings": mk(1, "evil.", "good,")},
@@ -385,7 +389,7 @@ class CrossTopic(unittest.TestCase):
 
     def check(self, scene, words, dg, plan):
         C = self.C
-        draws, boxes, ev = [], [], []
+        draws, _boxes, ev = [], [], []
         for b, beat in enumerate(scene["beats"]):
             for e in beat["events"]:
                 at = e.get("at")
@@ -568,7 +572,7 @@ class CaptionsAtTheMiddle(unittest.TestCase):
     band). No top-of-frame caption windows."""
 
     def test_caption_anchor_and_layout_around_it(self):
-        from kindled_iron.director import compile as C, plan as P
+        from kindled_iron.director import plan as P
         cat = P.catalog()
         Z = cat["zones"]
         cap0, cap1 = Z["caption"]["y"], Z["caption"]["y"] + Z["caption"]["h"]
@@ -576,7 +580,8 @@ class CaptionsAtTheMiddle(unittest.TestCase):
         self.assertLessEqual(Z["box"]["y"] + Z["box"]["h"] / 2, Z["draw"]["y0"])   # box above the band ...
         self.assertLess(Z["draw"]["y1"], cap0)                             # ... the band above the caption ...
         self.assertLess(cap1, cat["guide"]["top"])                         # ... the guide's head below it
-        ct = CrossTopic(); ct.setUpClass()
+        ct = CrossTopic()
+        ct.setUpClass()
         for name, media_lines in (("animation", (1,)), ("water", (1,)), ("cpr", (0,))):
             with self.subTest(topic=name):
                 scene, words, dg, plan = ct.compile(name, media_lines)
@@ -619,13 +624,13 @@ class AudioTruePeakTrim(unittest.TestCase):
 
     def test_a_failing_mix_is_trimmed_once_and_passes(self):
         r, logs, sound = self.mix(True)
-        self.assertTrue(any("static trim" in l for l in logs), logs)
+        self.assertTrue(any("static trim" in m for m in logs), logs)
         self.assertLessEqual(r["true_peak"], sound.TP_FAIL)
         self.assertEqual((sound.TRUE_PEAK, sound.TP_FAIL), (-2.5, -2.0))      # the gate itself is unchanged
 
     def test_a_passing_mix_is_untouched(self):
         r, logs, sound = self.mix(False)
-        self.assertFalse(any("static trim" in l for l in logs), logs)
+        self.assertFalse(any("static trim" in m for m in logs), logs)
 
 
 class LateMediaLead(unittest.TestCase):
@@ -773,7 +778,7 @@ class ContextualMedia(unittest.TestCase):
 
     def repair(self, p, lines):
         from kindled_iron.director import plan as P
-        return P.repair(p, lines, [[P.key(w) for w in l.split()] for l in lines], P.catalog(), self.LIB)
+        return P.repair(p, lines, [[P.key(w) for w in line.split()] for line in lines], P.catalog(), self.LIB)
 
     def resolve(self, p, lines):
         os.environ.pop("KI_BOX_PLACEHOLDER", None)

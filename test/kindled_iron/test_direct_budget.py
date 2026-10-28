@@ -12,7 +12,7 @@ LINES = "One line of the script here.\n\nA second line of the script."
 
 
 def words():
-    return [[{"word": w, "start": i * 0.4, "end": i * 0.4 + 0.3} for i, w in enumerate(l.split())] for l in LINES.split("\n\n")]
+    return [[{"word": w, "start": i * 0.4, "end": i * 0.4 + 0.3} for i, w in enumerate(line.split())] for line in LINES.split("\n\n")]
 
 
 class Budget(unittest.TestCase):
@@ -282,7 +282,9 @@ class ReviewBlocks(Budget):
     def test_an_invalid_render_never_replaces_the_complete_preview(self):
         self.run_with_review(["pass"])                                   # a good preview exists
         good, _ = self.saved()
-        direct.ROUNDS.clear(); CALLS.clear(); direct.ATTEMPTS[0] = 0
+        direct.ROUNDS.clear()
+        CALLS.clear()
+        direct.ATTEMPTS[0] = 0
         code, st = self.run_with_review(["pass"], first=lambda: self.fake_result(3, video=False))
         self.assertFalse(st["ok"])
         self.assertFalse(st["video_saved"])

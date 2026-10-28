@@ -1,6 +1,8 @@
-name: Kindled Iron Director Preview
-# script.txt + the owner's narration.mp3 (private kindled-iron-voice/approved_audio/<id>/) -> a finished PRIVATE
-# preview in kindled-iron-voice/previews/<id>/. No voice is generated, nothing is published, no public artifacts.
+name: "Kindled Iron 1 - Generate Video"
+# Workflow 1 of 3 (see kindled_iron/RELEASE.md). script.txt + the owner's narration.mp3 (private
+# kindled-iron-voice/approved_audio/<id>/, uploaded there with GitHub's "Add file > Upload files") -> a finished
+# PRIVATE preview + review package in kindled-iron-voice/previews/<id>/. No voice is generated, nothing is
+# approved or published, no public artifacts. Next: "Kindled Iron 2 - Approve and Add to Buffer".
 # video_id empty = every approved_audio/<id>/ folder (script.txt + narration.mp3) that has no previews/<id>/review.json,
 # plus every video waiting for AI quota.
 # Manual only: no schedule runs until the owner authorises one. (A schedule that resumes waiting_quota videos after
@@ -98,6 +100,18 @@ jobs:
           echo "videos: ${ids:-none}"
           echo "ids=$ids" >> "$GITHUB_OUTPUT"
 
+      - name: Validate the MP3 and script of every video (before any AI call or render)
+        if: ${{ steps.ids.outputs.ids != '' }}
+        run: |
+          set -euo pipefail
+          [ -n "${{ steps.ids.outputs.ids }}" ] || exit 0
+          command -v ffprobe >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg; }
+          bad=""
+          for id in ${{ steps.ids.outputs.ids }}; do
+            python -m kindled_iron.release check-input --private "$KI_PRIVATE_MEDIA" --id "$id" || bad="$bad $id"
+          done
+          [ -z "$bad" ] || { echo "::error::invalid input for:$bad (see REFUSED above)"; exit 1; }
+
       - name: Renderer dependencies
         if: ${{ steps.ids.outputs.ids != '' }}
         run: |
@@ -163,10 +177,9 @@ jobs:
           [ -d "$RUNNER_TEMP/out" ] || exit 0
           for f in "$RUNNER_TEMP"/out/*/; do
             id=$(basename "$f")
-            mkdir -p "$d/previews/$id"
-            cp -r "$f"/. "$d/previews/$id/"
-            # a run that did not fail leaves no fail report: an older one must not sit beside the new video
-            [ -f "$f/fail_report.md" ] || rm -f "$d/previews/$id/fail_report.md"
+            # the new video replaces the saved one only when it is complete, and accepted or the saved one was not:
+            # a failed attempt never destroys the last accepted preview (kindled_iron/release.py save_preview)
+            echo "$id: $(python -m kindled_iron.release save-preview --from "$f" --to "$d/previews/$id" | python -c 'import json,sys;print(json.load(sys.stdin)["saved"])')" | tee -a "$GITHUB_STEP_SUMMARY"
             git -C "$d" add -A "previews/$id"
           done
           git -C "$d" config user.name "kindled-iron-director"; git -C "$d" config user.email "kindled-iron-director@users.noreply.github.com"

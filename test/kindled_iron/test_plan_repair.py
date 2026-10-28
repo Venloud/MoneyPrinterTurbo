@@ -32,7 +32,8 @@ def words(lines):
 
 
 def plan():
-    dr = lambda w, t, f: {"word": w, "type": t, "fields": f}
+    def dr(w, t, f):
+        return {"word": w, "type": t, "fields": f}
     return {"freeze": {"line": 2, "word": "why"}, "lines": [
         {"expression": "curious", "gesture": {"do": "point", "word": "graph"},
          "box": [{"word": "graph", "kind": "stock", "query": "chalkboard graph"}],
@@ -273,7 +274,8 @@ class Timeline(unittest.TestCase):
         # 2 lines apart (the plan rule passes) but only ~1.9 s apart in time (the renderer's 3 s rule would drop it)
         lines = ["Hook words here for the start.", "One two three four five six seven eight nine ten.", "Okay.",
                  "Alpha beta gamma delta epsilon zeta eta theta."]
-        dr = lambda w, t: {"word": w, "type": t, "fields": {"label": "X"}}
+        def dr(w, t):
+            return {"word": w, "type": t, "fields": {"label": "X"}}
         p = {"freeze": {"line": 4, "word": "eta"}, "lines": [
             {"expression": "curious", "gesture": {"do": "none"}, "box": [{"word": "Hook", "kind": "stock", "query": "fishing hook water"}],
              "drawings": [dr("words", "question_big"), dr("start", "bar_chart")]},
@@ -295,7 +297,8 @@ class Timeline(unittest.TestCase):
     # attempt 2: the freeze on the hook line kept its drawings off screen until after it (an empty first frame)
     def test_hook_drawings_show_before_a_freeze_and_come_back_after_it(self):
         lines = ["One two three four five six seven eight nine ten eleven twelve.", LINES[1]]
-        dr = lambda w, t: {"word": w, "type": t, "fields": {"label": "X"}}
+        def dr(w, t):
+            return {"word": w, "type": t, "fields": {"label": "X"}}
         p = {"freeze": {"line": 1, "word": "four"}, "lines": [
             {"expression": "curious", "gesture": {"do": "none"}, "box": [{"word": "One", "kind": "stock", "query": "one number sign"}],
              "drawings": [dr("two", "bar_chart"), dr("three", "question_big")]},

@@ -1,32 +1,34 @@
-name: Kindled Iron Publish
+name: "Kindled Iron 3 - Publish Everywhere"
 
-# The ONLY workflow that posts. Manual for now. Posts one APPROVED render (listed in the private repo's
-# approved/index.json) to TikTok, YouTube Shorts, Instagram Reels, Threads and Facebook Reels.
-# Refuses fallback-voice renders and renders that failed a check; a platform whose connection check fails
-# is skipped; one platform failing never stops the others. Weekly: refresh tokens + expiry alerts.
+# Workflow 3 of 3 (see kindled_iron/RELEASE.md). The ONLY Kindled Iron workflow that posts. Manual only: no
+# schedule. Posts ONE video the owner approved with "Kindled Iron 2 - Approve and Add to Buffer"
+# (kindled-iron-voice/buffer/<id>.json) to the platforms that approval names and that are not 'off' in
+# kindled_iron/publish_config.json. Refused when the buffer is empty, the video is not in it, its MP4 is no longer
+# the approved sha256, or every platform already has it. A platform whose connection check fails (missing or
+# expired credentials) is skipped; one platform failing never stops the others; every post is written to the
+# private ledger approved/posted.json at once, so a re-run posts only the platforms still missing (never twice).
+# check_only = refresh tokens and check every platform's connection, post nothing.
 on:
   workflow_dispatch:
     inputs:
-      render:
-        description: "Approved render file (e.g. where-did-god-come-from-20261006-1500.mp4); empty = latest approved"
+      video_id:
+        description: "Exact approved video id from the buffer (buffer/<id>.json)"
         required: false
         default: ""
       only:
-        description: "Only these platforms (comma list); empty = every platform not 'off' in publish_config.json"
+        description: "Only these platforms (comma list, within the approved ones); empty = every approved platform"
         required: false
         default: ""
       check_only:
         description: "Check every platform's connection, post nothing"
         type: boolean
         default: false
-  schedule:
-    - cron: "17 13 * * *"     # daily: refresh tokens, check every platform, ntfy only if something needs you
 
 permissions:
   contents: write              # only for the short-lived public copy of the video (deleted at the end)
 
 concurrency:
-  group: kindled-iron-publish
+  group: kindled-iron-release  # shared with approvals: the buffer and the ledger never change twice at once
   cancel-in-progress: false
 
 env:
@@ -59,69 +61,39 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: "Daily: refresh tokens, check every platform, alert only when something needs you"
-        if: ${{ github.event_name == 'schedule' }}
-        run: python -m kindled_iron.publish --daily
-
-      - name: Connection check only
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.check_only }}
+      - name: Connection check only (refreshes tokens, posts nothing)
+        if: ${{ inputs.check_only }}
         run: python -m kindled_iron.publish --check-only --only "${{ inputs.only }}"
 
-      - name: Fetch the approved render from the private repo
+      - name: Select the approved video from the private buffer
         id: fetch
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.check_only }}
+        if: ${{ !inputs.check_only }}
         env:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
-          WANT: ${{ inputs.render }}
+          VID: ${{ inputs.video_id }}
+          ONLY: ${{ inputs.only }}
         run: |
           set -euo pipefail
-          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
-          gh api "repos/$VOICE_REPO/contents/approved/index.json" -q .content | base64 -d > approved.json
-          file=$(python3 - <<'PY'
-          import json, os
-          items = json.load(open("approved.json")).get("items", [])
-          want = os.environ.get("WANT", "").strip()
-          pick = [i for i in items if i["file"] == want] if want else items[-1:]
-          if not pick:
-              raise SystemExit(f"FAIL: {want or 'no render'} is not approved")
-          it = pick[0]
-          # "path" / "meta": a render kept in the private repo itself (previews/...) instead of the test-renders release
-          print(it["file"], it.get("path", ""), it.get("meta", ""), it.get("sha256", ""))
+          [ -n "$VID" ] || { echo "::error::give video_id: an approved video from the buffer (nothing is published without one)"; exit 1; }
+          [ -n "$GH_TOKEN" ] || { echo "::error::VOICE_REPO_TOKEN missing (repository secret)"; exit 1; }
+          d="$RUNNER_TEMP/ki-private"
+          git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/${VOICE_REPO}.git" "$d"
+          git -C "$d" sparse-checkout set buffer approved "previews/$VID"
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::error::$VOICE_REPO is not private"; exit 1; }
+          [ -f "$d/approved/posted.json" ] || echo "{}" > "$d/approved/posted.json"
+          python -m json.tool "$d/approved/posted.json" > /dev/null || { echo "::error::approved/posted.json is not valid JSON: no posting without the ledger"; exit 1; }
+          python -m kindled_iron.release select --private "$d" --id "$VID" --ledger "$d/approved/posted.json" \
+            --platforms "$ONLY" --out selected.json
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          s = json.load(open("selected.json"))
+          print(f"video={s['video_path']}\nmeta={s['meta_path']}\npost={s['post_path']}\nname={s['render_name']}")
+          print(f"platforms={','.join(s['remaining'])}")
           PY
-          )
-          read -r file src metasrc want_sha <<< "$file"
-          base="${file%.mp4}"
-          mkdir -p pub
-          if [ -n "$src" ]; then
-            gh api -H "Accept: application/vnd.github.raw" "repos/$VOICE_REPO/contents/$src" > "pub/$file"
-            gh api -H "Accept: application/vnd.github.raw" "repos/$VOICE_REPO/contents/$metasrc" > "pub/$base.meta.json"
-          else
-            gh release download test-renders --repo "$VOICE_REPO" --dir pub --clobber \
-              --pattern "$file" --pattern "$base.meta.json" --pattern "$base.post.txt"
-          fi
-          # an approval that names a sha256 covers exactly that video: a changed file is never posted
-          if [ -n "$want_sha" ]; then
-            got=$(sha256sum "pub/$file" | cut -d' ' -f1)
-            [ "$got" = "$want_sha" ] || { echo "FAIL: pub/$file is $got, the approval is for $want_sha (modified after approval)"; exit 1; }
-            echo "video sha256 matches the approval: $got"
-          fi
-          # post ledger: every platform a scene was already posted to (never posted twice)
-          if gh api "repos/$VOICE_REPO/contents/approved/posted.json" > ledger_api.json 2>ledger_err.txt; then
-            python3 -c "import json,base64;print(base64.b64decode(json.load(open('ledger_api.json'))['content']).decode(),end='')" > posted.json
-            python3 -c "import json;print(json.load(open('ledger_api.json'))['sha'])" > posted.sha
-          elif grep -q "Not Found" ledger_err.txt; then
-            echo "{}" > posted.json; : > posted.sha
-          else
-            echo "FAIL: could not read approved/posted.json (no posting without the ledger)"; cat ledger_err.txt; exit 1
-          fi
-          ls -la pub
-          echo "video=pub/$file" >> "$GITHUB_OUTPUT"
-          echo "name=$file" >> "$GITHUB_OUTPUT"
-          echo "meta=pub/$base.meta.json" >> "$GITHUB_OUTPUT"
-          [ -f "pub/$base.post.txt" ] && echo "post=pub/$base.post.txt" >> "$GITHUB_OUTPUT" || echo "post=" >> "$GITHUB_OUTPUT"   # no post.txt: text from the scene file
+          echo "PRIVATE=$d" >> "$GITHUB_ENV"
           echo "tag=ki-tmp-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
-      - name: Short-lived public copy (Threads / Instagram fallback fetch from a URL), deleted at the end
+      - name: Short-lived public copy (Threads / Instagram fetch the video from a URL), deleted at the end
         id: tmp
         if: ${{ steps.fetch.outcome == 'success' }}
         env:
@@ -134,25 +106,42 @@ jobs:
           name=$(basename "${{ steps.fetch.outputs.video }}")
           echo "url=https://github.com/$GITHUB_REPOSITORY/releases/download/${{ steps.fetch.outputs.tag }}/$name" >> "$GITHUB_OUTPUT"
 
-      - name: Publish
+      - name: Publish (only the platforms that do not have it yet)
         if: ${{ steps.fetch.outcome == 'success' }}
         run: |
           python -m kindled_iron.publish --video "${{ steps.fetch.outputs.video }}" --meta "${{ steps.fetch.outputs.meta }}" \
-            --post "${{ steps.fetch.outputs.post }}" --public-url "${{ steps.tmp.outputs.url }}" --only "${{ inputs.only }}" \
-            --ledger posted.json --render-name "${{ steps.fetch.outputs.name }}"
+            --post "${{ steps.fetch.outputs.post }}" --public-url "${{ steps.tmp.outputs.url }}" \
+            --only "${{ steps.fetch.outputs.platforms }}" --ledger "$PRIVATE/approved/posted.json" \
+            --render-name "${{ steps.fetch.outputs.name }}"
 
-      - name: Save the post ledger to the private repo (approved/posted.json)
+      - name: Save the post ledger and the buffer state to the private repo
+        id: save
         if: ${{ always() && steps.fetch.outcome == 'success' }}
         env:
           GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+          VID: ${{ inputs.video_id }}
         run: |
-          set -euo pipefail
-          if cmp -s posted.json <(gh api "repos/$VOICE_REPO/contents/approved/posted.json" -q .content 2>/dev/null | base64 -d 2>/dev/null); then
-            echo "ledger unchanged"; exit 0
+          set -uo pipefail
+          d="$PRIVATE"
+          python -m kindled_iron.release finish --private "$d" --id "$VID" --ledger "$d/approved/posted.json" \
+            --results publish_results.json --out finish.json; rc=$?
+          git -C "$d" add approved/posted.json "buffer/$VID.json"
+          git -C "$d" config user.name "kindled-iron-publish"; git -C "$d" config user.email "kindled-iron-publish@users.noreply.github.com"
+          if git -C "$d" commit -q -m "Post ledger: $VID (run ${{ github.run_id }})"; then
+            for i in 1 2 3; do git -C "$d" push -q origin HEAD:main && break; sleep 5; git -C "$d" pull -q --rebase origin main; done
+            git -C "$d" fetch -q origin main
+            git -C "$d" diff --quiet origin/main HEAD -- approved/posted.json \
+              || { echo "::error::the post ledger was NOT saved: copy posted.json from the run artifact into approved/posted.json before publishing again"; exit 1; }
           fi
-          args=(-X PUT "repos/$VOICE_REPO/contents/approved/posted.json" -f message="Post ledger: ${{ steps.fetch.outputs.name }}" -f content="$(base64 -w0 posted.json)")
-          [ -s posted.sha ] && args+=(-f sha="$(cat posted.sha)")
-          gh api "${args[@]}" -q .commit.sha || { echo "::error::ledger NOT saved to the private repo: copy posted.json from the run artifact into approved/posted.json"; exit 1; }
+          cp "$d/approved/posted.json" posted.json
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          f = json.load(open("finish.json"))
+          print(f"### {f['id']}: {f['state']}\n| platform | result | url |\n|---|---|---|")
+          for p, v in f["platforms"].items():
+              print(f"| {p} | {'OK ' + str(v.get('mode') or '') if v['ok'] else 'FAILED ' + str(v.get('error') or '')[:160]} | {v.get('url') or '-'} |")
+          PY
+          exit $rc
 
       - name: Remove the public copy
         if: ${{ always() && steps.fetch.outputs.tag != '' }}
@@ -168,4 +157,9 @@ jobs:
           path: |
             publish_results.json
             posted.json
+            finish.json
           if-no-files-found: ignore
+
+      - name: Delete the private checkout
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/ki-private"

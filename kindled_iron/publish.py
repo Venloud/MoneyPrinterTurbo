@@ -173,10 +173,12 @@ def ledger_save(path: str | None, ledger: dict) -> None:
 
 
 def gate(meta: dict) -> None:
-    """Never post a render that used the fallback voice or failed a check."""
+    """Never post a render that used the fallback voice or failed a check. The owner's own recording (director
+    videos: provider "owner", used as-is) is the intended voice, not a fallback: it must name its source hash."""
     v = meta.get("voice", {})
     problems = []
-    if v.get("fallback") or v.get("provider_used") not in ("elevenlabs",):
+    owner = v.get("provider_used") == "owner" and bool(v.get("source_sha256")) and not v.get("regenerated")
+    if v.get("fallback") or not (v.get("provider_used") == "elevenlabs" or owner):
         problems.append(f"voice is {v.get('provider_used')} (fallback voice)")
     if any(not r.get("ok") for r in meta.get("verse_check", [])) or not meta.get("verse_check"):
         problems.append("scripture check failed or missing")

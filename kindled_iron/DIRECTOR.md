@@ -230,7 +230,20 @@ Rules the code enforces (plan.repair, no AI call):
   video, used on the final video).
 - a reaction meme is never put on a grave line (suffering, death, harm to children, grief): it would read as mockery,
   whatever words it shares with the line.
-- pop-ups: at most 3 per video, at least 2 lines apart, never on a verse line or on the word "God", 380 px wide,
+- footage that cannot be had (no PEXELS_API_KEY / PIXABAY_API_KEY, no result that shows the line, or a query off the
+  line) is replaced by the library still that shows what the line says (media.best_still: it must share a word with
+  the line; a query that fits the line picks among them, else the line's own words and feeling do: a "hope after
+  suffering" sunrise is not the picture for a line about suffering). No such still = no frame. media.json records
+  the failed search (`"stock"`) and the still's reason. (Epicurean run of 2026-10-28: both planned clips failed
+  this way and the video fell back to drawings only.)
+- the director's own picks (plan.propose_media), for lines the planner left without them: a reaction meme only on
+  a reaction ASIDE (a sentence of at most 6 words with a cue such as "crazy", "wait", "think", "wow", "really":
+  "Sounds crazy, right?", "Think about it."), the meme whose own tags/purpose show that reaction and nothing off
+  the line (no money meme on a line about free will); a library still only where the line names the subject it
+  shows (a camera-visible word, never an abstract idea like "hope"). Every rule below still applies to them. Most
+  lines get neither; there is no quota.
+- pop-ups: at most 3 per video, at least 2 lines apart, never in the hook (line 1's first sentence), never on a
+  verse line or on the word "God", 380 px wide,
   1.2 s; no file twice in a row and no file more than twice per video.
 - box items without a word are anchored on a spoken word of their line (the word their query or file names, else the
   line's first word); empty box items are dropped (a line may have no box); a box item `kind: "verse"` becomes the

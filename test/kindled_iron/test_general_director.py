@@ -746,3 +746,104 @@ class EntrancesFollowTheNarration(unittest.TestCase):
         q = next(t for d, t in ev.items() if "question" in d)
         self.assertGreaterEqual(q, why - C.EARLY_MAX - 0.01)               # not pulled to the start of the line
         self.assertLess(next(t for d, t in ev.items() if "boat" in d), q)  # the ship (said first) is up first
+
+
+class ContextualMedia(unittest.TestCase):
+    """Owner, 2026-10-28: the Epicurean video came out almost all drawings because footage the planner asked for
+    could not be fetched (no key) or was off the line, and nothing took its place; the director never offered a
+    reaction meme itself. Now a library still that shows the line replaces missing footage, and the director adds a
+    meme only on a reaction aside. Unseen scripts and a made-up library: nothing here knows Epicurean Paradox."""
+
+    LIB = [
+        {"file": "flooded_street.png", "role": "still", "group": "flooded_street.png", "tags": ["flood", "street", "water"],
+         "description": "a flooded street after heavy rain", "tone": "damage"},
+        {"file": "sunrise_hope.png", "role": "still", "group": "sunrise_hope.png", "tags": ["sunrise", "hope", "flood"],
+         "description": "sunrise over calm water", "purpose": "hope after a flood"},
+        {"file": "server_room.png", "role": "still", "group": "server_room.png", "tags": ["server", "data", "center"],
+         "description": "rows of servers in a data center"},
+        {"file": "puzzled_face.png", "role": "meme", "group": "puzzled_face.png", "tags": ["confused", "disbelief"],
+         "description": "a puzzled face", "purpose": "react to a claim that makes no sense"},
+        {"file": "cash_puzzled.png", "role": "meme", "group": "cash_puzzled.png", "tags": ["confused", "money", "cash"]},
+        {"file": "temple_tap.png", "role": "meme", "group": "temple_tap.png", "tags": ["smart", "thinking", "idea"]},
+    ]
+
+    def plan(self, n):
+        return {"freeze": None, "lines": [{"expression": "neutral", "gesture": {"do": "none"}, "box": [], "drawings": []}
+                                          for _ in range(n)]}
+
+    def repair(self, p, lines):
+        from kindled_iron.director import plan as P
+        return P.repair(p, lines, [[P.key(w) for w in l.split()] for l in lines], P.catalog(), self.LIB)
+
+    def resolve(self, p, lines):
+        os.environ.pop("KI_BOX_PLACEHOLDER", None)
+        keys = {k: os.environ.pop(k) for k in ("PEXELS_API_KEY", "PIXABAY_API_KEY") if k in os.environ}
+        try:
+            return media.resolve(p, self.LIB, lambda m: None, lines)
+        finally:
+            os.environ.update(keys)
+
+    def test_missing_footage_becomes_the_still_that_shows_the_line(self):
+        lines = ["The river rose overnight and the flood covered every street in town.",
+                 "Your data lives in a huge server farm somewhere far away."]
+        p = self.plan(2)
+        p["lines"][0]["box"] = [{"word": "flood", "kind": "stock", "query": "flood water street"}]
+        p["lines"][1]["box"] = [{"word": "server", "kind": "stock", "query": "glowing fiber cables"}]   # off the line
+        per_line, records, errs = self.resolve(p, lines)
+        self.assertEqual(errs, [])
+        self.assertEqual(per_line[0][0]["file"], "flooded_street.png")       # shows what the query and the line show
+        self.assertIn("no PEXELS_API_KEY", records[0]["stock"])               # the blocker is recorded, not hidden
+        self.assertEqual(per_line[1][0]["file"], "server_room.png")          # the line names servers
+        self.assertIn("instead of footage", records[1]["why"])
+
+    def test_no_still_that_shows_the_line_means_no_frame(self):
+        lines = ["Nobody remembers who wrote the first password."]
+        p = self.plan(1)
+        p["lines"][0]["box"] = [{"word": "password", "kind": "stock", "query": "password login screen"}]
+        per_line, records, _ = self.resolve(p, lines)
+        self.assertEqual(per_line, [[]])
+        self.assertTrue(records[0]["result"].startswith("left out"))
+
+    def test_an_untrusted_query_never_picks_the_still(self):
+        lines = ["After the flood the town was quiet and grieving."]       # about the loss, not about hope
+        p = self.plan(1)
+        p["lines"][0]["box"] = [{"word": "flood", "kind": "stock", "query": "sunrise calm sea"}]
+        per_line, _, _ = self.resolve(p, lines)
+        self.assertEqual(per_line[0][0]["file"], "flooded_street.png")       # the sunrise's "hope" is not this line
+
+    def test_a_meme_only_on_a_reaction_aside(self):
+        lines = ["Your phone is listening to every word you say all day. Sounds crazy, right?",
+                 "Engineers call this a wake word detector that runs on a tiny chip.",
+                 "Think about it. The chip hears everything but keeps almost nothing.",
+                 "It would be crazy to send every second of audio to a server far away."]
+        p = self.plan(4)
+        notes = " | ".join(self.repair(p, lines))
+        self.assertEqual(p["lines"][0]["pop"], {"word": "crazy,", "file": "puzzled_face.png"})   # not the money one
+        self.assertIsNone(p["lines"][1].get("pop"))
+        self.assertEqual(p["lines"][2]["pop"]["file"], "temple_tap.png")
+        self.assertIsNone(p["lines"][3].get("pop"))                          # "crazy" inside a long sentence: no aside
+        self.assertIn("aside", notes)
+
+    def test_no_meme_in_the_hook_or_on_a_grave_line_or_too_close(self):
+        from kindled_iron.director import plan as P
+        lines = ["Crazy, right?", "Think about it. Thousands died in the flood that year.", "Think about it."]
+        p = self.plan(3)
+        self.repair(p, lines)
+        self.assertIsNone(p["lines"][0].get("pop"))                          # the hook stays clean
+        self.assertIsNone(p["lines"][1].get("pop"))                          # grave line
+        self.assertEqual(p["lines"][2]["pop"]["file"], "temple_tap.png")
+        self.assertTrue(P.in_hook("Crazy, right? More.", "crazy"))
+        self.assertFalse(P.in_hook("I saw it. Crazy, right?", "crazy"))
+        p = self.plan(3)
+        p["lines"][1]["pop"] = {"word": "Think", "file": "temple_tap.png"}   # the planner's own pop
+        self.repair(p, ["One fact.", "Think about it.", "Wait, what?"])
+        self.assertIsNone(p["lines"][2].get("pop"))                          # lines apart rule
+
+    def test_no_media_added_for_its_own_sake(self):
+        lines = ["A ship left the harbor at dawn.", "The captain checked the map twice."]
+        p = self.plan(2)
+        self.assertEqual(self.repair(p, lines), [])
+        self.assertTrue(all(not L["box"] and not L.get("pop") for L in p["lines"]))
+        p = self.plan(1)
+        self.repair(p, ["There is always hope."])                            # only an abstract idea: no sunrise
+        self.assertEqual(p["lines"][0]["box"], [])

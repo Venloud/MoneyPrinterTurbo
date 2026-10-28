@@ -137,7 +137,7 @@ RULES = [
     "Stock queries must name filmable things (e.g. 'earthquake rubble street', 'hospital patient bed', 'person praying'), never abstract words alone. No God depicted as a person, no occult imagery.",
     "No identical box media twice in a row; no file or query used more than twice in the video.",
     "A line that quotes scripture word for word, or names a reference like 'Revelation 21:4', gets 'verse': {ref, word (the first word of the quote or the reference), quoted: true|false}. That line's box shows the typed verse card, so give it no other box media.",
-    "'pop' (optional): a meme from the library that pops up beside the guide on a reaction word; at most 3 in the video, at least 3 lines apart, never on line 1 (the hook), never on a verse line, never on the word 'God', never a joke on a grave line (suffering, death, children, grief): a meme must fit the line's tone, not just a word.",
+    "'pop' (optional): a meme from the library that pops up beside the guide on a reaction word; at most 3 in the video, at least 2 lines apart, never in the hook (the first sentence), never on a verse line, never on the word 'God', never a joke on a grave line (suffering, death, children, grief): a meme must fit the line's tone, not just a word.",
     "'gesture': the guide ACTS the line (word = the word the action lands on; for point, the drawing's word). Pick from guide_actions: point at the drawing being named, shrug on a question, think, realize on a twist, confused, celebrate good news, choose_path between two options, frustrated_at_screen... Use an action on at least every second line; a line may be the guide's moment alone (a strong action, no meme).",
     "'expression' every line, from the catalog's expressions, matching the line's emotion.",
     "'freeze': exactly one, on the line with the biggest twist or surprise, on its key word (a record-scratch freeze-frame).",
@@ -303,7 +303,7 @@ def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict, 
             L["gesture"] = {"do": "none"}
         p = L.get("pop")
         if isinstance(p, dict):
-            why = ("the first line is the hook" if i == 0 else "verse line" if L.get("verse") or scripture_refs(lines[i])
+            why = ("the hook (the first sentence)" if i == 0 and in_hook(lines[0], p.get("word")) else "verse line" if L.get("verse") or scripture_refs(lines[i])
                    else "on the word God" if key(p.get("word", "")) == "god"
                    else "too close to the previous pop-up" if pops and i - pops[-1] < 2
                    else "more than %d pop-ups" % MAX_POPS if len(pops) >= MAX_POPS else "")
@@ -314,6 +314,95 @@ def repair(plan: dict, lines: list[str], line_keys: list[list[str]], cat: dict, 
                 pops.append(i)
     if lib is not None:
         notes += _repair_media(plan, lines, lib)
+        if len(plan["lines"]) == len(lines):
+            notes += propose_media(plan, lines, lib)
+    return notes
+
+
+def in_hook(line: str, word) -> bool:
+    """Is this word (first occurrence) in the line's first sentence: the hook, which stays clean?"""
+    first = re.split(r"(?<=[.!?])\s+", line.strip(), maxsplit=1)[0]
+    return key(str(word or "")) in [key(w) for w in first.split()]
+
+
+# words with which the narrator voices the viewer's own reaction ("Sounds crazy, right?", "Think about it.",
+# "Wait, what?"): said as a short aside, that is the beat a reaction meme lands on. A cue inside a long sentence is
+# part of the argument, not a reaction, and gets no meme.
+REACTION_CUES = {"crazy": "nonsense", "insane": "nonsense", "wild": "nonsense", "wait": "nonsense", "huh": "nonsense",
+                 "weird": "nonsense", "strange": "nonsense", "seriously": "nonsense", "ridiculous": "nonsense",
+                 "wow": "surprise", "whoa": "surprise", "surprise": "surprise", "surprising": "surprise",
+                 "shocking": "surprise", "think": "think", "imagine": "think", "wonder": "think", "really": "doubt",
+                 "suspicious": "doubt", "doubt": "doubt", "funny": "happy", "hilarious": "happy"}
+# what a meme must show for that aside (its tags / description / purpose words), and its family in media.FAMILIES
+CUE_SENSE = {"nonsense": (("disbelief", "believ", "sense", "confus", "crazy", "weird", "strange", "blink", "puzzl",
+                           "question", "what"), "disbelief"),
+             "surprise": (("surpris", "shock", "wow", "whoa", "realiz", "unexpected"), "surprise"),
+             "think": (("think", "smart", "clever", "idea", "wonder", "temple", "consider"), "think"),
+             "doubt": (("skeptic", "doubt", "susp", "squint", "stare", "side"), "suspicion"),
+             "happy": (("laugh", "amused", "funny", "hilarious", "joy"), "happy")}
+ASIDE_WORDS = 6        # a sentence this short is an aside to the viewer, not a step of the argument
+
+
+def reaction_cue(line: str) -> tuple[str, str] | None:
+    """(spoken word, reaction sense) of the line's reaction aside, None when it has none."""
+    for sent in re.split(r"(?<=[.!?])\s+", line.strip()):
+        toks = sent.split()
+        if len(toks) > ASIDE_WORDS:
+            continue
+        for t in toks:
+            fam = REACTION_CUES.get(key(t))
+            if fam:
+                return t, fam
+    return None
+
+
+def propose_media(plan: dict, lines: list[str], lib: list[dict]) -> list[str]:
+    """The director's own media judgement, in code, for lines the planner left without media: a reaction meme on a
+    reaction aside (the meme's own tags/description carry that reaction, nothing else it shows is off the line), and
+    a library still where the line names the subject a still shows. Every rule the planner's picks obey applies
+    (hook, verse lines, the word God, grave lines, pop spacing, MAX_POPS, MAX_MEMES, one use per look-alike group);
+    no line gets media just to have some. Returns notes of what was added and why."""
+    from kindled_iron.director.media import best_still, _item_words, _families, _words as _mwords
+    by_file = {m["file"]: m for m in lib}
+    P = plan["lines"]
+    files = [b.get("file") for L in P for b in L.get("box") or []] + \
+            [L["pop"].get("file") for L in P if isinstance(L.get("pop"), dict)]
+    groups = {by_file[f].get("group", f) for f in files if f in by_file}
+    memes = sum(1 for f in files if f in by_file and by_file[f].get("role", "meme") == "meme")
+    pops = [i for i, L in enumerate(P) if isinstance(L.get("pop"), dict)]
+    notes = []
+    for i, L in enumerate(P):
+        if L.get("verse") or scripture_refs(lines[i]):
+            continue
+        cue = reaction_cue(lines[i])
+        if (cue and not L.get("pop") and not grave(lines[i]) and key(cue[0]) != "god" and len(pops) < MAX_POPS
+                and memes < MAX_MEMES and all(abs(i - j) >= 2 for j in pops) and not (i == 0 and in_hook(lines[0], cue[0]))):
+            word, sense = cue
+            sense_keys, fam = CUE_SENSE[sense]
+            said = _families(set(re.findall(r"[a-z]+", lines[i].lower())))
+            best = None
+            for m in lib:
+                if m.get("role", "meme") != "meme" or m.get("group", m["file"]) in groups:
+                    continue
+                have = _item_words(m)
+                hits = sum(1 for w in have for k in sense_keys if w.startswith(k))
+                off = _families(have) - said - {fam}         # it also shows money, a phone...: not this line's reaction
+                if hits and not off and (best is None or hits > best[0] or hits == best[0] and m["file"] < best[1]["file"]):
+                    best = (hits, m)
+            if best:
+                m = best[1]
+                L["pop"] = {"word": word, "file": m["file"]}
+                groups.add(m.get("group", m["file"])); memes += 1; pops = sorted(pops + [i])
+                notes.append(f"line {i + 1}: pop-up {m['file']!r} added on {word!r} (a {sense} aside; the meme shows {sense})")
+        if not (L.get("box") or []):
+            got = best_still(lib, lines[i], used=groups, literal=True)
+            if got:
+                m, why, shown = got
+                w = next((t for t in lines[i].split() if _mwords(t) & set(shown)), None)    # the first word it shows
+                if w:
+                    L["box"] = [{"word": w, "kind": "meme", "file": m["file"]}]
+                    groups.add(m.get("group", m["file"]))
+                    notes.append(f"line {i + 1}: library still {m['file']!r} added on {w!r} ({why})")
     return notes
 
 

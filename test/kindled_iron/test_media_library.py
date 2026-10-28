@@ -187,7 +187,9 @@ class Library(unittest.TestCase):
                        pop3={"word": "suffer", "file": "000_love_money_confused.jpg"})            # look-alike of line 1
         p["lines"][2]["expression"] = "puzzled"                                  # so the pop fits the line itself
         notes = " | ".join(planmod.repair(p, LINES, self.keys, self.cat, self.lib))
-        self.assertEqual(p["lines"][1]["box"], [])
+        # the irrelevant meme is gone; the director's own pick for a line naming earthquakes is the still that shows one
+        self.assertEqual([b["file"] for b in p["lines"][1]["box"]], ["collapsed_house.png"])
+        self.assertIn("library still 'collapsed_house.png' added", notes)
         self.assertIsNone(p["lines"][2]["pop"])
         self.assertIn("nothing to do with the line", notes)
         self.assertIn("a reaction meme does not fit a grave line", notes)    # line 3 is about innocent people suffering

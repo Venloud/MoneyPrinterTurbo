@@ -6,6 +6,8 @@
   Nothing found -> an error the planner gets back ("give another concrete query or use a meme").
 - Library: kindled-iron-voice/movie_reference/ and reactions/ (index.json tags, description, tone, purpose + the
   file name's own words); show: false entries (guide-action references) are never shown.
+- Footage the line needed but could not get (no key, no result that shows it, a query off the line) is replaced by
+  the library still that shows what the line says (best_still), else the line goes without a frame; both logged.
 - Every pick is logged in media.json (line, word, query/file, source, id, page, why).
 Offline (no keys, KI_BOX_PLACEHOLDER=1) stock queries resolve to placeholders so tests can run.
 """
@@ -179,6 +181,39 @@ def query_fits_line(query: str, line: str) -> str | None:
     return None
 
 
+def _item_words(item: dict) -> set[str]:
+    return _words(" ".join(item.get("tags", []) + [item.get(k, "") for k in META] + [item["file"]])) - VAGUE - WEAK
+
+
+def best_still(lib: list[dict], line: str, query: str = "", used: set | None = None,
+               literal: bool = False) -> tuple[dict, str, list[str]] | None:
+    """The library still (a real-looking picture with a written description) that shows what the line is about; it
+    must share a word with the line itself. With a query (footage the planner wanted here and that fits the line)
+    the still that shows most of that query wins; else the one naming most of the line, then the one whose feeling
+    is the line's (a "hope after suffering" sunrise is not the picture for a line about suffering itself). literal
+    (a still nobody asked for): the shared word must be something a camera shows, never only an abstract idea.
+    Stills already in the video (or their look-alikes) are skipped. -> (item, why, the line's words it shows)."""
+    from kindled_iron.director.story import VAGUE as SAID_VAGUE
+    said = _words(line) - VAGUE - SAID_VAGUE
+    want = _words(query) - VAGUE - WEAK - SAID_VAGUE
+    feel = _families(said)
+    best = None
+    for m in lib:
+        if m.get("role") != "still" or m.get("group", m["file"]) in (used or set()):
+            continue
+        have = _item_words(m)
+        on_line = have & said - (ABSTRACT if literal else set())
+        if not on_line:
+            continue
+        fam = _families(have)
+        score = (len(have & want), len(on_line), len(fam & feel) - len(fam - feel))
+        if best is None or score > best[0] or score == best[0] and m["file"] < best[1]["file"]:
+            best = (score, m, sorted(on_line))
+    if not best:
+        return None
+    return best[1], "shows " + ", ".join(best[2][:3]) + ", which the line says", best[2]
+
+
 def judge(cand: dict, query: str, line: str) -> tuple[bool, str]:
     """One stock result against the query AND the line it would illustrate (its title / page words: the provider's
     description of what is filmed). -> (ok, reason)."""
@@ -230,6 +265,23 @@ def resolve(plan: dict, lib: list[dict], log, lines: list[str] | None = None) ->
     per_line, records, errors = [], [], []
     order: list[str] = []
     counts: dict[str, int] = {}
+    used = {files[f].get("group", f) for L in plan["lines"] for f in [b.get("file") for b in L.get("box") or []]
+            + [(L.get("pop") or {}).get("file") if isinstance(L.get("pop"), dict) else None] if f in files}
+
+    def substitute(i: int, b: dict, q: str, failed: str, rec: dict, trust: bool) -> bool:
+        """Footage the line needed but could not get (no key, no result that shows it, an off-topic query): the
+        library still that shows what the line says takes its place, else the line goes without a frame."""
+        got = best_still(lib, text(i), q if trust else "", used) if lines else None
+        if not got:
+            return False
+        m, why, _ = got
+        path = m.get("path") or "movie_reference/" + m["file"]
+        items.append({"kind": "meme", "file": m["file"], "path": path, "word": b["word"]})
+        rec.update({"query": q, "stock": failed, "file": m["file"], "path": path, "role": "still",
+                    "source": "owner upload (private)", "why": "library still instead of footage: " + why})
+        used.add(m.get("group", m["file"]))
+        log(f"media: line {i + 1}: {failed}; library still {m['file']} instead ({why})")
+        return True
     for i, L in enumerate(plan["lines"]):
         items = []
         for b in L.get("box") or []:
@@ -254,18 +306,32 @@ def resolve(plan: dict, lib: list[dict], log, lines: list[str] | None = None) ->
             else:
                 q = b.get("query", "")
                 fits = query_fits_line(q, text(i)) if lines else "no line text"
-                if not fits:                          # footage about something the line does not say: no frame
-                    rec.update({"query": q, "result": "left out: the query is not about what the line says"})
-                    records.append(rec)
-                    log(f"media: line {i + 1}: stock query {q!r} left out (not about what the line says)")
+                if not fits:                          # footage about something the line does not say
+                    failed = f"stock query {q!r} is not about what the line says"
+                    if not substitute(i, b, q, failed, rec, trust=False):
+                        rec.update({"query": q, "result": "left out: the query is not about what the line says"})
+                        records.append(rec)
+                        log(f"media: line {i + 1}: {failed}: left out, no library still shows the line either")
+                        continue
+                    ident = f"meme:{rec['file']}"
+                    records.append(rec); order.append(ident); counts[ident] = counts.get(ident, 0) + 1
                     continue
                 turned_down: list = []
                 hit = stock(q, order, counts, log, text(i), turned_down)
-                if not hit:                           # nothing that truly shows it: the line goes without a frame
-                    rec.update({"query": q, "result": "left out: no result shows what the line says",
-                                "rejected": turned_down[:8]})
-                    records.append(rec)
-                    log(f"media: line {i + 1}: no stock result for {q!r} shows the line ({len(turned_down)} turned down)")
+                if not hit:                           # nothing that truly shows it
+                    keys = os.environ.get("PEXELS_API_KEY") or os.environ.get("PIXABAY_API_KEY")
+                    failed = (f"no stock result for {q!r} shows the line ({len(turned_down)} turned down)" if keys
+                              else f"stock search for {q!r} not possible (no PEXELS_API_KEY / PIXABAY_API_KEY)")
+                    if not substitute(i, b, q, failed, rec, trust=True):
+                        rec.update({"query": q, "result": "left out: " + ("no result shows what the line says" if keys
+                                    else "no stock key and no library still shows the line"), "rejected": turned_down[:8]})
+                        records.append(rec)
+                        log(f"media: line {i + 1}: {failed}: left out, no library still shows the line either")
+                        continue
+                    if turned_down:
+                        rec["rejected"] = turned_down[:8]
+                    ident = f"meme:{rec['file']}"
+                    records.append(rec); order.append(ident); counts[ident] = counts.get(ident, 0) + 1
                     continue
                 ident = f"{hit['source']}:{hit['id']}"
                 items.append({"kind": "stock", "word": b["word"], **hit})

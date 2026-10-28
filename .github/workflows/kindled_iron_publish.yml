@@ -86,10 +86,10 @@ jobs:
               raise SystemExit(f"FAIL: {want or 'no render'} is not approved")
           it = pick[0]
           # "path" / "meta": a render kept in the private repo itself (previews/...) instead of the test-renders release
-          print(it["file"], it.get("path", ""), it.get("meta", ""))
+          print(it["file"], it.get("path", ""), it.get("meta", ""), it.get("sha256", ""))
           PY
           )
-          read -r file src metasrc <<< "$file"
+          read -r file src metasrc want_sha <<< "$file"
           base="${file%.mp4}"
           mkdir -p pub
           if [ -n "$src" ]; then
@@ -98,6 +98,12 @@ jobs:
           else
             gh release download test-renders --repo "$VOICE_REPO" --dir pub --clobber \
               --pattern "$file" --pattern "$base.meta.json" --pattern "$base.post.txt"
+          fi
+          # an approval that names a sha256 covers exactly that video: a changed file is never posted
+          if [ -n "$want_sha" ]; then
+            got=$(sha256sum "pub/$file" | cut -d' ' -f1)
+            [ "$got" = "$want_sha" ] || { echo "FAIL: pub/$file is $got, the approval is for $want_sha (modified after approval)"; exit 1; }
+            echo "video sha256 matches the approval: $got"
           fi
           # post ledger: every platform a scene was already posted to (never posted twice)
           if gh api "repos/$VOICE_REPO/contents/approved/posted.json" > ledger_api.json 2>ledger_err.txt; then

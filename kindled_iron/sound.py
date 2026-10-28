@@ -5,7 +5,9 @@
   - a soft whoosh on every other scene change
   - one short pencil sound per scene, on its main drawing only ("main": true)
   Cap and spacing from sound_levels.json (max_effects, min_spacing_s; Kindled Iron: 10, 1 s); pencil can be off. No per-stroke sounds (no marker, scribble, eraser,
-  scratch), no ambience beds. "sound": "<role>" / "sound": false on an event overrides.
+  scratch), no ambience beds. "sound": "<role>" / "sound": false on an event overrides; "sound_file": a file in the
+  private repo (e.g. sfx/record_scratch.mp3) plays that exact recording for the role (its leading silence trimmed,
+  set to the role's level); missing -> the library's variants of the role, if it has any.
 
 Music: one track per channel (voice_profiles.json music_track -> vendor/sfx/lib/music_<name>.ogg),
 from frame 0, ducked under the voice, a small lift at the ending.
@@ -96,6 +98,7 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
     def add(prio, t, role, why, dur=None):
         cand.append({"prio": prio, "t": round(max(0.0, t), 3), "role": role, "why": why, "dur": dur,
                      "weight": "big" if role in BIG_ROLES else "small", "group": None})
+        return cand[-1]
 
     hits, scene_changes, pencil_beats = 0, 0, set()
     for e in events:
@@ -103,7 +106,12 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
         if e.get("sound") is False:
             continue
         if e.get("sound"):
-            add(2, t, e["sound"], f"override on {do} {e.get('id', '')}", e.get("sound_dur"))
+            c = add(2, t, e["sound"], f"override on {do} {e.get('id', '')}", e.get("sound_dur"))
+            if e.get("sound_file"):
+                from kindled_iron import private_media
+                f = private_media.private_file(e["sound_file"])
+                if f:
+                    c.update(path=str(f), source=f"private:{e['sound_file']}")
             continue
         if e.get("hit") and hits < MAX_HITS:
             hits += 1
@@ -115,7 +123,7 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
             big = e.get("whoosh")                       # the scene marks its big changes; else every other one
             if big or (big is None and scene_changes % 2 == 1):
                 add(3, t - 0.05, "whoosh_slow", f"scene change ({e['transition']})", 0.7)
-        elif do == "draw" and o and e.get("main") and PENCIL:
+        elif do == "draw" and o and e.get("main") and scene.get("pencil", PENCIL):
             beat = next((b for b, (a, z) in enumerate(spans) if a - 0.3 <= t <= z + 0.3), None)
             if beat not in pencil_beats:
                 pencil_beats.add(beat)
@@ -132,6 +140,9 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
         kept.append(c)
     kept.sort(key=lambda c: c["t"])
     for c in kept:
+        if c.get("path"):                               # the owner's own recording for this moment
+            c["file"], c["pitch"] = Path(c["path"]).name, 1.0
+            continue
         f, pitch = picker.pick(c["role"])
         c["file"], c["pitch"] = (f.name if f else None), round(pitch, 3)
     return [c for c in kept if c["file"]]
@@ -141,6 +152,17 @@ def plan(events: list[dict], objects: list[dict], scene: dict, spans: list, pick
 def _decode(path: Path) -> np.ndarray:
     raw = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"])
     return np.frombuffer(raw, np.float32).copy()
+
+
+def _own(path: Path) -> np.ndarray:
+    """A private recording made like a library file: leading/trailing silence (under -50 dB) trimmed, 0.1 RMS."""
+    x = _decode(path)
+    loud = np.flatnonzero(np.abs(x) > 10 ** (-50 / 20))
+    if not len(loud):
+        return x
+    x = x[max(0, loud[0] - int(0.005 * SR)): loud[-1] + int(0.05 * SR)]
+    rms = float(np.sqrt(np.mean(x ** 2))) or 1.0
+    return x * (0.1 / rms)
 
 
 def _repitch(x: np.ndarray, r: float) -> np.ndarray:
@@ -214,7 +236,7 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     vpeak = float(np.percentile(np.abs(voice), 99.95)) or 0.5
     fx = np.zeros(n, np.float32)
     for c in cues:
-        x = _repitch(_decode(LIB / c["file"]), c["pitch"])
+        x = _own(Path(c["path"])) if c.get("path") else _repitch(_decode(LIB / c["file"]), c["pitch"])
         x = _fit(x, c.get("dur"))
         g = vr * 10 ** ((LEVELS.get(c["role"], -20) + SFX_GAIN) / 20) / 0.1      # library files sit at 0.1 RMS
         seg = x * g
@@ -231,7 +253,8 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     # compressed hard only above its own loud level, so P/B bursts are tamed and the body stays), light de-esser,
     # gentle compression, then gain + limiter to VOICE_LUFS with true peak <= TRUE_PEAK. Effects follow by the
     # same factor (they keep their offsets from sound_levels.json). Every provider goes through this.
-    vc = clean_voice(v)
+    # an approved recording used as-is ("voice_as_is"): no cleaning chain, only the level + limiter for the mix
+    vc = v if scene.get("voice_as_is") else clean_voice(v)
     vn, voice_lufs = _to_target(vc)
     k = _speech_rms(vn) / (_speech_rms(v) or 1e-6)
     # a clip's own audio ("God did") is matched to the voice loudness, never louder (1 dB under)
@@ -249,12 +272,22 @@ def mix(narration: Path, cues: list[dict], scene: dict, spans: list, words: list
     mb = music_bed(music, n, smask, voice_lufs, duration, log)
     if mb is not None:
         beds.append({"t": 0.0, "to": round(duration, 2), "role": "music", "file": (music or {}).get("label", "music")})
-    _write(vn + ov + fx * k + (mb if mb is not None else 0), out, 0.0)
+    mix = vn + ov + fx * k + (mb if mb is not None else 0)
+    _write(mix, out, 0.0)
     _write(ov + fx * k + (mb if mb is not None else 0), out_novoice, 0.0)
     if out_nomusic is not None:
         _write(vn + ov + fx * k, out_nomusic, 0.0)
-    lufs = _measure_lufs(out)
     tp = true_peak(out)
+    if tp > TP_FAIL:
+        # the limiter works on samples; overs between samples (sharp transients) can still pass the fail line. One
+        # static gain trim down to the target (no compression), only when the mix would fail; measured again below
+        trim = round(TRUE_PEAK - tp, 2)
+        log(f"mix true peak {tp:.2f} dBTP is above {TP_FAIL:.1f}: static trim {trim:+.2f} dB to the {TRUE_PEAK:.1f} dBTP target")
+        _write(mix, out, trim)
+        if out_nomusic is not None:
+            _write(vn + ov + fx * k, out_nomusic, trim)
+        tp = true_peak(out)
+    lufs = _measure_lufs(out)
     burst = lf_burst(out, vn)
     log(f"mix: {len(cues)} effects + music {(music or {}).get('label') or 'none'}, voice {voice_lufs:.1f} LUFS (target {VOICE_LUFS:.0f}), "
         f"final mix {lufs:.1f} LUFS, true peak {tp:.1f} dBTP, worst low-frequency burst {burst:+.1f} dB vs the voice average")
@@ -413,7 +446,7 @@ def report(cues: list[dict], beds: list[dict], duration: float) -> dict:
     src = {s["file"]: s for s in json.loads((LIB / "sources.json").read_text())}
     rows = []
     for c in cues:
-        s = src.get(c["file"], {})
+        s = src.get(c["file"], {}) if not c.get("path") else {"source": c.get("source"), "license": "owner-supplied (private)"}
         rows.append({"t": c["t"], "role": c["role"], "file": c["file"], "why": c["why"], "weight": c["weight"],
                      "source": s.get("source"), "id": s.get("id"), "title": s.get("title"), "author": s.get("author"),
                      "url": s.get("url"), "license": s.get("license")})

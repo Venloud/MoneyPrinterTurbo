@@ -1,0 +1,93 @@
+{
+ "_help": "The short answer as one huge word with a freeze-zoom (by 10 s). A Bible is drawn next to the guide.",
+ "slots": {
+  "headline": "title shown first, 2-5 words (e.g. The Bible's answer?)",
+  "answer_text": "the huge word (e.g. NOBODY.)",
+  "answer_word": "the word of the line where it lands"
+ },
+ "events": [
+  {
+   "at": 0,
+   "do": "place",
+   "who": "guide",
+   "x": 600
+  },
+  {
+   "at": 0,
+   "do": "size",
+   "who": "guide",
+   "value": 0.9,
+   "dur": 0.01
+  },
+  {
+   "at": 0,
+   "do": "draw",
+   "id": "{{id}}_h",
+   "type": "word",
+   "text": "{{headline}}",
+   "x": 540,
+   "y": 410,
+   "size": 92,
+   "dur": 0.3,
+   "title": true
+  },
+  {
+   "at": 0.1,
+   "do": "express",
+   "who": "guide",
+   "expression": "happy"
+  },
+  {
+   "at": 0.3,
+   "do": "draw",
+   "id": "{{id}}_book",
+   "type": "book",
+   "x": 300,
+   "y": 1080,
+   "scale": 0.85,
+   "dur": 0.35
+  },
+  {
+   "at": 0.7,
+   "do": "point",
+   "who": "guide",
+   "toward": "{{id}}_book",
+   "hold": 0.5
+  },
+  {
+   "at": "{{answer_word}}-0.15",
+   "do": "fade",
+   "ids": [
+    "{{id}}_h"
+   ],
+   "opacity": 0,
+   "dur": 0.15
+  },
+  {
+   "at": "{{answer_word}}-0.05",
+   "do": "draw",
+   "id": "{{id}}_a",
+   "type": "word",
+   "text": "{{answer_text}}",
+   "x": 600,
+   "y": 880,
+   "size": 150,
+   "dur": 0.25,
+   "underline": true,
+   "hit": true,
+   "why": "answer",
+   "title": true
+  },
+  {
+   "at": "{{answer_word}}",
+   "do": "freeze",
+   "who": "guide",
+   "dur": 1.0,
+   "zoom": 1.45,
+   "focus": {
+    "x": 600,
+    "y": 1030
+   }
+  }
+ ]
+}

@@ -41,8 +41,22 @@ def refs_of(text: str) -> list[str]:
     return [m.group(0)[1:-1].strip() for m in REF.finditer(text)]
 
 
+GLUED = re.compile(r"^(.+?[.!?,;:][\"”’]+)([A-Za-z].*)$")     # evil."is -> evil." + is (the owner's spacing kept on screen)
+
+
 def words_of(text: str) -> list[str]:
-    return strip_tags(text).split()
+    """Spoken words. A lone punctuation mark ("money ?") joins the word before it; two words glued after a closing
+    quote ('evil."is') are two words. The text itself is never changed."""
+    out: list[str] = []
+    for t in strip_tags(text).split():
+        m = GLUED.match(t)
+        parts = [m.group(1), m.group(2)] if m else [t]
+        for part in parts:
+            if not re.search(r"[A-Za-z0-9]", part) and out:
+                out[-1] += part
+            else:
+                out.append(part)
+    return out
 
 
 def _sentences(text: str) -> list[tuple[str, float | None]]:
@@ -70,7 +84,7 @@ def plan(beats: list[str], profile: dict) -> list[Segment]:
     segs: list[Segment] = []
     for b, text in enumerate(beats):
         for s, manual in _sentences(text):
-            segs.append(Segment(s, b, len(s.split()), 0.0 if tight else ps, "natural" if tight else "sentence"))
+            segs.append(Segment(s, b, len(words_of(s)), 0.0 if tight else ps, "natural" if tight else "sentence"))
             if manual is not None:
                 segs[-1].pause, segs[-1].why = (max_beat if manual < 0 else min(manual, max_beat) if tight else manual), "tag"
     if tight:

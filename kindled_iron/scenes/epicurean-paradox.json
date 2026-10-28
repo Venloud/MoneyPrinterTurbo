@@ -1,0 +1,388 @@
+{
+  "id": "epicurean-paradox",
+  "title": "Did God Create Evil? The Epicurean Paradox",
+  "voice_profile": "kindled_iron",
+  "voice_file": {
+    "path": "approved_audio/epicurean-paradox/narration.mp3",
+    "sha256": "756ac09a96011beaa459db5e55aa34d2e41783ed44e520f28ff5a6a334ea6d43",
+    "provider": "elevenlabs",
+    "voice": "venloud",
+    "length_s": 74.684
+  },
+  "voice_as_is": true,
+  "exact_narration": true,
+  "max_silence": null,
+  "end_hold": 0.5,
+  "ground": 1490,
+  "camera_y": 960,
+  "fill_min": 0.3,
+  "max_visual_gap": 2.5,
+  "cast": {
+    "guide": {
+      "panel": 0,
+      "x": 720,
+      "scale": 2.1,
+      "facing": -1,
+      "accent": true
+    }
+  },
+  "captions_box": {
+    "x": 540,
+    "y": 730,
+    "w": 790,
+    "size": 92,
+    "min_scale": 0.6
+  },
+  "captions_chunk": {
+    "max_words": 3,
+    "min_words": 1,
+    "max_chars": 18
+  },
+  "preview": {
+    "folder": "epicurean-paradox",
+    "public_artifacts": false,
+    "stage": "full"
+  },
+  "post": {
+    "title": "The Epicurean Paradox",
+    "caption": "If God is all-powerful, all-knowing, and all-good, why does evil exist? Let's explore the Epicurean Paradox and what this argument really means.\n\n#EpicureanParadox #ProblemOfEvil #Christianity #Faith #Bible",
+    "description": "Scripture: World English Bible (Revelation 21:4)"
+  },
+  "beats": [
+    {
+      "id": "intro",
+      "panel": 0,
+      "narration": "I'm sure y'all have seen this graph before. And if you haven't, according to this graph, the God of the Bible shouldn't even exist. Sounds crazy, right? But look at the argument.",
+      "events": [
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_intro",
+          "text": "EPICUREAN PARADOX",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_intro",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    },
+    {
+      "id": "argument",
+      "panel": 0,
+      "narration": "If God is all powerful, He can stop evil. If He's all knowing, He knows about evil. And if He's all good, He should want to stop it. So why does evil exist?",
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_intro"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_argument",
+          "text": "GOD + EVIL?",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_argument",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    },
+    {
+      "id": "freedom",
+      "panel": 0,
+      "narration": "Well, there's something this graph leaves out. Free will. Think about it. If God controlled every decision you made, would you really have a choice?",
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_argument"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_freedom",
+          "text": "FREE WILL",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_freedom",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    },
+    {
+      "id": "choices",
+      "panel": 0,
+      "narration": "You couldn't lie, steal, or hurt anyone, because God would stop you. But then you wouldn't be choosing good either.",
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_freedom"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_choices",
+          "text": "CHOICE",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_choices",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    },
+    {
+      "id": "suffering",
+      "panel": 0,
+      "narration": "Now, what about suffering nobody chooses? Earthquakes, diseases, innocent children dying? Free will doesn't explain those things.",
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_choices"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_suffering",
+          "text": "NATURAL SUFFERING",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_suffering",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "worried"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    },
+    {
+      "id": "creation",
+      "panel": 0,
+      "narration": "Christianity teaches that creation itself is broken and subject to suffering. But that doesn't mean every tragedy is punishment.",
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_suffering"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_creation",
+          "text": "BROKEN WORLD",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_creation",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    },
+    {
+      "id": "hope",
+      "panel": 0,
+      "narration": "The Bible also promises that suffering won't last forever. Revelation 21:4 describes a future without death, pain, or mourning.",
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_creation"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_hope",
+          "text": "REVELATION 21:4",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_hope",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    },
+    {
+      "id": "closing",
+      "panel": 0,
+      "narration": "So God allowing evil doesn't necessarily mean He approves of it or lacks the power to stop it. But why does He allow innocent people to suffer? That's a question Christians still wrestle with.",
+      "events": [
+        {
+          "at": 0,
+          "do": "fade",
+          "ids": [
+            "ki_hope"
+          ],
+          "opacity": 0,
+          "dur": 0.1
+        },
+        {
+          "at": 0,
+          "do": "draw",
+          "type": "word",
+          "id": "ki_closing",
+          "text": "WHY SUFFERING?",
+          "x": 310,
+          "y": 1010,
+          "size": 55,
+          "dur": 0.3,
+          "main": true
+        },
+        {
+          "at": 0.18,
+          "do": "point",
+          "who": "guide",
+          "toward": "ki_closing",
+          "hold": 0.7
+        },
+        {
+          "at": 1.25,
+          "do": "express",
+          "who": "guide",
+          "expression": "curious"
+        }
+      ],
+      "camera_start": false,
+      "interaction": false
+    }
+  ]
+}

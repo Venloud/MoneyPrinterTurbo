@@ -192,6 +192,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
                            "dur": cam.get("dur", 0.9 if b else 0.01)})
         for ev in beat.get("events", []):
             e = dict(ev)
+            if "box" in e or "box_bullet" in e or "box_bullets_clear" in e or "box_highlight" in e:     # media box: mediabox.py
+                continue
             if isinstance(e.get("scripture"), dict):
                 card_n = sum(1 for o in objects if o["type"] == "scripture")
                 o, ev_draw = scripture_card(e, words, off, card_n, beat.get("id", b))
@@ -275,7 +277,8 @@ def build_data(scene: dict, spans: list[tuple[float, float]], beat_words: list[l
             "palette": PALETTE, "cast": cast, "objects": objects, "events": events, "captions": captions,
             "camera": {"x": 540, "y": cam_y, "zoom": 1.0}, "vendor": vendor_parts(), "safe": SAFE, "debugSafe": False,
             "captionSize": (scene.get("captions_box") or {}).get("size", CAPTION["size"]), "hud": HUD, "paper": None, "inboxReactions": [],
-            "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {}}
+            "fillMin": scene.get("fill_min", 0.45), "captionBox": scene.get("captions_box") or {},
+            "captionWindows": scene.get("caption_windows") or []}
 
 
 def _norm_words(text: str) -> list[str]:
@@ -352,7 +355,8 @@ def transition_events(trans, t0: float, off: int, cam: dict, cam_y: float, whoos
 GUIDE_TOUCHES = {"point", "reach", "touch", "pet", "ride", "peek", "climb", "shield_eyes", "look"}
 RESPONSE = {"tree": "wiggle", "plant": "wiggle", "cloud": "wiggle", "waves": "splash", "fish": "splash",
             "animal": "wiggle", "sun": "pulse", "light": "pulse", "moon": "pulse", "star": "pulse", "stars": "pulse",
-            "hill": "dirt", "globe": "wiggle", "book": "pulse", "scripture": None, "frame": None, "inset": None}
+            "hill": "dirt", "globe": "wiggle", "book": "pulse", "scripture": None, "frame": None, "inset": None,
+            "mediabox": None}
 
 
 def respond(events: list[dict], objects: list[dict]) -> None:
@@ -379,7 +383,7 @@ def respond(events: list[dict], objects: list[dict]) -> None:
 
 def interaction_check(scene: dict, events: list[dict], objects: list[dict], spans) -> None:
     """Every scene: the guide touches, points at or reacts to at least one drawing."""
-    ids = {o["id"] for o in objects}
+    ids = {o["id"] for o in objects} | ({"box"} if scene.get("mediabox") else set())
     for b, beat in enumerate(scene["beats"]):
         a, z = spans[b][0], spans[b + 1][0] if b + 1 < len(spans) else spans[b][1] + 5
         hit = any(e.get("who") == "guide" and e.get("do") in GUIDE_TOUCHES | {"present"} and
@@ -396,6 +400,8 @@ def write_page(data: dict, work: Path) -> Path:
         "__W__": str(WIDTH), "__H__": str(HEIGHT), "__BOARD__": PALETTE["board"], "__INK__": PALETTE["ink"],
         "__ACCENT__": PALETTE["accent"], "__CAPTION_X__": str(cap["x"]), "__CAPTION_Y__": str(cap["y"]), "__CAPTION_W__": str(cap["w"]),
         "__CAPTION_SIZE__": str(cap["size"]),
+        "__CAPTION_COLOR__": PALETTE.get(data.get("captionColor") or "ink", data.get("captionColor") or PALETTE["ink"]),
+        "__CAPTION_ON__": PALETTE.get(data.get("captionOn") or "accent", data.get("captionOn") or PALETTE["accent"]),
         "__FONT__": (VENDOR / "fonts" / "Caveat.ttf").as_uri(),
         "__GSAP__": (VENDOR / "gsap" / "gsap.min.js").as_uri(),
         "__RUNTIME__": (HERE / "runtime" / "runtime.js").as_uri(),
@@ -445,6 +451,122 @@ def layout_check(page, duration: float, work: Path) -> list[dict]:
     return out
 
 
+GESTURES = {"point", "reach", "touch", "shrug", "look_viewer", "present", "wave", "cheer", "look", "react", "shake", "kneel"}
+
+
+def preview_times(data: dict, segs: list[dict] | None) -> list[float]:
+    """8 review frames: the opening, a lifestyle shot, a verse typing, the second Hebrews page, the rich meme,
+    all four bullets, the drawn heart, the split ending."""
+    segs = segs or []
+    t = [0.6]
+    life = [s for s in segs if s["kind"] == "clip" and s.get("clip") in ("meal", "doctor", "ticket", "commute", "saving")]
+    if life:
+        t.append(round((life[0]["t0"] + life[0]["t1"]) / 2, 2))
+    verses = [s for s in segs if s["kind"] == "verse"]
+    if verses:
+        v = verses[0]
+        t.append(round((v["pages"][0]["t"] + v["ref_t"]) / 2, 2))
+        two = [s for s in verses if len(s["pages"]) > 1]
+        if two:
+            t.append(round(min(two[0]["pages"][1]["t"] + 1.6, two[0]["ref_t"] + 0.4), 2))
+    memes = [e for e in data["events"] if e["do"] == "reaction" and not e.get("_drop")]
+    if memes:
+        t.append(round(memes[-1]["t"] + 0.5, 2))
+    bl = (data.get("mediabox") or {}).get("bullets")
+    if bl:
+        t.append(round(min(bl["items"][-1]["t"] + 0.35, bl["clear"] - 0.1), 2))
+    for kind, off in (("heart", 0.9), ("split", 1.2)):
+        hit = [s for s in segs if s["kind"] == kind]
+        if hit:
+            t.append(round(min(hit[0]["t0"] + off, hit[0]["t1"] - 0.1), 2))
+    while len(t) < 8:
+        t.append(round(data["duration"] * len(t) / 8, 2))
+    return sorted(t[:8])
+
+
+def guide_rules(scene: dict, events: list[dict], box_segs: list[dict] | None, log) -> list[dict]:
+    """The guide walks SLOWLY (scene walk_speed, ~140 px/s, never faster), turns first (never backwards), never walks
+    while a verse is being typed or a meme card is up, and stops for every gesture: a gesture that would land
+    during a walk waits until the walk has ended. Returns the walk windows (for the report)."""
+    speed = float(scene.get("walk_speed", 140))
+    walks = []
+    for _ in range(3):
+        events.sort(key=lambda e: e["t"])
+        pos, facing = {}, {}
+        for cid, c in scene["cast"].items():
+            pos[cid], facing[cid] = c["x"] + PANEL_W * c.get("panel", 0), c.get("facing", 1)
+        walks = []
+        for e in events:
+            who = e.get("who")
+            if who not in pos:
+                continue
+            if e["do"] == "place" and isinstance(e.get("x"), (int, float)):
+                pos[who] = e["x"]
+                facing[who] = e.get("facing", facing[who])
+            elif e["do"] == "walk":
+                e["speed"] = speed
+                e.pop("dur", None)
+                dist, d = abs(e["to"] - pos[who]), (1 if e["to"] >= pos[who] else -1)
+                dur = max(0.6, dist / speed)
+                turn = 0.25 if d != facing[who] else 0.0
+                walks.append({"who": who, "t0": e["t"], "t1": round(e["t"] + turn + dur + 0.15, 3), "from": pos[who], "to": e["to"],
+                              "turn": bool(turn), "ev": e})
+                pos[who], facing[who] = e["to"], d
+            elif e["do"] == "look_viewer":
+                facing[who] = 1
+            elif e["do"] in ("point", "reach") and e.get("toward"):
+                facing[who] = 1 if 540 >= pos[who] else -1
+        moved = 0
+        busy = [(sg["pages"][0]["t"] - 0.25, sg["ref_t"] + 0.05, f"verse {sg['ref']}") for sg in (box_segs or []) if sg["kind"] == "verse"]
+        busy += [(e["t"], e["t"] + float(e.get("dur", 1.2)), "meme card") for e in events if e["do"] == "reaction"]
+        for w in walks:
+            for a0, a1, why in busy:
+                if w["t0"] < a1 and a0 < w["t1"]:
+                    raise SystemExit(f"FAIL: the guide walks {w['t0']:.2f}-{w['t1']:.2f} s during the {why} ({a0:.2f}-{a1:.2f} s)")
+        for e in events:
+            if e.get("who") == "guide" and e["do"] in GESTURES:
+                hit = next((w for w in walks if w["t0"] - 0.05 <= e["t"] < w["t1"]), None)
+                if hit:
+                    log(f"guide: {e['do']} at {e['t']:.2f} s waits for the walk to end ({hit['t1']:.2f} s)")
+                    e["t"] = round(hit["t1"] + 0.02, 3)
+                    moved += 1
+        if not moved:
+            break
+    else:
+        raise SystemExit("FAIL: guide gestures keep landing inside walks")
+    for w in walks:
+        log(f"guide walk {w['t0']:.2f}-{w['t1']:.2f} s: x {w['from']:.0f} -> {w['to']:.0f} at {speed:.0f} px/s"
+            f"{' (turns first)' if w['turn'] else ''}")
+    return [{k: v for k, v in w.items() if k != "ev"} for w in walks]
+
+
+def strict_audit(page, duration: float, work: Path) -> dict:
+    """EVERY output frame (30 fps): captions never touch the guide or the media box (6 px gap, outline included),
+    never show while a verse is typed, max 5 words, inside the safe box; the guide never touches the box; something
+    is on screen from t=0. Any issue fails the render (audit.json lists every frame range)."""
+    frames = int(round(duration * FPS))
+    ranges: dict[str, list] = {}
+    for i in range(frames + 1):
+        t = round(i / FPS, 4)
+        issues = page.evaluate(f"(async () => {{ await window.kiSeek({t}); return window.kiAudit({t}); }})()")
+        for msg in issues:
+            r = ranges.setdefault(msg, [])
+            if r and t - r[-1][1] <= 1.5 / FPS:
+                r[-1][1] = t
+            else:
+                r.append([t, t])
+    out = {"frames_checked": frames + 1, "fps": FPS,
+           "issues": [{"issue": m, "from": a, "to": b} for m, rs in ranges.items() for a, b in rs]}
+    (work / "audit.json").write_text(json.dumps(out, indent=1))
+    if out["issues"]:
+        for x in out["issues"]:
+            log(f"AUDIT FAIL {x['from']:.2f}-{x['to']:.2f} s: {x['issue']}")
+        raise SystemExit(f"FAIL: per-frame audit found {len(out['issues'])} issue range(s) (see audit.json)")
+    log(f"per-frame audit: PASS ({frames + 1} frames: captions clear of guide and box, hidden during verses, "
+        f"guide clear of the box, something on screen from t=0)")
+    return out
+
+
 VISUAL_EVENTS = {"freeze", "lean_on", "place", "sit", "lie_down", "swim", "float", "parachute", "pop_up", "climb", "jump", "fall", "ride",
                  "peek", "pet", "shield_eyes", "stand", "look_viewer", "ghost", "wipe", "touch", "size", "drift",
                  "rise", "drop", "light_burst", "paper", "express", "fade",
@@ -491,7 +613,7 @@ def safe_overlay(src: Path, dst: Path) -> None:
 
 
 def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration: float, chrome: str | None,
-            stills: list[float] | None = None, still_dir: Path | None = None) -> None:
+            stills: list[float] | None = None, still_dir: Path | None = None, strict: bool = False) -> None:
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:
@@ -511,6 +633,8 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         for e in errors:
             log(f"page: {e}")
         layout_check(page, duration, page_file.parent)
+        if strict:
+            strict_audit(page, duration, page_file.parent)
         # GSAP can't reliably undo instant "set" steps when scrubbed backwards: start again from a fresh
         # page so the capture only ever plays forwards
         page.goto(page_file.as_uri())
@@ -540,9 +664,94 @@ def capture(page_file: Path, out_mp4: Path | None, audio: Path | None, duration:
         browser.close()
 
 
+def cut_pauses(raw: Path, scene: dict, texts: list[str], whisper_model: str, log) -> list[dict]:
+    """The ONLY edits an approved recording gets (speech, speed and every other pause stay untouched):
+    - scene "max_silence" / "silence_to" (e.g. 0.8 / 0.5): every silence BETWEEN two words longer than max_silence
+      is cut to silence_to;
+    - a beat with "pause_before": x has the silence before its first word cut to x.
+    The cut sits in the middle of the measured silence with a 30 ms crossfade; timings are re-aligned afterwards."""
+    import numpy as np
+    import soundfile as sf
+
+    from kindled_iron import whisper_transcribe as wt
+    wanted = [(b, float(beat["pause_before"])) for b, beat in enumerate(scene["beats"]) if beat.get("pause_before") is not None]
+    max_sil = scene.get("max_silence")
+    if not wanted and max_sil is None:
+        return []
+    audio, sr = sf.read(raw, dtype="float32")
+    heard = wt.transcribe(raw, whisper_model)
+    flat = [w for txt in texts for w in words_of(txt)]
+    aligned = wt.align(flat, heard, (0.0, len(audio) / sr))
+    first, k = [], 0
+    for txt in texts:
+        first.append(k)
+        k += len(words_of(txt))
+    hop = int(0.01 * sr)
+    n = len(audio) // hop
+    rms = np.sqrt(np.mean(audio[: n * hop].reshape(n, hop) ** 2, axis=1))
+    quiet = rms <= max(1e-4, 0.06 * float(np.percentile(rms, 90)))
+
+    def longest_quiet(t0: float, t1: float) -> tuple[int, int]:
+        best, run = (0, 0), None
+        for f in range(max(0, int(t0 / 0.01)), min(n, int(t1 / 0.01)) + 1):
+            q = f < n and quiet[f]
+            if q and run is None:
+                run = f
+            elif not q and run is not None:
+                if f - run > best[1] - best[0]:
+                    best = (run, f)
+                run = None
+        return best
+
+    plan = {}                                   # word index i (gap before word i) -> target silence
+    if max_sil is not None:
+        for i in range(1, len(aligned)):
+            plan[i] = float(scene.get("silence_to", 0.5))
+    for b, target in wanted:
+        plan[first[b]] = target
+    edits = []
+    for i in sorted(plan, reverse=True):        # from the end: earlier positions stay valid
+        target = plan[i]
+        q0, q1 = longest_quiet(aligned[i - 1]["start"], aligned[i]["end"])
+        silence = (q1 - q0) * 0.01
+        limit = target if i in [first[b] for b, _ in wanted] else float(max_sil)
+        if silence <= limit + 0.02:
+            continue
+        cut = silence - target
+        mid = (q0 + q1) / 2 * 0.01
+        c0, c1 = int((mid - cut / 2) * sr), int((mid + cut / 2) * sr)
+        xf = int(0.03 * sr)
+        ramp = np.linspace(0, 1, xf, dtype=np.float32)
+        joined = audio[c0 - xf:c0] * (1 - ramp) + audio[c1:c1 + xf] * ramp
+        audio = np.concatenate([audio[:c0 - xf], joined, audio[c1 + xf:]])
+        edits.append({"before_word": flat[i], "word_index": i, "at_s": round(mid, 3), "silence_s": round(silence, 2),
+                      "now_s": target, "removed_s": round(cut, 2), "crossfade_ms": 30})
+        log(f"silence before {flat[i]!r} (word {i}): {silence:.2f} s -> {target:.2f} s (cut {cut:.2f} s at {mid:.2f} s, "
+            f"30 ms crossfade)")
+    edits.reverse()
+    log(f"recording edits: {len(edits)} silence cut(s), {sum(e['removed_s'] for e in edits):.2f} s removed; nothing else edited")
+    sf.write(raw, audio, sr)
+    return edits
+
+
+def approved_voice_file(scene: dict) -> Path | None:
+    """scene "voice_file": {"path": "<path inside the private repo>", ...}: the file is read from KI_PRIVATE_MEDIA (the
+    private repo checkout) or KI_VOICE_FILE (local tests). A missing file stops the render (never a silent TTS fallback)."""
+    vf = scene.get("voice_file")
+    if not vf:
+        return None
+    cands = [os.environ.get("KI_VOICE_FILE")]
+    if os.environ.get("KI_PRIVATE_MEDIA"):
+        cands.append(str(Path(os.environ["KI_PRIVATE_MEDIA"]) / vf["path"]))
+    for c in cands:
+        if c and Path(c).is_file():
+            return Path(c)
+    raise SystemExit(f"FAIL: the approved voice file {vf['path']} is not available (private repo checkout / KI_VOICE_FILE)")
+
+
 def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
     """music_source: mine (the owner's track from the private repo's music/, at music_start) | generated (an
-    ElevenLabs Music theme from KI_MUSIC_DIR) | none. Mix settings from voice_profiles.json."""
+    ElevenLabs Music theme from the private repo's music/ or KI_MUSIC_DIR) | none. Mix settings from voice_profiles.json."""
     base = {k: chan.get(f"music_{k}") for k in ("level_db", "duck_db", "dip_db", "lift_db") if chan.get(f"music_{k}") is not None}
     if source == "mine":
         root = os.environ.get("KI_PRIVATE_MEDIA")
@@ -555,15 +764,24 @@ def music_choice(source: str, chan: dict, log) -> tuple[dict | None, dict]:
         log(f"WARNING: music_source 'mine' but {name or 'no music_file'} is not in the private repo's music/: using the generated theme")
         source = "generated"
     if source == "generated":
-        d = os.environ.get("KI_MUSIC_DIR")
         name = chan.get("music_generated", "theme_1")
-        f = Path(d) / f"{name}.mp3" if d else None
+        # the private repo's music/ holds the saved themes; KI_MUSIC_DIR (the music-themes release) is the old place
+        dirs = [os.environ.get("KI_MUSIC_DIR"), os.environ.get("KI_PRIVATE_MEDIA") and str(Path(os.environ["KI_PRIVATE_MEDIA"]) / "music")]
+        f = next((Path(d) / f"{name}.mp3" for d in dirs if d and (Path(d) / f"{name}.mp3").is_file()), None)
         if f and f.is_file():
             log(f"music: generated ElevenLabs theme {name}")
             return ({**base, "file": str(f), "start": 0.0, "label": f"ElevenLabs Music {name}", "lift_at": None},
                     {"source": "generated", "file": f"{name}.mp3", "use_third_party_music": False})
-        log(f"WARNING: generated theme {name} not available (KI_MUSIC_DIR): no music")
+        log(f"WARNING: generated theme {name} not available (private music/ or KI_MUSIC_DIR): no music")
     return None, {"source": "none", "use_third_party_music": False}
+
+
+TAG = re.compile(r"\[[^\]]*\]")
+
+
+def strip_tags(text: str) -> str:
+    """[audio tags] are voice directions for v3 / v4 only: never captioned, shown, timed or checked."""
+    return re.sub(r"\s{2,}", " ", TAG.sub(" ", text)).strip()
 
 
 def post_text(scene: dict) -> dict:
@@ -591,11 +809,14 @@ def main() -> None:
                     help="voice provider (default: the voice profile's tts_provider)")
     ap.add_argument("--safe-box", action="store_true", help="overlay the TikTok safe box (debug stills)")
     ap.add_argument("--debug-copy", action="store_true", help="also write <name>_safebox.mp4 with the safe box drawn on")
+    ap.add_argument("--audit", action="store_true", help="with --frames-only: also run the strict per-frame audit")
     ap.add_argument("--music", default=None, help="music source: mine | generated | none (default: voice_profiles.json music_source)")
     a = ap.parse_args()
 
     scene_path = Path(a.scene)
     scene = json.loads(scene_path.read_text(encoding="utf-8"))
+    from kindled_iron import themes
+    theme = themes.apply(scene.get("theme"), PALETTE, HOST_LOOK)   # colours + paper only; no layout or timing
     sid = scene.get("id", scene_path.stem)
     from kindled_iron import script_check
 
@@ -628,15 +849,57 @@ def main() -> None:
         provider = a.tts or profile.get("tts_provider", "kokoro")
         segs = pacing.plan(texts, profile)
         raw = work / "narration_raw.wav"
-        tts_text = scene.get("tts_text")
-        if tts_text:     # voice-only punctuation (one request); must be the script's words exactly
-            norm = lambda ws: [re.sub(r"[^a-z0-9']", "", w.lower().replace("’", "'")) for w in ws]
-            if norm(tts_text.split()) != norm([w for txt in texts for w in words_of(txt)]):
-                raise SystemExit("FAIL: tts_text is not the script's words (only punctuation may differ)")
-            voice_meta = tts.voice([(tts_text, 0.0)], raw, profile, provider, log)
-            voice_meta["tts_text"] = tts_text
+        given = approved_voice_file(scene)
+        if given:        # the owner's approved recording, used as it is: nothing is generated, 0 credits
+            import hashlib
+            vf = scene["voice_file"]
+            sha = hashlib.sha256(given.read_bytes()).hexdigest()
+            if vf.get("sha256") and sha != vf["sha256"]:
+                raise SystemExit(f"FAIL: {given.name} is not the approved recording (sha256 {sha[:12]}..., expected {vf['sha256'][:12]}...)")
+            subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(given), "-ac", "1", "-ar", "44100", str(raw)], check=True)
+            cuts = cut_pauses(raw, scene, texts, a.whisper_model, log)
+            voice_meta = {"provider_used": vf.get("provider", "elevenlabs"), "provider_requested": vf.get("provider", "elevenlabs"),
+                          "fallback": False, "cached": False, "model": vf.get("model"), "voice": vf.get("voice"),
+                          "source_file": given.name, "source_sha256": sha, "regenerated": False, "credits": 0, "chars_billed": 0,
+                          "edits": cuts}
+            log(f"voice: approved recording {given.name} used as-is ({vf.get('voice')}, {vf.get('model')}): not regenerated, 0 credits")
+            tts_text = " ".join(t for t in (pacing.strip_tags(x) for x in texts))
+            model, tagged = vf.get("model"), False
         else:
-            voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
+            from kindled_iron import elevenlabs_tts as el
+
+            # model choice: workflow / env override, else the voice profile's model_id (v2 | v3 | v4 or a real id)
+            model = el.resolve_model(os.environ.get("KI_TTS_MODEL") or profile["elevenlabs"].get("model_id", "eleven_multilingual_v2"))
+            profile["elevenlabs"]["model_id"] = model
+            if provider == "elevenlabs" and el._key():
+                listed = [m["model_id"] for m in el.list_models() if m.get("tts")]
+                log(f"ElevenLabs text-to-speech models on this key: {', '.join(listed) or '(list unreadable)'}; using {model}")
+            tagged = el.is_tagged_model(model) and scene.get("tts_text_tagged")
+            tts_text = scene.get("tts_text_tagged") if tagged else scene.get("tts_text")
+            if tts_text and not tagged:
+                tts_text = strip_tags(tts_text)          # [tags] are only for v3 / v4
+            if tts_text:     # voice-only text (one request); must be the script's words exactly
+                norm = lambda ws: [x for x in (re.sub(r"[^a-z0-9']", "", w.lower().replace("’", "'")) for w in ws) if x]
+                if norm(strip_tags(tts_text).split()) != norm([w for txt in texts for w in words_of(txt)]):
+                    raise SystemExit("FAIL: tts_text is not the script's words (only punctuation and [tags] may differ)")
+                before = el.used_chars() if provider == "elevenlabs" and el._key() else None
+                voice_meta = tts.voice([(tts_text, 0.0)], raw, profile, provider, log)
+                if before is not None and not voice_meta.get("cached"):
+                    import time
+                    after = before
+                    for _ in range(8):
+                        after = el.used_chars()
+                        if after is None or after != before:
+                            break
+                        time.sleep(3)
+                    voice_meta["credits"] = (after - before) if after is not None and after != before else voice_meta.get("chars_billed")
+                elif voice_meta.get("cached"):
+                    voice_meta["credits"] = 0
+                voice_meta.update({"tts_text": tts_text, "model": model, "tags": TAG.findall(tts_text) if tagged else []})
+                log(f"voice: {model}, credits used {voice_meta.get('credits')}"
+                    f"{', tagged text (' + str(len(voice_meta['tags'])) + ' tags)' if tagged else ''}")
+            else:
+                voice_meta = tts.voice(pacing.provider_text(segs), raw, profile, provider, log)
         audio_len = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                                    "-of", "csv=p=0", str(raw)]).decode().strip())
         # Word timings always come from the audio that was actually used.
@@ -644,6 +907,15 @@ def main() -> None:
         flat = [w for txt in texts for w in words_of(txt)]
         log(f"voice audio {audio_len:.2f} s, whisper heard {len(heard)} of {len(flat)} words")
         aligned = wt.align(flat, heard, (0.0, audio_len))
+        if tts_text and voice_meta.get("tags"):   # was any [tag] read out loud?
+            tag_words = {x for t in voice_meta["tags"] for x in re.findall(r"[a-z]+", t.lower())} - \
+                {re.sub(r"[^a-z]", "", w.lower()) for w in flat}
+            spoken = sorted({re.sub(r"[^a-z]", "", h["word"].lower()) for h in heard} & tag_words)
+            voice_meta["tags_heard_aloud"] = spoken
+            log(f"tags read aloud: {', '.join(spoken) if spoken else 'none (whisper heard no tag words)'}")
+        if tts_text and any(h["word"].lower().strip(".,!?\"") in ("a.m", "a.m.") for h in heard):
+            voice_meta["am_read_as_time"] = True
+            log("WARNING: 'I AM' was read as 'A.M.'")
         # Pauses: every sentence gap is set to its target on the final audio; timings shift with it.
         audio, sr = sf.read(raw, dtype="float32")
         if tts_text:         # the returned read stays exactly as it is: no trimming, no pause insertion
@@ -676,8 +948,18 @@ def main() -> None:
     log(f"third-party clips/images: {'on' if third_party else 'off'}"
         f"{'' if not third_party else ' (private folders ' + ('found' if private_media.root() else 'NOT available') + ')'}")
     memes = private_media.resolve_scene(scene, chan, work, log)       # meme clips or their pinned fallbacks
-    clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
     duration = round(spans[-1][1] + end_hold, 3)
+    box_segs = None
+    if scene.get("mediabox"):           # one framed box: pinned clips, verses typed in it (mediabox.py)
+        from kindled_iron import mediabox
+        box_segs = mediabox.plan(scene, spans, beat_words, pauses, duration, resolve_at, log)
+        box_bullets = mediabox.bullets(scene, spans, beat_words, pauses, resolve_at, box_segs)
+        if box_segs:                    # a video may have no box at all (no media, no frame)
+            duration = max(duration, round(box_segs[-1]["t1"], 3))
+        box_segs = mediabox.fetch(scene, box_segs, work, log)     # network step, BEFORE the render
+        clips = {}
+    else:
+        clips = insets_mod.fetch(scene, work, log)          # network step, BEFORE the render
     lo, hi = chan.get("length_target", TARGET_LEN)
     w_lo, w_hi = chan.get("wpm_target", [165, 185])
     n_words = sum(len(words_of(x)) for x in texts)
@@ -692,9 +974,38 @@ def main() -> None:
     elif duration > hi:
         log(f"WARNING: over {hi:.0f} s")
     data = build_data(scene, spans, beat_words, duration, clips, pauses)
+    if box_segs is not None:
+        box_obj, data["mediabox"] = mediabox.page_data(scene, box_segs)
+        data["mediabox"]["bullets"] = box_bullets
+        data["objects"].insert(0, box_obj)
+        data["captionFixed"] = True
+        for sg in box_segs:          # few, quiet effects: a soft chime as each verse reference appears
+            if sg["kind"] == "verse":
+                data["events"].append({"t": sg["ref_t"], "do": "sfx", "sound": "chime"})
+        data["events"].sort(key=lambda e: e["t"])
+        data["audit"] = {"gap": 6, **(scene.get("audit") or {})}
+        with open(work / "box_segments.json", "w") as fh:
+            json.dump([{k: v for k, v in sg.items() if k != "frames"} for sg in box_segs], fh, indent=1)
+    if scene.get("walk_speed"):
+        data["walks"] = guide_rules(scene, data["events"], box_segs, log)
+        (work / "walks.json").write_text(json.dumps(data["walks"], indent=1))
+    data["captionColor"] = scene.get("caption_color")
+    data["captionOn"] = scene.get("caption_on")
+    if scene.get("reactions_private_only"):
+        os.environ["KI_REACTIONS_PRIVATE_ONLY"] = "1"
     data["inboxReactions"], meme_images = effects.apply_reaction_rules(data["events"], scene, spans, beat_words, work, log,
                                                                        data, third_party)
     data["events"].sort(key=lambda e: e["t"])
+    for o in data["objects"]:
+        if any(o["id"] == m["id"] for m in meme_images):
+            o["reaction_card"] = True
+    need = scene.get("require_memes")
+    if need is not None and len(meme_images) != int(need):
+        raise SystemExit(f"FAIL: {len(meme_images)} of {need} meme images placed: "
+                         + ", ".join(f"{m['emotion']} ({m['origin']})" for m in meme_images))
+    for m in meme_images:
+        if scene.get("reactions_private_only") and not m["origin"].startswith("private:"):
+            raise SystemExit(f"FAIL: meme {m['emotion']} came from {m['origin']}, not the private reactions/")
     # a meme clip with its own audio may play after the last word: the video runs until it ends
     by_id = {o["id"]: o for o in data["objects"]}
     overlays = [(e["t"], by_id[e["id"]]["audio_file"], by_id[e["id"]]["clip_dur"]) for e in data["events"]
@@ -705,16 +1016,25 @@ def main() -> None:
             data["duration"] = duration
             log(f"meme clip audio runs to {t0 + d:.1f} s: video length {duration:.1f} s")
     data["events"] = [e for e in data["events"] if not e.get("_drop")]
-    data["paper"] = effects.paper_texture(work, PALETTE["board"])
+    data["paper"] = effects.paper_texture(work, PALETTE["board"], (theme or {}).get("grid"))
     data["debugSafe"] = a.safe_box
     pacing_check(data["events"], duration, float(scene.get("max_visual_gap", 2.0)))
     (work / "captions.srt").write_text(srt(data["captions"]), encoding="utf-8")
     page = write_page(data, work)
     log(f"{len(data['objects'])} objects, {len(data['events'])} events, {len(data['captions'])} caption chunks, {duration:.2f} s")
 
+    picks = (scene.get("preview") or {}).get("frames")     # [{"beat": id, "at": "word+0.3"}]: the scene names its sheet frames
+    if picks:
+        ids = [bt.get("id") for bt in scene["beats"]]
+        ptimes = sorted(round(resolve_at(f["at"], beat_words[ids.index(f["beat"])], *spans[ids.index(f["beat"])], {}), 2)
+                        for f in picks)
+    else:
+        ptimes = preview_times(data, box_segs)
+    (work / "preview_times.json").write_text(json.dumps(ptimes))
     if a.frames_only:
-        stills = [float(x) for x in a.frames_only.split(",")]
-        capture(page, None, None, duration, a.chrome, stills, work / "stills")
+        stills = ptimes if a.frames_only == "auto" else [float(x) for x in a.frames_only.split(",")]
+        (work / "stills_times.json").write_text(json.dumps(stills))
+        capture(page, None, None, duration, a.chrome, stills, work / "stills", strict=bool(a.audit and box_segs is not None))
         log(f"stills in {work / 'stills'}")
         return
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -733,7 +1053,7 @@ def main() -> None:
     (work / "sounds.json").write_text(json.dumps(snd, indent=1))
     log(f"sounds: {snd['cues']} cues, longest stretch without a new sound {snd['longest_gap']:.1f} s "
         f"(at {snd['longest_gap_at']:.1f} s), final {mixed['lufs']:.1f} LUFS")
-    capture(page, out, work / "mix.wav", duration, a.chrome)
+    capture(page, out, work / "mix.wav", duration, a.chrome, strict=box_segs is not None)
     novoice = out.with_name(out.stem + "_novoice.mp4")
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(out), "-i", str(work / "mix_novoice.wav"), "-map", "0:v", "-map", "1:a",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-shortest", str(novoice)], check=True)
@@ -758,7 +1078,8 @@ def main() -> None:
     out.with_name(out.stem + "_meta.json").write_text(json.dumps(meta, indent=1))
     p = meta["post"]             # caption file the publisher reads
     out.with_name(out.stem + ".post.txt").write_text(
-        f"title: {p.get('title', '')}\ncaption: {p.get('caption', '')}\nthreads: {p.get('threads', '')}\n"
+        f"title: {p.get('title', '')}\n" + (f"youtube_title: {p['youtube_title']}\n" if p.get("youtube_title") else "") +
+        f"caption: {p.get('caption', '')}\nthreads: {p.get('threads', '')}\n"
         f"description: {p.get('description', '')}\n", encoding="utf-8")
     if a.debug_copy:
         dbg = out.with_name(out.stem + "_safebox.mp4")

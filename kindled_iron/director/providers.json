@@ -1,0 +1,32 @@
+{
+ "_doc": "The director's AI providers, tried in this order for the shot plan and the vision review. Each one is skipped when its secret is missing. Models live here, not in the code: the best FREE chat + vision model of each provider. 'vision': null = the provider is never asked to review stills. max_input_tokens: the provider's per-request limit (the compact prompt is sent when the full one does not fit). Only free tiers: no pay-per-use provider is listed, and OpenRouter models must end in ':free'.",
+ "allow_claude_fallback": false,
+ "claude_max_plan_calls": 1,
+ "providers": [
+  {"name": "gemini", "kind": "gemini", "secret": "GEMINI_API_KEY",
+   "chat": "gemini-3.8-flash", "vision": "gemini-3.8-flash", "max_input_tokens": 1000000},
+  {"name": "github", "kind": "openai", "secret": "GITHUB_TOKEN",
+   "url": "https://models.github.ai/inference/chat/completions",
+   "headers": {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"},
+   "chat": "openai/gpt-4.1", "vision": "openai/gpt-4.1", "max_input_tokens": 8000, "max_output_tokens": 4000,
+   "image_detail": "low"},
+  {"name": "huggingface", "kind": "openai", "secret": "HF_TOKEN",
+   "url": "https://router.huggingface.co/v1/chat/completions",
+   "chat": "meta-llama/Llama-3.3-70B-Instruct", "vision": "Qwen/Qwen2.5-VL-72B-Instruct", "max_input_tokens": 30000,
+   "max_output_tokens": 4000},
+  {"name": "groq", "kind": "openai", "secret": "GROQ_API_KEY",
+   "url": "https://api.groq.com/openai/v1/chat/completions",
+   "chat": "openai/gpt-oss-120b", "vision": "qwen/qwen3.8-27b", "max_input_tokens": 7000, "max_output_tokens": 8000},
+  {"name": "openrouter", "kind": "openai", "secret": "OPENROUTER_API_KEY",
+   "url": "https://openrouter.ai/api/v1/chat/completions",
+   "chat": "deepseek/deepseek-chat-v3-0324:free", "vision": "qwen/qwen2.5-vl-72b-instruct:free", "max_input_tokens": 60000,
+   "max_output_tokens": 4000, "free_only": true},
+  {"name": "cloudflare", "kind": "openai", "secret": "KINDLED_CF_API_TOKEN", "account_secret": "KINDLED_CF_ACCOUNT_ID",
+   "url": "https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1/chat/completions",
+   "chat": "@cf/meta/llama-3.3-70b-instruct-fp8-fast", "vision": "@cf/meta/llama-4-scout-17b-16e-instruct",
+   "max_input_tokens": 20000, "max_output_tokens": 4000},
+  {"name": "claude", "kind": "claude", "secret": "CLAUDE_CODE_OAUTH_TOKEN",
+   "url": "https://api.anthropic.com/v1/messages", "models_url": "https://api.anthropic.com/v1/models",
+   "chat": "auto-sonnet", "vision": null, "max_input_tokens": 150000, "max_output_tokens": 8000}
+ ]
+}

@@ -21,6 +21,10 @@ on:
         description: "Use third-party clips / meme images (off = pinned stock + guide fallbacks)"
         type: boolean
         default: true
+      tts_model:
+        description: "ElevenLabs model: empty = the voice profile's; v2 | v3 | v4 or a model id (v3/v4 use the scene's tts_text_tagged)"
+        required: false
+        default: ""
       music_source:
         description: "Music: mine (private music/), generated (ElevenLabs theme), none; empty = voice_profiles.json"
         required: false
@@ -47,6 +51,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Scene delivery settings (preview folder, public artifacts allowed?)
+        id: scene
+        run: |
+          python3 - "${{ inputs.scene }}" <<'PY' >> "$GITHUB_OUTPUT"
+          import json, sys
+          s = json.load(open(sys.argv[1]))
+          pv = s.get("preview") or {}
+          print("folder=" + pv.get("folder", s["id"] + "-from-scratch"))
+          print("public=" + ("false" if pv.get("public_artifacts") is False or s.get("voice_file") else "true"))
+          print("max_dur=" + str(s.get("max_duration", 150 if s.get("voice_file") else 120)))
+          print("stage=" + pv.get("stage", "full"))
+          PY
+          cat "$GITHUB_OUTPUT"
 
       - name: Install system packages (ffmpeg, espeak-ng, Chrome)
         run: |
@@ -127,7 +145,7 @@ jobs:
           [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::warning::$VOICE_REPO is not private: third-party media not loaded"; exit 0; }
           d="$RUNNER_TEMP/private_media"
           git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
-          git -C "$d" sparse-checkout set reactions movie_reference music
+          git -C "$d" sparse-checkout set reactions movie_reference music approved_audio
           echo "music/ in the private repo:"; ls -la "$d/music" 2>/dev/null || echo "  (no music/ folder)"
           ls -la "$d/reactions" "$d/movie_reference" 2>/dev/null || true
           echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
@@ -148,6 +166,20 @@ jobs:
           gh release upload music-themes --repo "$VOICE_REPO" --clobber "$d"/*.mp3 "$d"/themes.json 2>/dev/null || true
           echo "KI_MUSIC_DIR=$d" >> "$GITHUB_ENV"
 
+      - name: Saved music theme from the private music/ folder (no ElevenLabs call)
+        if: ${{ !inputs.my_voice && env.HAS_VOICE_REPO == 'true' }}
+        run: |
+          d="$RUNNER_TEMP/private_media/music"
+          if [ -f "$d/theme_1.mp3" ]; then echo "KI_MUSIC_DIR=$d" >> "$GITHUB_ENV"; echo "music themes: $(ls "$d" | grep -c '^theme_') in the private music/"; \
+          else echo "::warning::no theme_1.mp3 in the private music/ folder"; fi
+
+      - name: Record-scratch sound (Freesound CC0) if the library has none
+        if: ${{ hashFiles('kindled_iron/vendor/sfx/lib/record_scratch_0.ogg') == '' }}
+        continue-on-error: true
+        env:
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+        run: python -m kindled_iron.sfx_library --roles record_scratch
+
       - name: Render (+ safe-box debug copy and stills)
         env:
           ELEVENLABS_API_KEY: ${{ inputs.my_voice && secrets.ELEVENLABS_API_KEY || '' }}
@@ -156,9 +188,16 @@ jobs:
           TTS: ${{ inputs.my_voice && 'elevenlabs' || 'kokoro' }}
           KI_THIRD_PARTY: ${{ inputs.third_party_clips && '1' || '0' }}
           KI_MUSIC_SOURCE: ${{ inputs.music_source }}
+          KI_TTS_MODEL: ${{ inputs.tts_model }}
           KI_YTDLP: "1"
+          STAGE: ${{ steps.scene.outputs.stage }}
         run: |
           set -euo pipefail
+          if [ "$STAGE" = sheet ]; then      # review stage: 8 stills with real footage + the every-frame audit, no MP4
+            python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
+              --work storage/kindled_iron/work --tts "$TTS" --whisper-model small.en --frames-only auto --audit
+            exit 0
+          fi
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
             --work storage/kindled_iron/work --tts "$TTS" --debug-copy --whisper-model small.en
           python -m kindled_iron.render "${{ inputs.scene }}" --out storage/kindled_iron/test.mp4 \
@@ -176,8 +215,36 @@ jobs:
           path: .ki-cache
           key: ki-media-${{ github.run_id }}
 
+      - name: "Sheet stage: 8-frame sheet + box contact sheet -> private previews/"
+        id: sheetstage
+        if: ${{ steps.scene.outputs.stage == 'sheet' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          id=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['id'])" "${{ inputs.scene }}")
+          w=storage/kindled_iron/work
+          mkdir -p preview
+          python3 kindled_iron/tools/frame_sheet.py --stills $w/stills --out "preview/$id-8-frames.jpg"
+          cp $w/box_contact.jpg "preview/$id-box-contact.jpg"
+          cp $w/audit.json "preview/$id-audit.json"; cp $w/box_segments.json "preview/$id-box-segments.json"
+          cp $w/sources.json "preview/$id-sources.json"; cp $w/walks.json "preview/$id-walks.json" 2>/dev/null || true
+          cp $w/stills_times.json "preview/$id-sheet-times.json"; cp $w/timings.json "preview/$id-timings.json"
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
+          d="$RUNNER_TEMP/voice_previews"; rm -rf "$d"
+          git clone -q --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+          dest="$d/previews/${{ steps.scene.outputs.folder }}"; mkdir -p "$dest"; cp preview/* "$dest/"
+          git -C "$d" config user.name "kindled-iron-bot"; git -C "$d" config user.email "kindled-iron-bot@users.noreply.github.com"
+          git -C "$d" add "previews/${{ steps.scene.outputs.folder }}"
+          git -C "$d" commit -q -m "Sheet: $id -> previews/${{ steps.scene.outputs.folder }} (run ${{ github.run_id }})" || echo "nothing new"
+          for i in 1 2 3; do git -C "$d" push -q origin HEAD && break; sleep 5; git -C "$d" pull -q --rebase origin HEAD || true; done
+          echo "committed sheet to $VOICE_REPO previews/${{ steps.scene.outputs.folder }}/ ($(git -C "$d" rev-parse --short HEAD))"
+
       - name: Check the MP4 with ffprobe
         id: check
+        if: ${{ steps.scene.outputs.stage != 'sheet' }}
+        env:
+          MAX_DUR: ${{ steps.scene.outputs.max_dur }}
         run: |
           set -euo pipefail
           f=storage/kindled_iron/test.mp4
@@ -194,8 +261,9 @@ jobs:
               problems.append("video is not 1080x1920")
           if not a:
               problems.append("no audio stream")
-          if not 30.0 <= dur <= 120.0:          # an owner's own reading sets its own length
-              problems.append(f"duration {dur:.1f} s is outside 30-120 s")
+          hi = float(os.environ.get("MAX_DUR", "120"))
+          if not 30.0 <= dur <= hi:              # an owner's own reading sets its own length
+              problems.append(f"duration {dur:.1f} s is outside 30-{hi:.0f} s")
           meta = json.load(open("storage/kindled_iron/test_meta.json"))
           tp = meta.get("third_party", {})
           used = bool(tp.get("clips") or tp.get("images") or meta.get("music", {}).get("source") in ("mine", "generated"))
@@ -209,6 +277,48 @@ jobs:
           print("OK")
           PY
           ffmpeg -v error -i "$f" -f null - && echo "decode OK"
+
+      - name: Media-box scene -> 8-frame sheet, artifacts, private previews/<id>-from-scratch/
+        id: preview
+        if: ${{ steps.check.outcome == 'success' && hashFiles('storage/kindled_iron/work/box_segments.json') != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          id=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['id'])" "${{ inputs.scene }}")
+          mkdir -p preview
+          cp storage/kindled_iron/test.mp4 "preview/$id.mp4"
+          python3 kindled_iron/tools/frame_sheet.py storage/kindled_iron/test.mp4 --work storage/kindled_iron/work --out "preview/$id-8-frames.jpg"
+          cp storage/kindled_iron/work/audit.json "preview/$id-audit.json"
+          cp storage/kindled_iron/work/box_segments.json "preview/$id-box-segments.json"
+          cp storage/kindled_iron/test_meta.json "preview/$id-meta.json"
+          cp storage/kindled_iron/test.srt "preview/$id.srt"
+          cp storage/kindled_iron/work/sources.json "preview/$id-sources.json"
+          cp storage/kindled_iron/work/box_contact.jpg "preview/$id-box-contact.jpg" 2>/dev/null || true
+          cp storage/kindled_iron/work/walks.json "preview/$id-walks.json" 2>/dev/null || true
+          cp storage/kindled_iron/work/timings.json "preview/$id-timings.json"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          if [ "$HAS_VOICE_REPO" = true ]; then
+            [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "FAIL: $VOICE_REPO is not private"; exit 1; }
+            d="$RUNNER_TEMP/voice_previews"; rm -rf "$d"
+            git clone -q --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+            dest="$d/previews/${{ steps.scene.outputs.folder }}"; mkdir -p "$dest"
+            cp preview/* "$dest/"
+            git -C "$d" config user.name "kindled-iron-bot"; git -C "$d" config user.email "kindled-iron-bot@users.noreply.github.com"
+            git -C "$d" add "previews/${{ steps.scene.outputs.folder }}"
+            git -C "$d" commit -q -m "Preview: $id -> previews/${{ steps.scene.outputs.folder }} (run ${{ github.run_id }})" || echo "nothing new to commit"
+            for i in 1 2 3; do git -C "$d" push -q origin HEAD && break; sleep 5; git -C "$d" pull -q --rebase origin HEAD || true; done
+            echo "committed to $VOICE_REPO previews/${{ steps.scene.outputs.folder }}/ ($(git -C "$d" rev-parse --short HEAD))"
+            rm -rf "$d"
+          fi
+
+      - name: Media-box preview artifacts (MP4 + 8-frame sheet + audit)
+        if: ${{ steps.preview.outcome == 'success' && steps.scene.outputs.public == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.preview.outputs.id }}-from-scratch
+          path: preview/
+          retention-days: 7
 
       - name: Private videos -> private repo (my voice and/or third-party media; never a public artifact)
         id: private
@@ -242,7 +352,7 @@ jobs:
           echo "Uploaded to https://github.com/$VOICE_REPO/releases/tag/test-renders"
 
       - name: Upload metadata, sources, pose sheet (no voice audio, no third-party media)
-        if: always()
+        if: ${{ always() && steps.scene.outputs.public != 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-test-info
@@ -258,7 +368,7 @@ jobs:
           retention-days: 14
 
       - name: Stills (only when no third-party media was used)
-        if: ${{ steps.check.outputs.third_party != 'true' }}
+        if: ${{ steps.check.outputs.third_party != 'true' && steps.scene.outputs.public != 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-test-stills
@@ -266,7 +376,7 @@ jobs:
           retention-days: 14
 
       - name: Upload the videos (Kokoro voice, no third-party media only)
-        if: ${{ !inputs.my_voice && steps.check.outputs.third_party != 'true' }}
+        if: ${{ !inputs.my_voice && steps.check.outputs.third_party != 'true' && steps.scene.outputs.public != 'false' }}
         uses: actions/upload-artifact@v4
         with:
           name: kindled-iron-test-video

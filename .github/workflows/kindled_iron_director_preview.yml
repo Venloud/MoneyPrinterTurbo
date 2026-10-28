@@ -1,132 +1,197 @@
-name: Kindled Iron Director Preview
-# Only Kindled Iron. Manual trigger, no publishing, no voice generation.
+name: "Kindled Iron 1 - Generate Video"
+# Workflow 1 of 3 (see kindled_iron/RELEASE.md). script.txt + the owner's narration.mp3 (private
+# kindled-iron-voice/approved_audio/<id>/, uploaded there with GitHub's "Add file > Upload files") -> a finished
+# PRIVATE preview + review package in kindled-iron-voice/previews/<id>/. No voice is generated, nothing is
+# approved or published, no public artifacts. Next: "Kindled Iron 2 - Approve and Add to Buffer".
+# video_id empty = every approved_audio/<id>/ folder (script.txt + narration.mp3) that has no previews/<id>/ video yet (review.json or video.json),
+# plus every video waiting for AI quota.
+# Manual only: no schedule runs until the owner authorises one. (A schedule that resumes waiting_quota videos after
+# the 07:00 UTC Gemini reset exists below, commented out; GitHub runs schedules from the default branch's copy.)
 on:
   workflow_dispatch:
     inputs:
       video_id:
-        description: "Video id (lowercase words separated by hyphens)"
-        required: true
-        default: "epicurean-paradox"
+        description: "Video id (folder in approved_audio/); empty = every new folder without a preview"
+        required: false
+        default: ""
+  # schedule:                  # OFF until the owner authorises it
+  #   - cron: "17 7 * * *"     # after the 07:00 UTC Gemini quota reset: resume waiting_quota videos only
 
 permissions:
   contents: read
+  models: read               # GitHub Models: the director's second AI provider (free in Actions)
+
+concurrency:
+  group: kindled-iron-director
+  cancel-in-progress: false
 
 jobs:
-  private-preview:
+  preview:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 330   # free-tier Gemini plan calls take 4-15 min under load
     env:
-      VOICE_REPO: "Venloud/kindled-iron-voice"
+      VOICE_REPO: ${{ vars.KI_VOICE_REPO || 'Venloud/kindled-iron-voice' }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
-      KI_DIRECTOR_MODEL: "gemini-3.8-flash"
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+      # AI providers (kindled_iron/director/providers.json; a missing secret just skips that provider)
+      GITHUB_TOKEN: ${{ github.token }}                          # GitHub Models (permissions: models: read)
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}          # ':free' models only
+      KINDLED_CF_ACCOUNT_ID: ${{ secrets.KINDLED_CF_ACCOUNT_ID }}    # Kindled's own Cloudflare account (never Night Files')
+      KINDLED_CF_API_TOKEN: ${{ secrets.KINDLED_CF_API_TOKEN }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}  # used only if allow_claude_fallback is true
+      KI_THIRD_PARTY: "1"            # the owner's own meme / clip library (private repo)
+      KI_MUSIC_SOURCE: "generated"   # private music/theme_1.mp3
       KI_YTDLP: "0"
-      KI_THIRD_PARTY: "0"
-      KI_MUSIC_SOURCE: "none"
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: feature/kindled-script-mp3-preview-20261026
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Require credentials and valid id
-        shell: bash
-        env:
-          ID: ${{ inputs.video_id }}
+      - name: Credentials (names only, never values)
         run: |
           set -euo pipefail
-          [[ "$ID" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || { echo "::error::Invalid id"; exit 1; }
-          [ -n "$GEMINI_API_KEY" ] || { echo "::error::GEMINI_API_KEY missing"; exit 1; }
-          [ -n "$GH_TOKEN" ] || { echo "::error::VOICE_REPO_TOKEN missing"; exit 1; }
+          for k in GEMINI_API_KEY GH_TOKEN PEXELS_API_KEY; do
+            [ -n "${!k}" ] || { echo "::error::$k missing (repository secret)"; exit 1; }
+          done
+          [ -n "$PIXABAY_API_KEY" ] || echo "::warning::PIXABAY_API_KEY missing: Pexels only"
+          [ -n "$NTFY_TOPIC" ] || echo "::warning::NTFY_TOPIC missing: no phone alert"
+          for k in HF_TOKEN GROQ_API_KEY OPENROUTER_API_KEY KINDLED_CF_API_TOKEN; do
+            [ -n "${!k}" ] || echo "::notice::$k not set: that AI fallback provider is skipped"
+          done
 
-      - name: Fetch private supplied MP3 and script
-        shell: bash
-        env:
-          ID: ${{ inputs.video_id }}
+      - name: Private inputs (approved_audio, meme library, music)
         run: |
           set -euo pipefail
-          git clone --depth 1 --filter=blob:none --sparse \
-            "https://x-access-token:${GH_TOKEN}@github.com/${VOICE_REPO}.git" "$RUNNER_TEMP/ki-private"
-          git -C "$RUNNER_TEMP/ki-private" sparse-checkout set approved_audio music movie_reference reactions
-          test -f "$RUNNER_TEMP/ki-private/approved_audio/$ID/narration.mp3" || \
-            { echo "::error::Missing required owner MP3"; exit 1; }
-          test -f "$RUNNER_TEMP/ki-private/approved_audio/$ID/script.txt" || \
-            { echo "::error::Missing required script.txt next to MP3"; exit 1; }
-          echo "KI_PRIVATE_MEDIA=$RUNNER_TEMP/ki-private" >> "$GITHUB_ENV"
+          d="$RUNNER_TEMP/ki-private"
+          git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/${VOICE_REPO}.git" "$d"
+          git -C "$d" sparse-checkout set approved_audio movie_reference reactions music previews sfx
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::error::$VOICE_REPO is not private"; exit 1; }
+          echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
 
-      - name: Install renderer dependencies
+      - name: Which videos
+        id: ids
+        env:
+          WANT: ${{ inputs.video_id }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          d="$KI_PRIVATE_MEDIA"
+          waiting() { grep -q '"state": "waiting_quota"' "$d/previews/$1/status.json" 2>/dev/null; }
+          if [ -n "$WANT" ]; then ids="$WANT"; else
+            ids=""
+            for f in "$d"/approved_audio/*/; do
+              id=$(basename "$f")
+              [ -f "$f/script.txt" ] && [ -f "$f/narration.mp3" ] || continue
+              if [ "$EVENT" = "schedule" ]; then
+                waiting "$id" && ids="$ids $id"              # the schedule only resumes quota waits
+              elif { [ ! -f "$d/previews/$id/review.json" ] && [ ! -f "$d/previews/$id/video.json" ]; } || waiting "$id"; then
+                ids="$ids $id"
+              fi
+            done
+          fi
+          ids=$(echo $ids)
+          echo "videos: ${ids:-none}"
+          echo "ids=$ids" >> "$GITHUB_OUTPUT"
+
+      - name: Validate the MP3 and script of every video (before any AI call or render)
+        if: ${{ steps.ids.outputs.ids != '' }}
+        run: |
+          set -euo pipefail
+          [ -n "${{ steps.ids.outputs.ids }}" ] || exit 0
+          command -v ffprobe >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg; }
+          bad=""
+          for id in ${{ steps.ids.outputs.ids }}; do
+            python -m kindled_iron.release check-input --private "$KI_PRIVATE_MEDIA" --id "$id" || bad="$bad $id"
+          done
+          [ -z "$bad" ] || { echo "::error::invalid input for:$bad (see REFUSED above)"; exit 1; }
+
+      - name: Renderer dependencies
+        if: ${{ steps.ids.outputs.ids != '' }}
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng fonts-dejavu-core
+          sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core
           if ! command -v google-chrome >/dev/null; then
             wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
             sudo apt-get install -y /tmp/chrome.deb
           fi
           echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
-          pip install soundfile faster-whisper playwright numpy spacy
-          python -m spacy download en_core_web_sm
+          pip install soundfile faster-whisper playwright numpy
           python -m playwright install chromium
 
-      - name: Validate director before requesting Gemini
-        run: |
-          set -euo pipefail
-          python -m compileall -q kindled_iron/director
-          python -m unittest discover -s test/kindled_iron -p 'test_director.py' -v
-
-      - name: Direct visuals using owner script and audio
-        shell: bash
+      - name: Record-scratch sound (Freesound CC0) if the library has none
+        if: ${{ steps.ids.outputs.ids != '' && hashFiles('kindled_iron/vendor/sfx/lib/record_scratch_0.ogg') == '' }}
+        continue-on-error: true
         env:
-          ID: ${{ inputs.video_id }}
-        run: |
-          set -euo pipefail
-          python -m kindled_iron.director.direct \
-            --script "$KI_PRIVATE_MEDIA/approved_audio/$ID/script.txt" \
-            --audio "$KI_PRIVATE_MEDIA/approved_audio/$ID/narration.mp3" \
-            --private-audio-path "approved_audio/$ID/narration.mp3" \
-            --id "$ID" --out "storage/kindled_iron/$ID.scene.json"
-          python - <<'PY'
-          import json,os
-          s=json.load(open('storage/kindled_iron/'+os.environ['ID']+'.scene.json'))
-          assert s['voice_file']['path'].startswith('approved_audio/')
-          assert s['exact_narration'] and s['preview']['public_artifacts'] is False
-          PY
+          FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
+        run: python -m kindled_iron.sfx_library --roles record_scratch
 
-      - name: Render private MP4 without voice generation
-        shell: bash
+      - name: Catalog from the renderer (regenerated every run) + offline tests
+        if: ${{ steps.ids.outputs.ids != '' }}
         env:
-          ID: ${{ inputs.video_id }}
+          KI_PRIVATE_ROOT: ${{ env.KI_PRIVATE_MEDIA }}   # the private-library index checks (counts only in the log)
         run: |
           set -euo pipefail
-          python -m kindled_iron.render "storage/kindled_iron/$ID.scene.json" \
-            --out "storage/kindled_iron/$ID.mp4" \
-            --work "storage/kindled_iron/$ID-work" \
-            --whisper-model small.en
-          ffprobe -v error -show_entries stream=codec_type,width,height -of json \
-            "storage/kindled_iron/$ID.mp4"
-          ffmpeg -v error -i "storage/kindled_iron/$ID.mp4" -f null -
+          python -m kindled_iron.director.catalog
+          # every required module must exist (a missing one used to run 0 tests silently), every test file runs,
+          # and a skipped test fails the step: a skip is not a pass
+          for m in test_director test_llm test_direct_budget test_media_library test_import_media test_plan_repair test_general_director; do
+            [ -f "test/kindled_iron/$m.py" ] || { echo "::error::required test module test/kindled_iron/$m.py is missing"; exit 1; }
+          done
+          mods=$(ls test/kindled_iron/test_*.py | sed 's#\.py$##; s#/#.#g')
+          python -m unittest -v $mods 2>&1 | tee "$RUNNER_TEMP/unittest.log"
+          grep -qE '^Ran [1-9][0-9]* tests? in' "$RUNNER_TEMP/unittest.log" || { echo "::error::no tests ran"; exit 1; }
+          if grep -qE 'skipped=|\.\.\. skipped' "$RUNNER_TEMP/unittest.log"; then echo "::error::a test was skipped"; exit 1; fi
 
-      - name: Save private preview only
-        shell: bash
-        env:
-          ID: ${{ inputs.video_id }}
+      - name: Direct, render, gate, review
+        id: direct
+        if: ${{ steps.ids.outputs.ids != '' }}
+        run: |
+          set -uo pipefail
+          failed=""; waiting=""
+          for id in ${{ steps.ids.outputs.ids }}; do
+            echo "::group::$id"
+            python -m kindled_iron.director.direct --id "$id" --private "$KI_PRIVATE_MEDIA" \
+              --out "$RUNNER_TEMP/out/$id" --work "storage/director/$id"
+            rc=$?
+            [ $rc -eq 75 ] && waiting="$waiting $id"        # every AI provider out of quota: resumed after the reset
+            [ $rc -ne 0 ] && [ $rc -ne 75 ] && failed="$failed $id"
+            echo "::endgroup::"
+          done
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          [ -z "$waiting" ] || echo "::notice::waiting for AI quota:$waiting (the 07:17 UTC run resumes them)"
+          [ -z "$failed" ] || echo "::error::director failed for:$failed (see their fail_report.md)"
+
+      - name: Save to the private previews (MP4, sheet, scene, media, gates, review, fail report)
+        if: ${{ always() && steps.ids.outputs.ids != '' }}
         run: |
           set -euo pipefail
-          dest="$KI_PRIVATE_MEDIA/previews/$ID"
-          mkdir -p "$dest"
-          cp "storage/kindled_iron/$ID.mp4" "$dest/$ID.mp4"
-          cp "storage/kindled_iron/$ID.scene.json" "$dest/$ID.scene.json"
-          test -s "$dest/$ID.mp4"
-          git -C "$KI_PRIVATE_MEDIA" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C "$KI_PRIVATE_MEDIA" config user.name "github-actions[bot]"
-          git -C "$KI_PRIVATE_MEDIA" add --sparse -- "previews/$ID"
-          git -C "$KI_PRIVATE_MEDIA" commit -m "Private Kindled Iron director preview: $ID" || exit 0
-          git -C "$KI_PRIVATE_MEDIA" push origin HEAD:main
-          echo "Private preview: https://github.com/$VOICE_REPO/tree/main/previews/$ID" >> "$GITHUB_STEP_SUMMARY"
+          d="$KI_PRIVATE_MEDIA"
+          [ -d "$RUNNER_TEMP/out" ] || exit 0
+          for f in "$RUNNER_TEMP"/out/*/; do
+            id=$(basename "$f")
+            # the new video replaces the saved one only when it is complete, and accepted or the saved one was not:
+            # a failed attempt never destroys the last accepted preview (kindled_iron/release.py save_preview)
+            echo "$id: $(python -m kindled_iron.release save-preview --from "$f" --to "$d/previews/$id" | python -c 'import json,sys;print(json.load(sys.stdin)["saved"])')" | tee -a "$GITHUB_STEP_SUMMARY"
+            git -C "$d" add -A "previews/$id"
+          done
+          git -C "$d" config user.name "kindled-iron-director"; git -C "$d" config user.email "kindled-iron-director@users.noreply.github.com"
+          git -C "$d" commit -q -m "Director preview: $(ls "$RUNNER_TEMP/out" | tr '\n' ' ')(run ${{ github.run_id }})" || { echo "nothing new"; exit 0; }
+          for i in 1 2 3; do git -C "$d" push -q origin HEAD:main && break; sleep 5; git -C "$d" pull -q --rebase origin main || true; done
+          echo "saved: $(git -C "$d" rev-parse --short HEAD)"
+          for f in "$RUNNER_TEMP"/out/*/status.json; do echo "## $(basename "$(dirname "$f")")" >> "$GITHUB_STEP_SUMMARY"; cat "$f" >> "$GITHUB_STEP_SUMMARY"; done
 
-      - name: Delete private media checkout
+      - name: Fail the run when a video failed its gates
+        if: ${{ steps.direct.outputs.failed != '' }}
+        run: exit 1
+
+      - name: Delete the private checkout
         if: always()
-        run: rm -rf "$RUNNER_TEMP/ki-private"
+        run: rm -rf "$RUNNER_TEMP/ki-private" "$RUNNER_TEMP/out"

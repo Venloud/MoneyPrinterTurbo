@@ -1,0 +1,125 @@
+{
+ "_help": "Example script (NOT queued). Copy it to kindled_iron/queue/NNN-<id>.json to make it the next daily video. See kindled_iron/BATCH.md.",
+ "id": "why-did-god-rest",
+ "title": "Why Did God Rest?",
+ "post": {
+  "caption": "If God never gets tired, why did he rest on day seven? #bible #god #faith #sabbath #christian",
+  "threads": "If God never gets tired, why did he rest on day seven? #bible #faith #sabbath",
+  "description": "If God never gets tired, why did he rest on day seven? Because he was done."
+ },
+ "lines": [
+  {
+   "block": "hook_question",
+   "say": "[curious] If God never gets tired, why did he rest on day seven? People ask this a lot.",
+   "slots": {
+    "question_text": "GOD... TIRED?",
+    "clip_query": "night sky stars",
+    "point_word": "tired",
+    "reaction_word": "rest"
+   }
+  },
+  {
+   "block": "big_answer",
+   "say": "[matter-of-fact] Short answer? He didn't rest because he was tired. He rested because he was done.",
+   "slots": {
+    "headline": "Short answer?",
+    "answer_text": "DONE.",
+    "answer_word": "done"
+   }
+  },
+  {
+   "block": "aside_popup",
+   "say": "[light laugh] Not done like you after a long shift on the couch. Done like a painter who steps back from a finished painting.",
+   "slots": {
+    "popup_text": "FINISHED",
+    "popup_word": "finished"
+   }
+  },
+  {
+   "block": "scripture_card",
+   "say": "[warm] The Bible says: \"On the seventh day God finished his work which he had done; and he rested.\"",
+   "slots": {
+    "ref": "Genesis 2:2",
+    "verse": "On the seventh day God finished his work which he had done; and he rested",
+    "clip_query": "old bible open pages"
+   }
+  },
+  {
+   "block": "three_examples",
+   "say": "Think about it. A song ends. A house is built. A meal is served. Nobody calls that weakness. Finishing is not the same as running out.",
+   "slots": {
+    "headline": "finished things",
+    "items": [
+     {
+      "word": "song",
+      "query": "piano keys playing"
+     },
+     {
+      "word": "house",
+      "query": "house construction"
+     },
+     {
+      "word": "meal",
+      "query": "family dinner table"
+     }
+    ],
+    "conclusion_text": "not weakness",
+    "conclusion_word": "weakness"
+   }
+  },
+  {
+   "block": "concept_clip",
+   "say": "[leaning in] Here's the twist: the Hebrew word for rested means to stop. Not to recover. God stopped because nothing was missing.",
+   "slots": {
+    "clip_query": "old scroll",
+    "clip_word": "Hebrew",
+    "label_text": "STOP",
+    "label_word": "stop",
+    "sub_text": "not recover",
+    "sub_word": "recover"
+   }
+  },
+  {
+   "block": "scripture_card",
+   "say": "[softer] Then Jesus said, \"The Sabbath was made for man, not man for the Sabbath.\"",
+   "slots": {
+    "ref": "Mark 2:27",
+    "verse": "The Sabbath was made for man, not man for the Sabbath.",
+    "clip_query": "sunlight through trees",
+    "note_text": "for you",
+    "note_word": "man#2"
+   }
+  },
+  {
+   "block": "not_this",
+   "say": "So the seventh day was never about God being weak. Not a nap. Not a break. It was a gift, made for you.",
+   "slots": {
+    "items": [
+     {
+      "text": "A NAP",
+      "word": "nap"
+     },
+     {
+      "text": "A BREAK",
+      "word": "break"
+     }
+    ],
+    "final_text": "A GIFT",
+    "final_word": "gift"
+   }
+  },
+  {
+   "block": "closing",
+   "say": "[quiet, confident] God rested so you would know you're allowed to stop too. The work is finished. God did it.",
+   "slots": {
+    "title_text": "YOU CAN STOP",
+    "title_word": "stop",
+    "clip_query": "sunrise over mountains",
+    "final_1": "GOD",
+    "final_1_word": "God#2",
+    "final_2": "DID",
+    "final_2_word": "did"
+   }
+  }
+ ]
+}

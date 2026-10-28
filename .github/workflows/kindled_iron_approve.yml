@@ -1,0 +1,98 @@
+name: "Kindled Iron 2 - Approve and Add to Buffer"
+
+# Workflow 2 of 3 (see kindled_iron/RELEASE.md). Manual only. The owner approves ONE exact generated video:
+# it must exist in kindled-iron-voice/previews/<id>/, its MP4 must be the one its manifest describes, every gate and
+# the vision review must have passed, and the render's voice / scripture / audio checks must pass the publisher's
+# gate. Only an allowed approver (repo variable KI_APPROVERS, default Venloud) who types the id again can approve.
+# The approval (approver, artifact sha256, time, run) is written to buffer/<id>.json in the private repo. Nothing is
+# published here. list_only = show every video and why it can or cannot be approved, change nothing.
+on:
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: "Exact video id (folder in previews/); empty with list_only = list them"
+        required: false
+        default: ""
+      confirm:
+        description: "Type the same video id again to approve it"
+        required: false
+        default: ""
+      platforms:
+        description: "Approved destinations (comma list); empty = every platform not 'off' in publish_config.json"
+        required: false
+        default: ""
+      list_only:
+        description: "Only list videos and their approval readiness"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kindled-iron-release        # approvals and publishing never change the buffer at the same time
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VOICE_REPO: ${{ vars.KI_VOICE_REPO || 'Venloud/kindled-iron-voice' }}
+      KI_APPROVERS: ${{ vars.KI_APPROVERS || 'Venloud' }}
+      GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Private previews, buffer and post ledger
+        run: |
+          set -euo pipefail
+          [ -n "$GH_TOKEN" ] || { echo "::error::VOICE_REPO_TOKEN missing (repository secret)"; exit 1; }
+          command -v ffprobe >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg; }
+          d="$RUNNER_TEMP/ki-private"
+          git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/${VOICE_REPO}.git" "$d"
+          git -C "$d" sparse-checkout set previews buffer approved approved_audio
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { echo "::error::$VOICE_REPO is not private"; exit 1; }
+          echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
+
+      - name: List videos and approval readiness
+        if: ${{ inputs.list_only || inputs.video_id == '' }}
+        run: |
+          set -euo pipefail
+          python -m kindled_iron.release list --private "$KI_PRIVATE_MEDIA" --ledger "$KI_PRIVATE_MEDIA/approved/posted.json" \
+            --out list.json > /dev/null
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
+          print("| video | seconds | sha256 | can approve | buffer | posted to |\n|---|---|---|---|---|---|")
+          for v in json.load(open("list.json")):
+              why = "yes" if not v["problems"] else "no: " + "; ".join(v["problems"])[:300]
+              print(f"| {v['id']} | {v['seconds']} | {str(v['sha256'])[:12]} | {why} | {v['buffer'] or '-'} | {', '.join(v['posted_to']) or '-'} |")
+          PY
+          [ "${{ inputs.video_id }}" = "" ] && echo "No video_id given: nothing approved." || true
+
+      - name: Approve one exact video
+        if: ${{ !inputs.list_only && inputs.video_id != '' }}
+        env:
+          VID: ${{ inputs.video_id }}
+          CONFIRM: ${{ inputs.confirm }}
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+          d="$KI_PRIVATE_MEDIA"
+          python -m kindled_iron.release approve --private "$d" --id "$VID" --confirm "$CONFIRM" --platforms "$PLATFORMS" \
+            --actor "${{ github.triggering_actor }}" --actor-id "${{ github.actor_id }}" \
+            --ledger "$d/approved/posted.json" --out approval.json
+          git -C "$d" add "buffer/$VID.json"
+          git -C "$d" config user.name "kindled-iron-approval"; git -C "$d" config user.email "kindled-iron-approval@users.noreply.github.com"
+          git -C "$d" commit -q -m "Approved for publishing: $VID by ${{ github.triggering_actor }} (run ${{ github.run_id }})"
+          for i in 1 2 3; do git -C "$d" push -q origin HEAD:main && break; sleep 5; git -C "$d" pull -q --rebase origin main; done
+          git -C "$d" fetch -q origin main && git -C "$d" cat-file -e "origin/main:buffer/$VID.json" \
+            || { echo "::error::the approval was NOT saved to the private repo"; exit 1; }
+          python -c "import json;e=json.load(open('approval.json'));print(f\"### Approved {e['id']}\n- sha256 {e['sha256']}\n- by {e['approved_by']} at {e['approved_at']}\n- platforms {', '.join(e['platforms'])}\n\nNext: run 'Kindled Iron 3 - Publish Everywhere' with video_id {e['id']}.\")" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete the private checkout
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/ki-private"

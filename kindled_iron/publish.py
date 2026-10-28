@@ -107,25 +107,78 @@ def read_post(path: Path) -> dict:
     post, key = {}, None
     for line in path.read_text(encoding="utf-8").splitlines():
         head = line.split(":", 1)[0].strip().lower()
-        if ":" in line and head in ("title", "caption", "threads", "description", "hashtags"):
+        if ":" in line and head in ("title", "youtube_title", "caption", "threads", "description", "hashtags"):
             key = head
             post[key] = line.split(":", 1)[1].strip()
         elif key and line.strip():
             post[key] += "\n" + line.strip()
     post.setdefault("title", "Kindled Iron")
     post.setdefault("caption", post["title"])
+    post["caption"] = cap_hashtags(post["caption"])
     if not post.get("threads"):
         first = post["caption"].split("\n")[0]
-        tags = [w for w in post["caption"].split() if w.startswith("#")][:2]
+        tags = [w for w in post["caption"].split() if w.startswith("#")][:3]
         post["threads"] = (first.split(" #")[0] + " " + " ".join(tags)).strip()
+    post["threads"] = cap_hashtags(post["threads"])
+    if not post.get("youtube_title"):
+        post["youtube_title"] = post["title"] if "#shorts" in post["title"].lower() else f"{post['title']} #shorts"
     return post
 
 
+def scene_post(scene_id: str) -> dict | None:
+    """The scene file in the repo is the source of truth for the post text: a caption fixed after the render
+    is used without re-rendering. Same rules as render.post_text (Bible credit in the description)."""
+    f = HERE / "scenes" / f"{scene_id}.json"
+    if not scene_id or not f.is_file():
+        return None
+    scene = json.loads(f.read_text(encoding="utf-8"))
+    p = dict(scene.get("post") or {})
+    if not p:
+        return None
+    p.setdefault("title", scene.get("title", scene_id))
+    if any(isinstance(ev.get("scripture"), dict) for b in scene.get("beats", []) for ev in b.get("events", [])):
+        credit = "Scripture: World English Bible"
+        if credit not in p.get("description", ""):
+            p["description"] = (p.get("description", "") + "\n" + credit).strip()
+    return p
+
+
+def cap_hashtags(text: str) -> str:
+    """Captions carry at most max_hashtags (5) hashtags: extra ones are dropped, the words stay as written."""
+    n, out = int(CONFIG.get("max_hashtags", 5)), []
+    for w in text.split(" "):
+        if w.startswith("#"):
+            if n <= 0:
+                continue
+            n -= 1
+        out.append(w)
+    return " ".join(out).strip()
+
+
+# ------------------------------------------------------------------ post ledger (never post the same video twice)
+def ledger_load(path: str | None) -> dict:
+    """posted.json (kept in the private repo's approved/): {scene id: {"renders": [...], platform: {id, url, at, ...}}}.
+    A platform already listed for the scene is never posted to again (also for a re-render of the same scene)."""
+    if not path or not Path(path).exists():
+        return {}
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except ValueError:
+        raise SystemExit(f"REFUSED: {path} is not valid JSON (fix it first: it is what stops double posts)")
+
+
+def ledger_save(path: str | None, ledger: dict) -> None:
+    if path:
+        Path(path).write_text(json.dumps(ledger, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
 def gate(meta: dict) -> None:
-    """Never post a render that used the fallback voice or failed a check."""
+    """Never post a render that used the fallback voice or failed a check. The owner's own recording (director
+    videos: provider "owner", used as-is) is the intended voice, not a fallback: it must name its source hash."""
     v = meta.get("voice", {})
     problems = []
-    if v.get("fallback") or v.get("provider_used") not in ("elevenlabs",):
+    owner = v.get("provider_used") == "owner" and bool(v.get("source_sha256")) and not v.get("regenerated")
+    if v.get("fallback") or not (v.get("provider_used") == "elevenlabs" or owner):
         problems.append(f"voice is {v.get('provider_used')} (fallback voice)")
     if any(not r.get("ok") for r in meta.get("verse_check", [])) or not meta.get("verse_check"):
         problems.append("scripture check failed or missing")
@@ -240,9 +293,9 @@ def youtube_check() -> dict:
 
 def youtube_post(video: Path, post: dict, mode: str, chk: dict) -> dict:
     tok = youtube_token()
-    title = post["title"][:90]
+    title = (post.get("youtube_title") or post["title"])[:100]
     if "#shorts" not in title.lower():
-        title = (title + " #Shorts")[:100]
+        title = (title[:92] + " #shorts")
     privacy = "public" if mode == "live" else "private"
     body = {"snippet": {"title": title, "description": (post["caption"] + "\n\n" + post.get("description", "")).strip()[:4900],
                         "tags": [w.strip("#") for w in post["caption"].split() if w.startswith("#")][:15],
@@ -429,6 +482,8 @@ def main() -> None:
     ap.add_argument("--refresh-only", action="store_true")
     ap.add_argument("--daily", action="store_true", help="refresh tokens, check every platform, ntfy ONLY if something needs the owner")
     ap.add_argument("--out", default="publish_results.json")
+    ap.add_argument("--ledger", default=None, help="posted.json: platforms this scene was already posted to are skipped")
+    ap.add_argument("--render-name", default="", help="render file name, recorded in the ledger")
     a = ap.parse_args()
 
     if a.daily:
@@ -470,14 +525,31 @@ def main() -> None:
     video = Path(a.video) if a.video else None
     meta = json.loads(Path(a.meta).read_text()) if a.meta else {}
     post = read_post(Path(a.post)) if a.post else {}
+    sp = scene_post(meta.get("scene", "")) if not a.check_only else None
+    if sp:
+        tmp = Path(a.out).with_suffix(".post.txt")
+        tmp.write_text("".join(f"{k}: {v}\n" for k, v in sp.items()), encoding="utf-8")
+        post = read_post(tmp)
+        log(f"post text from kindled_iron/scenes/{meta['scene']}.json (the repo's current caption)")
+    if post:
+        log(f"title: {post.get('title')} | YouTube: {post.get('youtube_title')} | caption: {post.get('caption')}")
     if not a.check_only:
         gate(meta)
         log(f"render passed the gate: voice {meta['voice'].get('provider_used')}, verses OK, "
             f"true peak {meta['audio']['true_peak']:.1f} dBTP")
+    ledger = ledger_load(a.ledger)
+    sid = meta.get("scene") or (Path(a.video).stem if a.video else "")
+    entry = ledger.setdefault(sid, {}) if not a.check_only else {}
     results = []
     for name in wanted:
         check, poster = PLATFORMS[name]
         r = {"platform": name, "publish_mode": modes[name]}
+        if not a.check_only and entry.get(name):
+            prev = entry[name]
+            r.update({"ok": True, "skipped": "already posted", "id": prev.get("id"), "url": prev.get("url", ""), "mode": "already posted"})
+            log(f"{name}: already posted for {sid} on {prev.get('at', '?')} ({prev.get('url') or prev.get('id')}): not posting again")
+            results.append(r)
+            continue
         try:
             chk = check()
             r["check"] = "OK"
@@ -494,6 +566,12 @@ def main() -> None:
         try:
             r.update(poster(video, post, modes[name], chk, a.public_url))
             r["ok"] = True
+            entry[name] = {k: r.get(k) for k in ("id", "url", "mode", "status") if r.get(k)}
+            entry[name].update({"at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "render": a.render_name or (video.name if video else "")})
+            entry.setdefault("renders", [])
+            if entry[name]["render"] not in entry["renders"]:
+                entry["renders"].append(entry[name]["render"])
+            ledger_save(a.ledger, ledger)       # saved after EVERY platform: a crash later never loses a post id
             log(f"{name}: posted ({r['mode']}) {r.get('url', '')} {r.get('note', '')}")
         except Exception as e:  # noqa: BLE001 - one platform failing never stops the others
             r.update({"ok": False, "error": str(e)[:300]})

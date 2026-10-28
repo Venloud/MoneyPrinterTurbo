@@ -1,0 +1,325 @@
+name: Kindled Iron Daily
+
+# Daily production, NO AI at run time: takes the next finished script from kindled_iron/queue/ (file name order),
+# builds the scene from kindled_iron/blocks/, checks it, renders it with the DEFAULT voice (voice_profiles.json:
+# ElevenLabs, eleven_v4) and the default music (theme_1), runs every check, posts it to every platform that
+# passes its connection check, records every post id in the private repo (approved/posted.json: a scene is never
+# posted twice) and moves the script to kindled_iron/queue/done/.
+# Credit guard: when ElevenLabs credits are low the day is skipped (script stays queued) and ntfy alerts.
+# Every alert goes to NTFY_TOPIC. See kindled_iron/PRODUCTION.md and kindled_iron/BATCH.md.
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: "Queue file to use (empty = the next one in kindled_iron/queue/)"
+        required: false
+        default: ""
+      dry_run:
+        description: "Render + checks + private upload only, post nothing, keep the script queued"
+        type: boolean
+        default: false
+  # NOT ENABLED until the owner says go. To enable, remove the two '#' below (14:40 UTC = 10:40 New York EDT):
+  # schedule:
+  #   - cron: "40 14 * * *"
+
+permissions:
+  contents: write        # move the script to queue/done + the short-lived public copy for Threads / Instagram
+
+concurrency:
+  group: kindled-iron-publish     # never at the same time as the publish workflow
+  cancel-in-progress: false
+
+env:
+  VOICE_REPO: ${{ vars.KI_VOICE_REPO || 'Venloud/kindled-iron-voice' }}
+  KI_TTS_CACHE: ${{ github.workspace }}/.ki-cache/tts
+  KI_CLIP_CACHE: ${{ github.workspace }}/.ki-cache/clips
+  NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Phone alert helper
+        run: |
+          cat > "$RUNNER_TEMP/alert.sh" <<'SH'
+          #!/bin/bash
+          # alert.sh "title" "body": ntfy to NTFY_TOPIC (never fails the run)
+          echo "ALERT: $1 - $2"
+          [ -z "$NTFY_TOPIC" ] && { echo "::warning::NTFY_TOPIC not set: no phone alert"; exit 0; }
+          curl -s -m 20 -H "Title: $1" -H "Tags: clapper" -d "$2" "https://ntfy.sh/$NTFY_TOPIC" >/dev/null || true
+          SH
+          chmod +x "$RUNNER_TEMP/alert.sh"; echo "ALERT=$RUNNER_TEMP/alert.sh" >> "$GITHUB_ENV"
+
+      - name: Next script in the queue
+        id: pick
+        env:
+          WANT: ${{ inputs.script }}
+        run: |
+          set -euo pipefail
+          if [ -n "$WANT" ]; then f="$WANT"; [ -f "$f" ] || f="kindled_iron/queue/$WANT"; else
+            f=$(ls kindled_iron/queue/*.json 2>/dev/null | sort | head -1 || true); fi
+          if [ -z "$f" ] || [ ! -f "$f" ]; then
+            "$ALERT" "Kindled Iron: queue empty" "No script in kindled_iron/queue/: nothing posted today. Add scripts (kindled_iron/BATCH.md)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          left=$(ls kindled_iron/queue/*.json 2>/dev/null | wc -l)
+          echo "script=$f" >> "$GITHUB_OUTPUT"; echo "left=$left" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+          echo "next script: $f ($left in the queue)"
+
+      - name: Build + check the scene (blocks, anchors, WEB verses, caption, length)
+        id: build
+        if: ${{ steps.pick.outputs.skip == 'false' }}
+        run: |
+          set -euo pipefail
+          if ! python -m kindled_iron.build_scene "${{ steps.pick.outputs.script }}" > build.log 2>&1; then
+            cat build.log; "$ALERT" "Kindled Iron: script error" "$(tail -2 build.log) - fix the script; nothing was spent."; exit 1
+          fi
+          cat build.log
+          id=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['id'])" "${{ steps.pick.outputs.script }}")
+          echo "id=$id" >> "$GITHUB_OUTPUT"; echo "scene=kindled_iron/scenes/$id.json" >> "$GITHUB_OUTPUT"
+
+      - name: Already posted? (post ledger in the private repo)
+        id: ledger
+        if: ${{ steps.build.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+          SID: ${{ steps.build.outputs.id }}
+        run: |
+          set -euo pipefail
+          [ "$(gh repo view "$VOICE_REPO" --json isPrivate -q .isPrivate)" = "true" ] || { "$ALERT" "Kindled Iron: private repo problem" "$VOICE_REPO is not private"; exit 1; }
+          if gh api "repos/$VOICE_REPO/contents/approved/posted.json" > ledger_api.json 2>ledger_err.txt; then
+            python3 -c "import json,base64;print(base64.b64decode(json.load(open('ledger_api.json'))['content']).decode(),end='')" > posted.json
+            python3 -c "import json;print(json.load(open('ledger_api.json'))['sha'])" > posted.sha
+          elif grep -q "Not Found" ledger_err.txt; then echo "{}" > posted.json; : > posted.sha
+          else "$ALERT" "Kindled Iron: ledger unreadable" "approved/posted.json could not be read: nothing posted"; exit 1; fi
+          done=$(python3 -c "import json,os;print('yes' if json.load(open('posted.json')).get(os.environ['SID']) else 'no')")
+          echo "posted=$done" >> "$GITHUB_OUTPUT"
+          if [ "$done" = yes ]; then
+            "$ALERT" "Kindled Iron: already posted" "$SID is already in approved/posted.json: not posted again; the script moves to queue/done. A platform that failed then can be posted with the Kindled Iron Publish workflow."
+          fi
+
+      - name: Credit guard (ElevenLabs)
+        id: credits
+        if: ${{ steps.ledger.outputs.posted == 'no' }}
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          line=$(python -m kindled_iron.credit_guard "${{ steps.build.outputs.scene }}")
+          echo "$line"
+          case "$line" in *"credit guard: OK"*) ;; *) "$ALERT" "Kindled Iron: skipped (credits low)" "$line - the script stays queued." ;; esac
+
+      - name: Install system packages (ffmpeg, Chrome)
+        if: ${{ steps.credits.outputs.ok == 'true' }}
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg espeak-ng fonts-dejavu-core
+          if ! command -v google-chrome >/dev/null; then
+            wget -q -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+            sudo apt-get install -y /tmp/chrome.deb
+          fi
+          echo "CHROME_PATH=$(command -v google-chrome)" >> "$GITHUB_ENV"
+
+      - name: Cache models (Whisper)
+        if: ${{ steps.credits.outputs.ok == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: kindled-iron-models-v2
+
+      - name: Restore voice audio + clips cache
+        if: ${{ steps.credits.outputs.ok == 'true' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: .ki-cache
+          key: ki-media-${{ github.run_id }}
+          restore-keys: ki-media-
+
+      - name: Install Python packages
+        if: ${{ steps.credits.outputs.ok == 'true' }}
+        run: |
+          set -euo pipefail
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install kokoro soundfile faster-whisper playwright yt-dlp
+          python -m spacy download en_core_web_sm
+
+      - name: Private media (reactions/, movie_reference/, music/ with theme_1)
+        if: ${{ steps.credits.outputs.ok == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/private_media"
+          git clone -q --depth 1 --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/$VOICE_REPO.git" "$d"
+          git -C "$d" sparse-checkout set reactions movie_reference music
+          echo "KI_PRIVATE_MEDIA=$d" >> "$GITHUB_ENV"
+
+      - name: Render (default voice + music)
+        id: render
+        if: ${{ steps.credits.outputs.ok == 'true' }}
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          KI_YTDLP: "1"
+        run: |
+          set -euo pipefail
+          python -m kindled_iron.render "${{ steps.build.outputs.scene }}" --out storage/kindled_iron/daily.mp4 \
+            --work storage/kindled_iron/work --tts elevenlabs --whisper-model small.en 2>&1 | tee render.log
+
+      - name: Delete the private media
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/private_media"
+
+      - name: Save voice audio + clips cache
+        if: ${{ always() && steps.credits.outputs.ok == 'true' }}
+        uses: actions/cache/save@v4
+        with:
+          path: .ki-cache
+          key: ki-media-${{ github.run_id }}
+
+      - name: Check the MP4 (size, audio, length, decode, voice, verses, audio levels)
+        id: check
+        if: ${{ steps.render.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          f=storage/kindled_iron/daily.mp4
+          python - <<'PY'
+          import json, subprocess, sys
+          sys.path.insert(0, ".")
+          from kindled_iron import publish
+          f = "storage/kindled_iron/daily.mp4"
+          info = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", f]))
+          v = [s for s in info["streams"] if s["codec_type"] == "video"]
+          a = [s for s in info["streams"] if s["codec_type"] == "audio"]
+          dur = float(info["format"]["duration"])
+          problems = []
+          if not v or (v[0]["width"], v[0]["height"]) != (1080, 1920):
+              problems.append("video is not 1080x1920")
+          if not a:
+              problems.append("no audio stream")
+          if not 55.0 <= dur <= 95.0:
+              problems.append(f"duration {dur:.1f} s is outside 55-95 s")
+          if problems:
+              sys.exit("FAIL: " + "; ".join(problems))
+          meta = json.load(open("storage/kindled_iron/daily_meta.json"))
+          publish.gate(meta)            # fallback voice, verses, true peak, low-frequency bursts
+          print(f"OK: {dur:.1f} s, {meta['words']} words, voice {meta['voice'].get('model')}, {meta['voice'].get('wpm', '?')} wpm, "
+                f"credits {meta['voice'].get('credits')}, true peak {meta['audio']['true_peak']} dBTP")
+          PY
+          ffmpeg -v error -i "$f" -f null - && echo "decode OK"
+
+      - name: Keep the render in the private repo (release test-renders)
+        id: private
+        if: ${{ steps.check.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+          SID: ${{ steps.build.outputs.id }}
+        run: |
+          set -euo pipefail
+          stamp=$(date -u +%Y%m%d-%H%M)
+          b="$SID-$stamp"
+          cp storage/kindled_iron/daily.mp4 "$b.mp4"
+          cp storage/kindled_iron/daily_nomusic.mp4 "$b-nomusic.mp4"
+          cp storage/kindled_iron/daily_meta.json "$b.meta.json"
+          cp storage/kindled_iron/daily.post.txt "$b.post.txt"
+          gh release upload test-renders --repo "$VOICE_REPO" --clobber "$b.mp4" "$b-nomusic.mp4" "$b.meta.json" "$b.post.txt"
+          echo "name=$b.mp4" >> "$GITHUB_OUTPUT"; echo "base=$b" >> "$GITHUB_OUTPUT"
+
+      - name: Short-lived public copy (Threads / Instagram fetch from a URL), deleted at the end
+        id: tmp
+        if: ${{ steps.private.outcome == 'success' && !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="ki-tmp-${{ github.run_id }}"
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --prerelease --title "temporary (deleted after publishing)" \
+            --notes "Temporary copy for platform upload; removed automatically." "${{ steps.private.outputs.base }}.mp4#video.mp4"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "url=https://github.com/$GITHUB_REPOSITORY/releases/download/$tag/${{ steps.private.outputs.base }}.mp4" >> "$GITHUB_OUTPUT"
+
+      - name: Post (every platform that passes its check; the ledger blocks double posts)
+        id: post
+        if: ${{ steps.tmp.outcome == 'success' }}
+        env:
+          TIKTOK_CLIENT_KEY: ${{ secrets.TIKTOK_CLIENT_KEY }}
+          TIKTOK_CLIENT_SECRET: ${{ secrets.TIKTOK_CLIENT_SECRET }}
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          TIKTOK_REFRESH_TOKEN: ${{ secrets.TIKTOK_REFRESH_TOKEN }}
+          TIKTOK_OPEN_ID: ${{ secrets.TIKTOK_OPEN_ID }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          FACEBOOK_PAGE_ID: ${{ secrets.FACEBOOK_PAGE_ID }}
+          FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+          GH_SECRETS_WRITE_TOKEN: ${{ secrets.GH_SECRETS_WRITE_TOKEN }}
+          TOKEN_MIRROR_REPOS: ${{ vars.TOKEN_MIRROR_REPOS }}
+          META_APP_ID: ${{ secrets.META_APP_ID }}
+          META_APP_SECRET: ${{ secrets.META_APP_SECRET }}
+        run: |
+          python -m kindled_iron.publish --video "${{ steps.private.outputs.base }}.mp4" --meta "${{ steps.private.outputs.base }}.meta.json" \
+            --post "${{ steps.private.outputs.base }}.post.txt" --public-url "${{ steps.tmp.outputs.url }}" \
+            --ledger posted.json --render-name "${{ steps.private.outputs.name }}"
+
+      - name: Save the post ledger to the private repo
+        if: ${{ always() && steps.tmp.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.VOICE_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if cmp -s posted.json <(gh api "repos/$VOICE_REPO/contents/approved/posted.json" -q .content 2>/dev/null | base64 -d 2>/dev/null); then
+            echo "ledger unchanged"; exit 0
+          fi
+          args=(-X PUT "repos/$VOICE_REPO/contents/approved/posted.json" -f message="Post ledger: ${{ steps.private.outputs.name }}" -f content="$(base64 -w0 posted.json)")
+          [ -s posted.sha ] && args+=(-f sha="$(cat posted.sha)")
+          gh api "${args[@]}" -q .commit.sha || { "$ALERT" "Kindled Iron: ledger NOT saved" "Copy posted.json from the run artifact into approved/posted.json before the next run."; exit 1; }
+
+      - name: Remove the public copy
+        if: ${{ always() && steps.tmp.outputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete "${{ steps.tmp.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+
+      - name: Move the script to queue/done (posted, or already posted before)
+        if: ${{ !inputs.dry_run && (steps.post.outcome == 'success' || steps.ledger.outputs.posted == 'yes') }}
+        run: |
+          set -euo pipefail
+          f="${{ steps.pick.outputs.script }}"
+          git config user.name "kindled-iron-bot"; git config user.email "kindled-iron-bot@users.noreply.github.com"
+          mkdir -p kindled_iron/queue/done
+          git mv "$f" kindled_iron/queue/done/
+          git add "${{ steps.build.outputs.scene }}"
+          git commit -m "Kindled Iron daily: ${{ steps.build.outputs.id }} posted, script moved to queue/done"
+          for i in 1 2 3; do git pull -q --rebase origin "${GITHUB_REF_NAME}" && git push -q origin "HEAD:${GITHUB_REF_NAME}" && break; sleep 5; done
+          left=$(ls kindled_iron/queue/*.json 2>/dev/null | wc -l)
+          [ "$left" -le 3 ] && "$ALERT" "Kindled Iron: queue low" "$left script(s) left in kindled_iron/queue/." || true
+
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-results
+          path: |
+            publish_results.json
+            posted.json
+            build.log
+            storage/kindled_iron/daily_meta.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Failure alert
+        if: ${{ failure() }}
+        run: |
+          "$ALERT" "Kindled Iron daily FAILED" "Run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} - $(grep -hE 'FAIL|REFUSED|SCRIPT ERROR' build.log render.log 2>/dev/null | tail -3)"

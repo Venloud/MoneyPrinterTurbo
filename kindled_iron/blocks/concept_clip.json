@@ -1,0 +1,91 @@
+{
+ "_help": "Explain one idea: a clip on one word, a big label and an accent sub-label, the guide looks up and points.",
+ "slots": {
+  "clip_query": "clip search words",
+  "clip_word": "word where the clip starts",
+  "label_text": "big label, 1-2 words (e.g. TIME)",
+  "label_word": "word where it appears",
+  "sub_text": "accent sub-label, 2-4 words (e.g. made by God)",
+  "sub_word": "word where it appears"
+ },
+ "events": [
+  {
+   "at": 0,
+   "do": "place",
+   "who": "guide",
+   "x": 620
+  },
+  {
+   "at": 0,
+   "do": "size",
+   "who": "guide",
+   "value": 0.9,
+   "dur": 0.01
+  },
+  {
+   "at": 0.15,
+   "do": "draw",
+   "id": "{{id}}_clock",
+   "type": "clock",
+   "x": 540,
+   "y": 410,
+   "r": 220,
+   "dur": 0.4
+  },
+  {
+   "at": 0.4,
+   "do": "look",
+   "who": "guide",
+   "dir": "up",
+   "expression": "curious",
+   "hold": 0.5
+  },
+  {
+   "at": "{{clip_word}}-0.25",
+   "do": "draw",
+   "id": "{{id}}_clip",
+   "type": "inset",
+   "x": 540,
+   "y": 410,
+   "w": 820,
+   "h": 470,
+   "query": "{{clip_query}}",
+   "sources": [
+    "pexels",
+    "pixabay",
+    "commons"
+   ],
+   "clip_dur": 2.4
+  },
+  {
+   "at": "{{label_word}}-0.1",
+   "do": "draw",
+   "id": "{{id}}_l",
+   "type": "word",
+   "text": "{{label_text}}",
+   "x": 320,
+   "y": 1020,
+   "size": 150,
+   "dur": 0.3
+  },
+  {
+   "at": "{{label_word}}+0.2",
+   "do": "point",
+   "who": "guide",
+   "toward": "{{id}}_l",
+   "hold": 0.5
+  },
+  {
+   "at": "{{sub_word}}-0.1",
+   "do": "draw",
+   "id": "{{id}}_s",
+   "type": "word",
+   "text": "{{sub_text}}",
+   "x": 320,
+   "y": 1160,
+   "size": 90,
+   "color": "accent",
+   "dur": 0.3
+  }
+ ]
+}

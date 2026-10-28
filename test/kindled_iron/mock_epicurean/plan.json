@@ -1,0 +1,371 @@
+{
+ "freeze": {
+  "line": 3,
+  "word": "will"
+ },
+ "lines": [
+  {
+   "line": 1,
+   "expression": "curious",
+   "gesture": {
+    "do": "point",
+    "word": "graph"
+   },
+   "box": [
+    {
+     "word": "seen",
+     "kind": "stock",
+     "query": "chalkboard diagram classroom"
+    },
+    {
+     "word": "crazy",
+     "kind": "meme",
+     "file": "Wait-What-meme-kevin-hart.jpg"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "exist",
+     "type": "x_mark",
+     "concept": "x mark",
+     "fields": {
+      "label": "GOD EXISTS"
+     }
+    },
+    {
+     "word": "graph",
+     "type": "question_big",
+     "concept": "question big",
+     "fields": {
+      "label": "EVIL?"
+     }
+    },
+    {
+     "word": "Bible",
+     "type": "bible",
+     "concept": "bible",
+     "fields": {
+      "label": "THE BIBLE"
+     }
+    }
+   ]
+  },
+  {
+   "line": 2,
+   "expression": "focused",
+   "gesture": {
+    "do": "shrug",
+    "word": "why"
+   },
+   "box": [
+    {
+     "word": "powerful",
+     "kind": "stock",
+     "query": "lightning storm sky"
+    },
+    {
+     "word": "evil",
+     "kind": "stock",
+     "query": "dark storm clouds"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "powerful",
+     "type": "flow_arrows",
+     "concept": "flow arrows",
+     "fields": {
+      "a": "CAN STOP IT",
+      "b": "KNOWS IT",
+      "c": "WANTS TO"
+     }
+    },
+    {
+     "word": "evil",
+     "type": "question_big",
+     "concept": "question big",
+     "fields": {
+      "label": "WHY EVIL?"
+     }
+    },
+    {
+     "word": "powerful",
+     "type": "crown",
+     "concept": "crown",
+     "fields": {
+      "label": "ALL POWERFUL"
+     }
+    }
+   ]
+  },
+  {
+   "line": 3,
+   "expression": "surprised",
+   "gesture": {
+    "do": "point",
+    "word": "choice"
+   },
+   "box": [
+    {
+     "word": "graph",
+     "kind": "meme",
+     "file": "Ideas_Surprised_Pikachu_HD.webp"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "will",
+     "type": "scales_big",
+     "concept": "scales big",
+     "fields": {
+      "left": "GOD'S CONTROL",
+      "right": "YOUR CHOICE"
+     }
+    },
+    {
+     "word": "controlled",
+     "type": "puppet_strings",
+     "concept": "puppet strings",
+     "fields": {
+      "label": "NO CHOICE"
+     }
+    },
+    {
+     "word": "decision",
+     "type": "road_fork",
+     "concept": "road fork",
+     "fields": {
+      "left": "GOOD",
+      "right": "EVIL"
+     }
+    }
+   ]
+  },
+  {
+   "line": 4,
+   "expression": "thinking",
+   "gesture": {
+    "do": "point",
+    "word": "good"
+   },
+   "box": [
+    {
+     "word": "lie",
+     "kind": "stock",
+     "query": "person crossing fingers behind back"
+    }
+   ],
+   "pop": {
+    "word": "stop",
+    "file": "suspisious-fry-futurama.webp"
+   },
+   "drawings": [
+    {
+     "word": "lie",
+     "type": "flow_arrows",
+     "concept": "flow arrows",
+     "fields": {
+      "a": "LIE",
+      "b": "GOD STOPS",
+      "c": "NO CHOICE"
+     }
+    },
+    {
+     "word": "choosing",
+     "type": "thinker",
+     "concept": "thinker",
+     "fields": {
+      "label": "YOUR CHOICE"
+     }
+    },
+    {
+     "word": "steal",
+     "type": "money_bag",
+     "concept": "money bag",
+     "fields": {
+      "label": "STEAL"
+     }
+    }
+   ]
+  },
+  {
+   "line": 5,
+   "expression": "sad",
+   "gesture": {
+    "do": "look",
+    "word": "chooses"
+   },
+   "box": [
+    {
+     "word": "earthquakes",
+     "kind": "stock",
+     "query": "earthquake damaged buildings"
+    },
+    {
+     "word": "diseases",
+     "kind": "stock",
+     "query": "hospital patient bed"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "earthquakes",
+     "type": "flow_arrows",
+     "concept": "flow arrows",
+     "fields": {
+      "a": "EARTHQUAKE",
+      "b": "DISEASE",
+      "c": "NOBODY CHOSE"
+     }
+    },
+    {
+     "word": "diseases",
+     "type": "germ_big",
+     "concept": "germ big",
+     "fields": {
+      "label": "DISEASE"
+     }
+    },
+    {
+     "word": "Earthquakes",
+     "type": "earthquake",
+     "concept": "earthquake",
+     "fields": {
+      "label": "EARTHQUAKES"
+     }
+    }
+   ]
+  },
+  {
+   "line": 6,
+   "expression": "focused",
+   "gesture": {
+    "do": "point",
+    "word": "broken"
+   },
+   "box": [
+    {
+     "word": "creation",
+     "kind": "stock",
+     "query": "cracked dry earth"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "broken",
+     "type": "bible",
+     "concept": "bible",
+     "fields": {
+      "label": "THE BIBLE"
+     }
+    },
+    {
+     "word": "punishment",
+     "type": "thinker",
+     "concept": "thinker",
+     "fields": {
+      "label": "NOT A PUNISHMENT"
+     }
+    },
+    {
+     "word": "creation",
+     "type": "planet_earth",
+     "concept": "planet earth",
+     "fields": {
+      "label": "CREATION"
+     }
+    }
+   ]
+  },
+  {
+   "line": 7,
+   "expression": "happy",
+   "gesture": {
+    "do": "point",
+    "word": "forever"
+   },
+   "verse": {
+    "ref": "Revelation 21:4",
+    "word": "Revelation",
+    "quoted": false
+   },
+   "box": [],
+   "drawings": [
+    {
+     "word": "forever",
+     "type": "timeline",
+     "fields": {
+      "labels": [
+       "NOW",
+       "SUFFERING",
+       "NO MORE PAIN"
+      ]
+     }
+    },
+    {
+     "word": "death",
+     "type": "broken_heart",
+     "concept": "broken heart",
+     "fields": {
+      "label": "NO MORE PAIN"
+     }
+    },
+    {
+     "word": "future",
+     "type": "rainbow",
+     "concept": "rainbow",
+     "fields": {
+      "label": "NO MORE PAIN"
+     }
+    }
+   ]
+  },
+  {
+   "line": 8,
+   "expression": "thinking",
+   "gesture": {
+    "do": "shrug",
+    "word": "why"
+   },
+   "box": [
+    {
+     "word": "allowing",
+     "kind": "stock",
+     "query": "person praying"
+    },
+    {
+     "word": "question",
+     "kind": "meme",
+     "file": "doglookingatphoneshocked.jpg"
+    }
+   ],
+   "drawings": [
+    {
+     "word": "allowing",
+     "type": "scales_big",
+     "concept": "scales big",
+     "fields": {
+      "left": "POWER",
+      "right": "FREEDOM"
+     }
+    },
+    {
+     "word": "question",
+     "type": "question_big",
+     "concept": "question big",
+     "fields": {
+      "label": "STILL ASKING"
+     }
+    },
+    {
+     "word": "people",
+     "type": "crowd",
+     "concept": "crowd",
+     "fields": {
+      "label": "INNOCENT PEOPLE"
+     }
+    }
+   ]
+  }
+ ]
+}

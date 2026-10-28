@@ -1,0 +1,1345 @@
+{
+ "id": "love-of-money-v3",
+ "title": "The Love of Money",
+ "voice_profile": "kindled_iron",
+ "voice_file": {
+  "path": "approved_audio/love-of-money-v3/goodone.mp3",
+  "sha256": "5152b33af4e95b6b433d4749160bb34231d14f05d2a064a9d21c1ae1a7f74969",
+  "provider": "elevenlabs",
+  "voice": "venloud",
+  "length_s": 77.56
+ },
+ "voice_as_is": true,
+ "max_silence": 0.8,
+ "silence_to": 0.5,
+ "preview": {
+  "folder": "love-of-money-v3-alt",
+  "public_artifacts": false,
+  "stage": "full",
+  "frames": [
+   {
+    "beat": "hook",
+    "at": "10k"
+   },
+   {
+    "beat": "says",
+    "at": "there"
+   },
+   {
+    "beat": "notmoney",
+    "at": "it-0.1"
+   },
+   {
+    "beat": "hammer",
+    "at": "break+0.3"
+   },
+   {
+    "beat": "laugh",
+    "at": "cents"
+   },
+   {
+    "beat": "rich",
+    "at": "truth+0.6"
+   },
+   {
+    "beat": "work",
+    "at": "Provide+0.4"
+   },
+   {
+    "beat": "last",
+    "at": "crabs"
+   }
+  ]
+ },
+ "format": "hook + record scratch, the misquote scratched out, 1 Timothy 6:10 typed, hammer, Mr. Krabs, Hebrews 13:5, closing question",
+ "exact_narration": true,
+ "end_hold": 1.4,
+ "ground": 1490,
+ "camera_y": 960,
+ "fill_min": 0.3,
+ "max_visual_gap": 2.5,
+ "walk_speed": 280,
+ "pencil": true,
+ "captions_box": {
+  "x": 450,
+  "y": 735,
+  "w": 640,
+  "size": 92,
+  "min_scale": 0.6
+ },
+ "captions_chunk": {
+  "max_words": 3,
+  "min_words": 1,
+  "max_chars": 16
+ },
+ "audit": {
+  "max_words": 3,
+  "one_line": true
+ },
+ "caption_color": "ink",
+ "caption_on": "accent",
+ "require_memes": 3,
+ "max_media_uses": 2,
+ "cast": {
+  "guide": {
+   "panel": 0,
+   "x": 650,
+   "scale": 2.1,
+   "facing": -1,
+   "accent": true
+  }
+ },
+ "mediabox": {
+  "x": 540,
+  "y": 445,
+  "w": 820,
+  "h": 500,
+  "verse_size": 70,
+  "pad_x": 52
+ },
+ "clips": {
+  "groceries": {
+   "pexels": "8421648",
+   "label": "Person Paying Groceries via Credit Card"
+  },
+  "ticket": {
+   "pexels": "7252265",
+   "start": 3.3,
+   "label": "Person Getting Ticket From the Machine"
+  },
+  "hammer": {
+   "query": "hammer nail wood",
+   "label": "Pexels search: hammer nail wood"
+  },
+  "cash": {
+   "pexels": "5466769",
+   "label": "A Person Counting Money"
+  },
+  "commute": {
+   "pexels": "10374892",
+   "label": "Pexels 10374892 (WORK)"
+  },
+  "phone": {
+   "pexels": "7535095",
+   "label": "A Man Using a Smartphone while Holding a Bank Card (EARN)"
+  },
+  "saving": {
+   "pexels": "7710771",
+   "label": "Woman Saving Money (SAVE)"
+  }
+ },
+ "post": {
+  "title": "The Love of Money",
+  "youtube_title": "What Does the Bible Really Say About Money? #shorts",
+  "caption": "Ten thousand dollars or the truth. Who really decides? #bible #money #faith #christian #truth"
+ },
+ "beats": [
+  {
+   "id": "hook",
+   "panel": 0,
+   "script": "[bold]You probably would walk away with 10k even if u had to lie to get it. [curious] The most quoted Bible verse about money isn't even in the Bible.",
+   "narration": "You probably would walk away with 10k even if u had to lie to get it. The most quoted Bible verse about money isn't even in the Bible.",
+   "events": [
+    {
+     "at": 0,
+     "do": "place",
+     "who": "guide",
+     "x": 650,
+     "facing": -1
+    },
+    {
+     "at": 0,
+     "do": "size",
+     "who": "guide",
+     "value": 0.85,
+     "dur": 0.01
+    },
+    {
+     "at": 0,
+     "box": "media",
+     "file": "movie_reference/opening shot.jpeg"
+    },
+    {
+     "at": 0.05,
+     "do": "draw",
+     "id": "d_clown",
+     "type": "clowncard",
+     "x": 255,
+     "y": 1080,
+     "dur": 0.45,
+     "main": true
+    },
+    {
+     "at": "10k",
+     "do": "wiggle",
+     "id": "d_clown"
+    },
+    {
+     "at": "10k",
+     "do": "point",
+     "who": "guide",
+     "toward": "d_clown",
+     "hold": 0.6
+    },
+    {
+     "at": "probably",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "walk-0.1",
+     "box": "media",
+     "file": "movie_reference/running-with-cash-register.gif"
+    },
+    {
+     "at": "even-0.25",
+     "do": "fade",
+     "ids": [
+      "d_clown"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "lie",
+     "reaction": "side_eye",
+     "face": "side_eye",
+     "file": "movie_reference/evil-grin-meme-mrburnssimpson.jpg",
+     "dur": 1.2,
+     "card": {
+      "x": 315,
+      "y": 1180,
+      "w": 380,
+      "rotate": 0
+     }
+    },
+    {
+     "at": "quoted",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "at": "isn't-0.1",
+     "box": "media",
+     "file": "movie_reference/Ideas_Surprised_Pikachu_HD.webp"
+    },
+    {
+     "at": "isn't",
+     "do": "freeze",
+     "who": "guide",
+     "dur": 1.0,
+     "zoom": 1.45,
+     "focus": {
+      "x": 650,
+      "y": 1150
+     },
+     "sound": "record_scratch"
+    }
+   ],
+   "camera_start": {
+    "x": 540,
+    "y": 960,
+    "zoom": 1.0,
+    "dur": 0.01
+   }
+  },
+  {
+   "id": "says",
+   "panel": 0,
+   "script": "\"Money is the root of all evil.\"is what you hear people say all the time, but in the bible it doesnt says[short pause] Nope. Not in there.",
+   "narration": "\"Money is the root of all evil.\"is what you hear people say all the time, but in the bible it doesnt says Nope. Not in there.",
+   "events": [
+    {
+     "at": "Money-0.1",
+     "do": "draw",
+     "id": "d_bible",
+     "type": "book",
+     "x": 310,
+     "y": 1120,
+     "dur": 0.4,
+     "main": true,
+     "scale": 0.85,
+     "blank": true
+    },
+    {
+     "at": "root-0.15",
+     "do": "draw",
+     "id": "d_bt1",
+     "type": "word",
+     "x": 232,
+     "y": 1090,
+     "dur": 0.3,
+     "main": true,
+     "text": "Money is",
+     "size": 40,
+     "allow_overlap": true
+    },
+    {
+     "at": "root",
+     "do": "draw",
+     "id": "d_bt2",
+     "type": "word",
+     "x": 232,
+     "y": 1132,
+     "dur": 0.3,
+     "main": true,
+     "text": "the root",
+     "size": 40,
+     "allow_overlap": true
+    },
+    {
+     "at": "all",
+     "do": "draw",
+     "id": "d_bt3",
+     "type": "word",
+     "x": 388,
+     "y": 1090,
+     "dur": 0.3,
+     "main": true,
+     "text": "of all",
+     "size": 40,
+     "allow_overlap": true
+    },
+    {
+     "at": "evil",
+     "do": "draw",
+     "id": "d_bt4",
+     "type": "word",
+     "x": 388,
+     "y": 1132,
+     "dur": 0.3,
+     "main": true,
+     "text": "evil",
+     "size": 40,
+     "allow_overlap": true
+    },
+    {
+     "at": "Money",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "hear-0.1",
+     "box": "media",
+     "file": "movie_reference/confused-nick-young.jpeg"
+    },
+    {
+     "at": "hear",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    },
+    {
+     "at": "bible",
+     "do": "look",
+     "who": "guide",
+     "dir": "down",
+     "expression": "focused",
+     "hold": 0.8
+    },
+    {
+     "at": "Nope-0.05",
+     "do": "draw",
+     "id": "d_scr1",
+     "type": "strike",
+     "x": 232,
+     "y": 1090,
+     "dur": 0.2,
+     "main": true,
+     "target": "d_bt1",
+     "sw": 7
+    },
+    {
+     "at": "Nope+0.15",
+     "do": "draw",
+     "id": "d_scr2",
+     "type": "strike",
+     "x": 232,
+     "y": 1132,
+     "dur": 0.2,
+     "main": true,
+     "target": "d_bt2",
+     "sw": 7
+    },
+    {
+     "at": "Not",
+     "do": "draw",
+     "id": "d_scr3",
+     "type": "strike",
+     "x": 388,
+     "y": 1090,
+     "dur": 0.2,
+     "main": true,
+     "target": "d_bt3",
+     "sw": 7
+    },
+    {
+     "at": "in",
+     "do": "draw",
+     "id": "d_scr4",
+     "type": "strike",
+     "x": 388,
+     "y": 1132,
+     "dur": 0.2,
+     "main": true,
+     "target": "d_bt4",
+     "sw": 7
+    },
+    {
+     "at": "Nope",
+     "do": "shake",
+     "who": "guide"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "actually",
+   "panel": 0,
+   "script": "[thoughtful] What it actually says is, \"For the love of money is a root of all kinds of evil.\"",
+   "narration": "What it actually says is, \"For the love of money is a root of all kinds of evil.\" [1 Timothy 6:10]",
+   "events": [
+    {
+     "at": "What-0.15",
+     "do": "fade",
+     "ids": [
+      "d_bible",
+      "d_bt1",
+      "d_bt2",
+      "d_bt3",
+      "d_bt4",
+      "d_scr1",
+      "d_scr2",
+      "d_scr3",
+      "d_scr4"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "What-0.1",
+     "box": "media",
+     "file": "movie_reference/eminem-throwing-uno-reverse-card.jpeg"
+    },
+    {
+     "at": "actually",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "box": "verse",
+     "scripture": {
+      "ref": "1 Timothy 6:10",
+      "text": "For the love of money is a root of all kinds of evil."
+     }
+    },
+    {
+     "at": "love",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 1.0
+    },
+    {
+     "at": "evil",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "notmoney",
+   "panel": 0,
+   "script": "Not money. [short pause] The love of it.",
+   "narration": "Not money. The love of it.",
+   "events": [
+    {
+     "at": "love-0.15",
+     "box_highlight": "love of money"
+    },
+    {
+     "at": "Not",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "love",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.8
+    },
+    {
+     "at": "it",
+     "box": "media",
+     "file": "movie_reference/kakuzu-counting0=-money.mov",
+     "fallback": "movie_reference/kakuzu-counting-money.webp",
+     "crop": [
+      0.2,
+      0.09,
+      0.62,
+      0.76
+     ]
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "tool",
+   "panel": 0,
+   "script": "Money's a tool. It pays rent, buys groceries, gets your mom a plane ticket home.",
+   "narration": "Money's a tool. It pays rent, buys groceries, gets your mom a plane ticket home.",
+   "events": [
+    {
+     "at": "tool",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "rent-0.1",
+     "do": "draw",
+     "id": "d_house",
+     "type": "house",
+     "x": 200,
+     "y": 925,
+     "dur": 0.4,
+     "main": true,
+     "k": 0.72
+    },
+    {
+     "at": "groceries-0.15",
+     "box": "clip",
+     "clip": "groceries"
+    },
+    {
+     "at": "groceries-0.1",
+     "do": "draw",
+     "id": "d_bag",
+     "type": "bag",
+     "x": 335,
+     "y": 930,
+     "dur": 0.4,
+     "main": true,
+     "scale": 0.72
+    },
+    {
+     "at": "plane-0.15",
+     "box": "clip",
+     "clip": "ticket"
+    },
+    {
+     "at": "plane-0.1",
+     "do": "draw",
+     "id": "d_plane",
+     "type": "plane",
+     "x": 470,
+     "y": 925,
+     "dur": 0.4,
+     "main": true,
+     "scale": 0.7
+    },
+    {
+     "at": "groceries",
+     "do": "point",
+     "who": "guide",
+     "toward": "d_bag",
+     "hold": 0.5
+    },
+    {
+     "at": "ticket-0.2",
+     "do": "fade",
+     "ids": [
+      "d_house",
+      "d_bag",
+      "d_plane"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "ticket",
+     "reaction": "crying_laughing",
+     "face": "crying_laughing",
+     "file": "movie_reference/happy-dog-meme.jpg",
+     "dur": 1.2,
+     "card": {
+      "x": 315,
+      "y": 1190,
+      "w": 380,
+      "rotate": 0
+     }
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "hammer",
+   "panel": 0,
+   "script": "A hammer can build you a house. [short pause] same hammer can be used to break it",
+   "narration": "A hammer can build you a house. same hammer can be used to break it",
+   "events": [
+    {
+     "at": "hammer-0.15",
+     "box": "clip",
+     "clip": "hammer"
+    },
+    {
+     "at": "build",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "at": "hammer+0.05",
+     "do": "draw",
+     "id": "d_house2",
+     "type": "house",
+     "x": 230,
+     "y": 1170,
+     "dur": 0.35,
+     "main": true,
+     "k": 1.1
+    },
+    {
+     "at": "can",
+     "do": "point",
+     "who": "guide",
+     "toward": "d_house2",
+     "hold": 0.2
+    },
+    {
+     "at": "house-0.1",
+     "do": "draw",
+     "id": "d_hammer",
+     "type": "hammer",
+     "x": 400,
+     "y": 1300,
+     "dur": 0.25,
+     "main": true,
+     "rotate": 10
+    },
+    {
+     "at": "house+0.1",
+     "do": "swing",
+     "id": "d_hammer",
+     "n": 3,
+     "dur": 0.3
+    },
+    {
+     "at": "house",
+     "do": "look",
+     "who": "guide",
+     "dir": "down",
+     "expression": "curious",
+     "hold": 0.5
+    },
+    {
+     "at": "break-0.3",
+     "do": "swing",
+     "id": "d_hammer",
+     "n": 1,
+     "smash": true,
+     "dur": 0.4
+    },
+    {
+     "at": "break-0.05",
+     "do": "draw",
+     "id": "d_cracks",
+     "type": "cracks",
+     "x": 230,
+     "y": 1170,
+     "dur": 0.15,
+     "main": true,
+     "k": 1.1,
+     "allow_overlap": true
+    },
+    {
+     "at": "break",
+     "do": "draw",
+     "id": "d_shards",
+     "type": "shards",
+     "x": 230,
+     "y": 1180,
+     "dur": 0.1,
+     "main": true,
+     "n": 10,
+     "allow_overlap": true
+    },
+    {
+     "at": "break",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "krabs",
+   "panel": 0,
+   "script": "[amused] Look at Mr. Krabs. He owns a whole restaurant, and he still sold SpongeBob's soul for sixty-two cents.",
+   "narration": "Look at Mr. Krabs. He owns a whole restaurant, and he still sold SpongeBob's soul for sixty-two cents.",
+   "events": [
+    {
+     "at": "Look-0.15",
+     "do": "fade",
+     "ids": [
+      "d_house2",
+      "d_hammer",
+      "d_cracks",
+      "d_shards"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "Look-0.1",
+     "box": "media",
+     "file": "movie_reference/mr-krab-money-eyes.mp4"
+    },
+    {
+     "at": "Look",
+     "do": "walk",
+     "who": "guide",
+     "to": 260
+    },
+    {
+     "at": "Krabs",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "owns",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "restaurant",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    },
+    {
+     "at": "sold-0.1",
+     "box": "media",
+     "file": "movie_reference/yall-remember-when-mr-krabs-sold-spongebob-for-62-cents-v0-49e5dfcz91q11.webp"
+    },
+    {
+     "at": "soul",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.7
+    },
+    {
+     "at": "sixty-two",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "laugh",
+   "panel": 0,
+   "script": "[laughing] Sixty-two cents.",
+   "narration": "Sixty-two cents.",
+   "events": [
+    {
+     "at": "Sixty-two-0.1",
+     "box": "media",
+     "file": "movie_reference/62cents.webp"
+    },
+    {
+     "at": "Sixty-two-0.05",
+     "do": "draw",
+     "id": "d_62",
+     "type": "word",
+     "x": 630,
+     "y": 1080,
+     "dur": 0.35,
+     "main": true,
+     "text": "62¢",
+     "size": 150,
+     "color": "accent",
+     "underline": true
+    },
+    {
+     "at": "cents",
+     "do": "point",
+     "who": "guide",
+     "toward": "d_62",
+     "hold": 0.6
+    },
+    {
+     "at": "Sixty-two",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "problem",
+   "panel": 0,
+   "script": "That's not a money problem. That's a love problem.",
+   "narration": "That's not a money problem. That's a love problem.",
+   "events": [
+    {
+     "at": "That's-0.1",
+     "box": "media",
+     "file": "movie_reference/happy-face-shock-face-realization-standing-size-9x-16.jpg"
+    },
+    {
+     "at": "That's-0.1",
+     "do": "fade",
+     "ids": [
+      "d_62"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "money",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "love-0.1",
+     "do": "draw",
+     "id": "d_heart",
+     "type": "heartdollar",
+     "x": 630,
+     "y": 1110,
+     "dur": 0.45,
+     "main": true,
+     "scale": 0.75
+    },
+    {
+     "at": "love",
+     "do": "point",
+     "who": "guide",
+     "toward": "d_heart",
+     "hold": 0.7
+    },
+    {
+     "at": "love",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "rich",
+   "panel": 0,
+   "script": "[serious] And you don't have to be rich to have it. You can be broke and still let money make every call. Who you trust. Whether you tell the truth.",
+   "narration": "And you don't have to be rich to have it. You can be broke and still let money make every call. Who you trust. Whether you tell the truth.",
+   "events": [
+    {
+     "at": "And-0.1",
+     "do": "fade",
+     "ids": [
+      "d_heart"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "And",
+     "do": "walk",
+     "who": "guide",
+     "to": 640
+    },
+    {
+     "at": "rich",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "don't-0.1",
+     "box": "media",
+     "file": "movie_reference/pablo-escobar-sitting-on-yellow-banch.webp"
+    },
+    {
+     "at": "rich",
+     "box": "media",
+     "file": "movie_reference/pablo-sitting-inside.jpg"
+    },
+    {
+     "at": "have#2-0.05",
+     "box": "media",
+     "file": "movie_reference/pablo-escobar-standing-on-driveway.jpg"
+    },
+    {
+     "at": "broke-0.1",
+     "box": "media",
+     "file": "movie_reference/broke.jpg"
+    },
+    {
+     "at": "broke",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    },
+    {
+     "at": "broke",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "money",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "every-0.1",
+     "box": "media",
+     "file": "movie_reference/side-eye.webp"
+    },
+    {
+     "at": "Who",
+     "do": "express",
+     "who": "guide",
+     "expression": "thinking"
+    },
+    {
+     "at": "truth",
+     "reaction": "puzzled",
+     "face": "puzzled",
+     "file": "movie_reference/suspisious-fry-futurama.webp",
+     "dur": 1.2,
+     "card": {
+      "x": 315,
+      "y": 1180,
+      "w": 380,
+      "rotate": 0
+     }
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "hebrews",
+   "panel": 0,
+   "script": "[thoughtful] So how do you get free? Hebrews says, \"Be free from the love of money, content with such things as you have, for he has said, 'I will in no way leave you, neither will I in any way forsake you.'\"",
+   "narration": "So how do you get free? Hebrews says, \"Be free from the love of money, content with such things as you have, for he has said, 'I will in no way leave you, neither will I in any way forsake you.'\" [Hebrews 13:5]",
+   "events": [
+    {
+     "at": "you",
+     "do": "walk",
+     "who": "guide",
+     "to": 560
+    },
+    {
+     "at": "free",
+     "do": "shrug",
+     "who": "guide"
+    },
+    {
+     "at": "how",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "free+0.25",
+     "do": "draw",
+     "id": "d_lock",
+     "type": "lockdollar",
+     "x": 230,
+     "y": 1110,
+     "dur": 0.45,
+     "main": true,
+     "scale": 0.7
+    },
+    {
+     "box": "verse",
+     "scripture": {
+      "ref": "Hebrews 13:5",
+      "text": "Be free from the love of money, content with such things as you have, for he has said, “I will in no way leave you, neither will I in any way forsake you.”"
+     },
+     "split_after": "have"
+    },
+    {
+     "at": "Be-0.25",
+     "do": "fade",
+     "ids": [
+      "d_lock"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "Be",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 1.0
+    },
+    {
+     "at": "content",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "things",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "said",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "way",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "leave",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "at": "forsake",
+     "do": "look_viewer",
+     "who": "guide"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "reason",
+   "panel": 0,
+   "script": "That's the reason. You loosen your grip on money when you know you're not on your own without it.",
+   "narration": "That's the reason. You loosen your grip on money when you know you're not on your own without it.",
+   "events": [
+    {
+     "at": "That's-0.05",
+     "box": "clip",
+     "clip": "cash"
+    },
+    {
+     "at": "reason",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "at": "reason",
+     "do": "walk",
+     "who": "guide",
+     "to": 625
+    },
+    {
+     "at": "loosen-0.15",
+     "do": "draw",
+     "id": "d_fist",
+     "type": "fist",
+     "x": 240,
+     "y": 1100,
+     "dur": 0.3,
+     "main": true
+    },
+    {
+     "at": "grip-0.05",
+     "do": "fade",
+     "ids": [
+      "d_fist"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "grip+0.1",
+     "do": "draw",
+     "id": "d_hand",
+     "type": "openhand",
+     "x": 240,
+     "y": 1090,
+     "dur": 0.3,
+     "main": true
+    },
+    {
+     "at": "money-0.1",
+     "do": "draw",
+     "id": "d_coins",
+     "type": "coins",
+     "x": 240,
+     "y": 1230,
+     "dur": 0.2,
+     "main": true,
+     "allow_overlap": true
+    },
+    {
+     "at": "money-0.1",
+     "do": "drop",
+     "id": "d_coins",
+     "height": 110,
+     "dur": 0.45
+    },
+    {
+     "at": "money",
+     "do": "point",
+     "who": "guide",
+     "toward": "d_hand",
+     "hold": 0.6
+    },
+    {
+     "at": "know",
+     "do": "walk",
+     "who": "guide",
+     "to": 500
+    },
+    {
+     "at": "not-0.1",
+     "box": "media",
+     "file": "movie_reference/burning_bush.mp4"
+    },
+    {
+     "at": "own",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "work",
+   "panel": 0,
+   "script": "So work. Earn. Save. Provide. [short pause] Keep it in your hand, just not in your heart.",
+   "narration": "So work. Earn. Save. Provide. Keep it in your hand, just not in your heart.",
+   "events": [
+    {
+     "at": "So-0.15",
+     "do": "fade",
+     "ids": [
+      "d_hand",
+      "d_coins"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "work-0.15",
+     "box": "clip",
+     "clip": "commute"
+    },
+    {
+     "at": "work",
+     "box_bullet": "WORK"
+    },
+    {
+     "at": "work",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    },
+    {
+     "at": "Earn-0.15",
+     "box": "clip",
+     "clip": "phone"
+    },
+    {
+     "at": "Earn",
+     "box_bullet": "EARN"
+    },
+    {
+     "at": "Earn",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "Save-0.15",
+     "box": "clip",
+     "clip": "saving"
+    },
+    {
+     "at": "Save",
+     "box_bullet": "SAVE"
+    },
+    {
+     "at": "Provide-0.15",
+     "box": "clip",
+     "clip": "groceries"
+    },
+    {
+     "at": "Provide",
+     "box_bullet": "PROVIDE"
+    },
+    {
+     "at": "Provide",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    },
+    {
+     "at": "Keep-0.1",
+     "box_bullets_clear": true
+    },
+    {
+     "at": "Keep-0.05",
+     "box": "clip",
+     "clip": "cash"
+    },
+    {
+     "at": "Keep",
+     "do": "walk",
+     "who": "guide",
+     "to": 640
+    },
+    {
+     "at": "hand-0.15",
+     "do": "draw",
+     "id": "d_chand",
+     "type": "coinhand",
+     "x": 220,
+     "y": 1110,
+     "dur": 0.35,
+     "main": true,
+     "scale": 0.85
+    },
+    {
+     "at": "hand+0.25",
+     "do": "draw",
+     "id": "d_ok",
+     "type": "check",
+     "x": 220,
+     "y": 975,
+     "dur": 0.25,
+     "main": true,
+     "k": 0.4
+    },
+    {
+     "at": "hand",
+     "do": "point",
+     "who": "guide",
+     "toward": "d_chand",
+     "hold": 0.6
+    },
+    {
+     "at": "heart-0.15",
+     "do": "draw",
+     "id": "d_heart2",
+     "type": "heartdollar",
+     "x": 420,
+     "y": 1120,
+     "dur": 0.35,
+     "main": true,
+     "scale": 0.5
+    },
+    {
+     "at": "heart+0.2",
+     "do": "draw",
+     "id": "d_no",
+     "type": "cross",
+     "x": 420,
+     "y": 1120,
+     "dur": 0.25,
+     "main": true,
+     "target": "d_heart2"
+    },
+    {
+     "at": "heart",
+     "do": "express",
+     "who": "guide",
+     "expression": "focused"
+    }
+   ],
+   "camera_start": false
+  },
+  {
+   "id": "last",
+   "panel": 0,
+   "script": "[curious] be honest do you control your money ?[short pause] or u more like mr crabs",
+   "narration": "be honest do you control your money ? or u more like mr crabs",
+   "events": [
+    {
+     "at": "be-0.15",
+     "do": "fade",
+     "ids": [
+      "d_chand",
+      "d_ok",
+      "d_heart2",
+      "d_no"
+     ],
+     "opacity": 0,
+     "dur": 0.2
+    },
+    {
+     "at": "be-0.1",
+     "box": "media",
+     "file": "movie_reference/doglookingatphoneshocked.jpg"
+    },
+    {
+     "at": "be",
+     "do": "look_viewer",
+     "who": "guide"
+    },
+    {
+     "at": "honest",
+     "do": "express",
+     "who": "guide",
+     "expression": "curious"
+    },
+    {
+     "at": "control",
+     "do": "express",
+     "who": "guide",
+     "expression": "surprised"
+    },
+    {
+     "at": "money",
+     "do": "point",
+     "who": "guide",
+     "toward": "box",
+     "hold": 0.5
+    },
+    {
+     "at": "or-0.1",
+     "box": "media",
+     "file": "movie_reference/mr-krab-money-eyes.mp4"
+    },
+    {
+     "at": "crabs",
+     "do": "express",
+     "who": "guide",
+     "expression": "happy"
+    }
+   ],
+   "camera_start": false,
+   "interaction": false
+  }
+ ]
+}

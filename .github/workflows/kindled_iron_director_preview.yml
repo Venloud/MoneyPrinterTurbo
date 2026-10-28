@@ -3,7 +3,7 @@ name: "Kindled Iron 1 - Generate Video"
 # kindled-iron-voice/approved_audio/<id>/, uploaded there with GitHub's "Add file > Upload files") -> a finished
 # PRIVATE preview + review package in kindled-iron-voice/previews/<id>/. No voice is generated, nothing is
 # approved or published, no public artifacts. Next: "Kindled Iron 2 - Approve and Add to Buffer".
-# video_id empty = every approved_audio/<id>/ folder (script.txt + narration.mp3) that has no previews/<id>/review.json,
+# video_id empty = every approved_audio/<id>/ folder (script.txt + narration.mp3) that has no previews/<id>/ video yet (review.json or video.json),
 # plus every video waiting for AI quota.
 # Manual only: no schedule runs until the owner authorises one. (A schedule that resumes waiting_quota videos after
 # the 07:00 UTC Gemini reset exists below, commented out; GitHub runs schedules from the default branch's copy.)
@@ -91,7 +91,7 @@ jobs:
               [ -f "$f/script.txt" ] && [ -f "$f/narration.mp3" ] || continue
               if [ "$EVENT" = "schedule" ]; then
                 waiting "$id" && ids="$ids $id"              # the schedule only resumes quota waits
-              elif [ ! -f "$d/previews/$id/review.json" ] || waiting "$id"; then
+              elif { [ ! -f "$d/previews/$id/review.json" ] && [ ! -f "$d/previews/$id/video.json" ]; } || waiting "$id"; then
                 ids="$ids $id"
               fi
             done

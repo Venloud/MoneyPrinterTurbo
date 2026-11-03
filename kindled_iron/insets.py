@@ -4,7 +4,8 @@ Sources, all free with no attribution required: NASA Image and Video Library (pu
 https://www.nasa.gov/nasa-brand-center/images-and-media/), Pexels (Pexels License,
 PEXELS_API_KEY), Pixabay (Pixabay Content License, PIXABAY_API_KEY), Wikimedia Commons (no key;
 ONLY files whose API metadata says public domain or CC0). Never CC BY / CC BY-SA.
-Default search order: Pexels -> Pixabay -> Commons; space / Earth shots list NASA first.
+Openverse (no key, opt-in with KI_OPENVERSE=1): public domain / CC0 STILL images, held as a short inset.
+Default search order: Pexels -> Pixabay -> Commons (-> Openverse when enabled); space / Earth shots list NASA first.
 A clip that can't be found or downloaded is skipped silently (the inset is dropped).
 Each clip becomes a short JPEG sequence the page swaps frame by frame. sources.json records
 source page, file URL and licence for every clip used.
@@ -15,6 +16,7 @@ import hashlib
 import json
 import os
 import subprocess
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -27,7 +29,9 @@ LICENSES = {
     "pexels": "Pexels License: free to use, no attribution required",
     "pixabay": "Pixabay Content License: free to use, no attribution required",
     "commons": "Wikimedia Commons: {lic} (no attribution required)",
+    "openverse": "Openverse: {lic} (no attribution required)",
 }
+OPENVERSE_LICENSES = ("cc0", "pdm")  # same rule as Commons: never CC BY / SA / NC / ND
 
 
 def _json(url: str, headers: dict | None = None) -> dict:
@@ -125,13 +129,53 @@ def _commons(query: str, pin: str | None) -> list[dict]:
     return out
 
 
-SEARCH = {"nasa": _nasa, "pexels": _pexels, "pixabay": _pixabay, "commons": _commons}
+def _openverse(query: str, pin: str | None) -> list[dict]:
+    """Public domain / CC0 still images from Openverse (20 requests/min, 200/day without a key). Search cached 7 days."""
+    if os.environ.get("KI_OPENVERSE") != "1" or not query:
+        return []
+    cache = Path(os.environ.get("KI_CLIP_CACHE", Path.home() / ".cache" / "kindled_iron" / "clips")) / "openverse"
+    cache.mkdir(parents=True, exist_ok=True)
+    f = cache / (hashlib.sha256(query.lower().encode()).hexdigest()[:20] + ".json")
+    if f.exists() and f.stat().st_mtime > time.time() - 7 * 86400:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    else:
+        q = urllib.parse.urlencode({"q": query[:200], "license": ",".join(OPENVERSE_LICENSES), "mature": "false",
+                                    "page_size": 12})
+        data = _json(f"https://api.openverse.org/v1/images/?{q}")  # a 429 raises and fetch() moves on
+        if not isinstance(data.get("results"), list):
+            raise ValueError("Openverse response has no results list")
+        f.write_text(json.dumps(data), encoding="utf-8")
+    out = []
+    for r in data["results"]:
+        lic = str(r.get("license") or "").lower()
+        if lic not in OPENVERSE_LICENSES or r.get("mature") or not r.get("url") or min(r.get("width") or 0, r.get("height") or 0) < 400:
+            continue
+        name = {"cc0": "CC0", "pdm": "Public Domain Mark"}[lic] + f" {r.get('license_version') or ''}".rstrip()
+        out.append({"source": "openverse", "file_url": r["url"], "title": r.get("title") or "", "id": r.get("id"),
+                    "page": r.get("foreign_landing_url") or r["url"], "license_name": name, "still": True,
+                    "creator": r.get("creator") or "", "license_url": r.get("license_url") or ""})
+    return out
 
 
-def _download(url: str) -> Path:
+def _still_frames(img: Path, dur: float, w: int, h: int, fps: int, out_dir: Path, crop=None) -> list[str]:
+    """A still held for dur seconds as the same JPEG sequence a clip produces (decoding fails loudly)."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for old in out_dir.glob("f_*.jpg"):
+        old.unlink()
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-loop", "1", "-i", str(img), "-t", f"{dur:.2f}",
+                    "-vf", (f"crop=iw*{crop[2]}:ih*{crop[3]}:iw*{crop[0]}:ih*{crop[1]}," if crop else "") +
+                    f"fps={fps},scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}",
+                    "-q:v", "4", str(out_dir / "f_%04d.jpg")], check=True)
+    return [p.as_uri() for p in sorted(out_dir.glob("f_*.jpg"))]
+
+
+SEARCH = {"nasa": _nasa, "pexels": _pexels, "pixabay": _pixabay, "commons": _commons, "openverse": _openverse}
+
+
+def _download(url: str, ext: str = ".mp4") -> Path:
     cache = Path(os.environ.get("KI_CLIP_CACHE", Path.home() / ".cache" / "kindled_iron" / "clips"))
     cache.mkdir(parents=True, exist_ok=True)
-    f = cache / (hashlib.sha256(url.encode()).hexdigest()[:20] + ".mp4")
+    f = cache / (hashlib.sha256(url.encode()).hexdigest()[:20] + ext)
     if not f.exists():
         req = urllib.request.Request(url, headers=UA)
         with urllib.request.urlopen(req, timeout=120) as r, open(f, "wb") as out:
@@ -162,7 +206,7 @@ def fetch(scene: dict, work: Path, log) -> dict:
         dur = max(1.5, min(3.0, float(ev.get("clip_dur", 2.2))))
         fps = 30
         w, h = int(ev.get("w", 380)), int(ev.get("h", 260))
-        order = ev.get("sources", DEFAULT_ORDER)
+        order = ev.get("sources", DEFAULT_ORDER + (["openverse"] if os.environ.get("KI_OPENVERSE") == "1" else []))
         pins = ev.get("pin", {})
         hit = None
         for src in order:
@@ -172,6 +216,13 @@ def fetch(scene: dict, work: Path, log) -> dict:
                 cands = []
             for c in cands[:3]:
                 try:
+                    if c.get("still"):
+                        frames = _still_frames(_download(c["file_url"], ".img"), dur, w, h, fps,
+                                               work / "insets" / ev["id"], ev.get("crop"))
+                        if len(frames) >= int(dur * fps * 0.8):
+                            hit = (c, 0.0, frames)
+                            break
+                        continue
                     clip = _download(c["file_url"])
                     length = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                                             "-of", "csv=p=0", str(clip)]).decode().strip() or 0)
@@ -194,6 +245,8 @@ def fetch(scene: dict, work: Path, log) -> dict:
         sources.append({"inset": ev["id"], "query": ev.get("query"), "source": c["source"], "id": c["id"], "title": c["title"],
                         "page": c["page"], "file_url": c["file_url"],
                         "license": LICENSES[c["source"]].format(lic=c.get("license_name", "")),
+                        **({"creator": c.get("creator"), "license_url": c.get("license_url"), "still": True}
+                           if c.get("still") else {}),
                         "start": start, "duration": round(len(frames) / fps, 2)})
         log(f"inset {ev['id']}: {c['source']} {c['id']} ({c['title'][:50]})")
     (work / "sources.json").write_text(json.dumps(sources, indent=1))

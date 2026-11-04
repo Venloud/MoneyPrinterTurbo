@@ -238,7 +238,7 @@ def stock(query: str, avoid: list[str], counts: dict, log, line: str = "", rejec
     if os.environ.get("KI_BOX_PLACEHOLDER") == "1" and not os.environ.get("PEXELS_API_KEY"):
         pid = "ph" + str(abs(hash(query)) % 10 ** 6)
         return {"source": "pexels", "id": pid, "title": f"placeholder for {query!r}", "page": "", "why": "offline placeholder"}
-    for search in (insets._pexels, insets._pixabay):
+    for search in (insets._library, insets._pexels, insets._pixabay):   # local library first (opt-in)
         try:
             cands = search(query, None)
         except Exception as e:  # noqa: BLE001 - one provider failing never stops the other

@@ -112,6 +112,18 @@ def freesound_search(query: str) -> list[dict]:
     return out
 
 
+def openverse_search(query: str) -> list[dict]:
+    from . import openverse_assets as ov
+    try:
+        return [{"id": "ov-" + h["id"], "title": h.get("title") or query,
+                 "author": h.get("creator") or "", "duration": (h.get("duration") or 0) / 1000,
+                 "downloads": 0, "url": h["foreign_landing_url"], "license_url": h["license_url"],
+                 "mp3": h["url"], "source": "openverse", "openverse_hit": h}
+                for h in ov.search("audio", query, ("cc0",))]
+    except Exception:
+        return []
+
+
 def verify_cc0(snd: dict) -> bool:
     if snd.get("license_url"):
         return CC0 in snd["license_url"]
@@ -219,7 +231,15 @@ def build(roles: list[str], list_only: bool, pins: dict) -> None:
         need_len = spec.get("loop") or spec["seg"][0] * 3
         cands = []
         for q in spec["q"]:
-            for s in freesound_search(q):
+            try:
+                hits = freesound_search(q)
+            except Exception:
+                if os.getenv("KI_OPENVERSE_AUDIO") != "1":
+                    raise
+                hits = []
+            if not hits and os.getenv("KI_OPENVERSE_AUDIO") == "1":
+                hits = openverse_search(q)
+            for s in hits:
                 s["query"] = q
                 if BAD.search(s["title"]) and role not in BAD_MUSIC_OK:
                     continue
@@ -242,7 +262,14 @@ def build(roles: list[str], list_only: bool, pins: dict) -> None:
                 log(f"  skip {c['id']}: sound page does not say CC0")
                 continue
             f = cache / f"{c['id']}.mp3"
-            if not f.exists():
+            if c.get("openverse_hit"):
+                from . import openverse_assets as ov
+                try:
+                    f, c["rights"] = ov.acquire(c["openverse_hit"], "audio", ("cc0",))
+                except Exception as exc:
+                    log(f"  skip {c['id']}: Openverse acquisition failed ({type(exc).__name__})")
+                    continue
+            elif not f.exists():
                 f.write_bytes(_get(c["mp3"]))
             x = decode(f)
             if spec.get("loop"):
@@ -263,7 +290,7 @@ def build(roles: list[str], list_only: bool, pins: dict) -> None:
         for k, (c, span, audio) in enumerate(variants[: spec.get("n", 1)]):
             out = LIB / f"{role}_{k}.ogg"
             encode(audio, out)
-            sources.append({"file": out.name, "role": role, "source": "freesound", "id": c["id"], "title": c["title"],
+            sources.append({"file": out.name, "role": role, "source": c.get("source", "freesound"), "rights": c.get("rights"), "id": c["id"], "title": c["title"],
                             "author": c["author"], "url": c["url"], "license": "CC0 1.0", "license_url": c["license_url"],
                             "query": c["query"], "segment": [round(span[0], 2), round(span[1], 2)] if span else "loop"})
         n = len(variants[: spec.get("n", 1)])

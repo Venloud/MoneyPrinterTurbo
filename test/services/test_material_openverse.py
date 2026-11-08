@@ -1,5 +1,4 @@
 """Stock provider compatibility: Openverse still fallback is explicitly opt-in."""
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest

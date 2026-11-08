@@ -153,7 +153,7 @@ def _openverse(query: str, pin: str | None) -> list[dict]:
         name = {"cc0": "CC0", "pdm": "Public Domain Mark"}[lic] + f" {r.get('license_version') or ''}".rstrip()
         out.append({"source": "openverse", "file_url": r["url"], "title": r.get("title") or "", "id": r.get("id"),
                     "page": r.get("foreign_landing_url") or r["url"], "license_name": name, "still": True,
-                    "creator": r.get("creator") or "", "license_url": r.get("license_url") or ""})
+                    "openverse_hit": r, "creator": r.get("creator") or "", "license_url": r.get("license_url") or "", "attribution": r.get("attribution") or ""})
     return out
 
 
@@ -217,7 +217,10 @@ def fetch(scene: dict, work: Path, log) -> dict:
             for c in cands[:3]:
                 try:
                     if c.get("still"):
-                        frames = _still_frames(_download(c["file_url"], ".img"), dur, w, h, fps,
+                        from . import openverse_assets as ov
+                        cached, rights = ov.acquire(c["openverse_hit"], "images", ("cc0", "pdm"))
+                        c["rights"] = rights
+                        frames = _still_frames(cached, dur, w, h, fps,
                                                work / "insets" / ev["id"], ev.get("crop"))
                         if len(frames) >= int(dur * fps * 0.8):
                             hit = (c, 0.0, frames)
@@ -245,7 +248,7 @@ def fetch(scene: dict, work: Path, log) -> dict:
         sources.append({"inset": ev["id"], "query": ev.get("query"), "source": c["source"], "id": c["id"], "title": c["title"],
                         "page": c["page"], "file_url": c["file_url"],
                         "license": LICENSES[c["source"]].format(lic=c.get("license_name", "")),
-                        **({"creator": c.get("creator"), "license_url": c.get("license_url"), "still": True}
+                        **({"creator": c.get("creator"), "license_url": c.get("license_url"), "rights": c.get("rights"), "attribution": c.get("attribution"), "still": True}
                            if c.get("still") else {}),
                         "start": start, "duration": round(len(frames) / fps, 2)})
         log(f"inset {ev['id']}: {c['source']} {c['id']} ({c['title'][:50]})")

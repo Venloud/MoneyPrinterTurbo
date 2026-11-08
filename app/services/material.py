@@ -2331,6 +2331,24 @@ def download_videos(
                     f"provider={item.provider}, error={type(e).__name__}, "
                     f"detail={_redact_request_error(e, item.url)}"
                 )
+    if os.getenv("MPT_OPENVERSE") == "1" and total_duration < audio_duration:
+        from kindled_iron import openverse_assets as ov
+        for term in search_terms:
+            if total_duration >= audio_duration:
+                break
+            try:
+                found = ov.first("images", term, ("cc0", "pdm"))
+                if not found:
+                    continue
+                image, rights = found
+                seconds = min(max_clip_duration, audio_duration - total_duration)
+                clip = video.render_image_zoom_video(str(image), seconds)
+                if clip and clip not in video_paths:
+                    video_paths.append(clip)
+                    total_duration += seconds
+                    material_sources.append({**rights, "local_file": Path(clip).name, "duration": seconds})
+            except Exception as exc:
+                logger.warning(f"Openverse still fallback unavailable: {type(exc).__name__}")
     logger.success(f"downloaded {len(video_paths)} videos")
     _persist_material_sources(task_id, material_sources)
     return video_paths

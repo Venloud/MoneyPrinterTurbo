@@ -264,7 +264,11 @@ def build(roles: list[str], list_only: bool, pins: dict) -> None:
             f = cache / f"{c['id']}.mp3"
             if c.get("openverse_hit"):
                 from . import openverse_assets as ov
-                f, c["rights"] = ov.acquire(c["openverse_hit"], "audio", ("cc0",))
+                try:
+                    f, c["rights"] = ov.acquire(c["openverse_hit"], "audio", ("cc0",))
+                except Exception as exc:
+                    log(f"  skip {c['id']}: Openverse acquisition failed ({type(exc).__name__})")
+                    continue
             elif not f.exists():
                 f.write_bytes(_get(c["mp3"]))
             x = decode(f)

@@ -60,3 +60,7 @@ kindled_iron/reactions/*
 !kindled_iron/reactions/README.md
 kindled_iron/movie_reference/*
 !kindled_iron/movie_reference/README.md
+
+# Local FFmpeg fragments from offline tests (not production sources)
+/init-stream0.m4s
+/chunk-stream0-00001.m4s

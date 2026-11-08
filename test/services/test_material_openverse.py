@@ -41,7 +41,7 @@ def test_sufficient_stock_does_not_call_openverse(monkeypatch):
 @pytest.mark.parametrize("enabled", [False, True])
 def test_script_order_empty_optional_fallback(tmp_path, monkeypatch, enabled):
     monkeypatch.setenv("MPT_OPENVERSE", "1" if enabled else "")
-    with patch.object(material, "_search_terms_ordered", return_value=[]) if hasattr(material, "_search_terms_ordered") else patch.object(material, "_search_terms_in_parallel", return_value=[]):
+    with patch.object(material, "_search_terms_in_parallel", return_value=[]):
         with patch.object(material, "_persist_material_sources"), patch.object(ov, "first", return_value=(tmp_path / "image", {"license": "cc0"})) as get, patch.object(material.video, "render_image_zoom_video", return_value=str(tmp_path / "clip.mp4")):
             got = material.download_videos("test", ["ancient statue"], audio_duration=2, match_script_order=True)
     assert bool(got) == enabled

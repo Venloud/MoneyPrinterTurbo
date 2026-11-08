@@ -2331,6 +2331,15 @@ def download_videos(
                     f"provider={item.provider}, error={type(e).__name__}, "
                     f"detail={_redact_request_error(e, item.url)}"
                 )
+    _append_openverse_stills(search_terms, audio_duration, max_clip_duration, total_duration, video_paths, material_sources)
+    logger.success(f"downloaded {len(video_paths)} videos")
+    _persist_material_sources(task_id, material_sources)
+    return video_paths
+
+
+
+def _append_openverse_stills(search_terms, audio_duration, max_clip_duration, total_duration, video_paths, material_sources):
+    """Opt-in top-up after stock providers; preserve existing sources and ordering."""
     if os.getenv("MPT_OPENVERSE") == "1" and total_duration < audio_duration:
         from kindled_iron import openverse_assets as ov
         for term in search_terms:
@@ -2349,10 +2358,6 @@ def download_videos(
                     material_sources.append({**rights, "local_file": Path(clip).name, "duration": seconds})
             except Exception as exc:
                 logger.warning(f"Openverse still fallback unavailable: {type(exc).__name__}")
-    logger.success(f"downloaded {len(video_paths)} videos")
-    _persist_material_sources(task_id, material_sources)
-    return video_paths
-
 
 def _download_videos_wavespeed_on_demand(
     *,
@@ -3036,6 +3041,7 @@ def _download_videos_by_script_order(
                     f"detail={_redact_request_error(e, item.url)}"
                 )
 
+    _append_openverse_stills(search_terms, audio_duration, max_clip_duration, total_duration, video_paths, material_sources)
     logger.success(f"downloaded {len(video_paths)} ordered videos")
     _persist_material_sources(task_id, material_sources)
     return video_paths

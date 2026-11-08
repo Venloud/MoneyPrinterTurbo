@@ -21,12 +21,13 @@ from pathlib import Path
 
 MAX_INSETS = 8
 UA = {"User-Agent": "KindledIronBot/1.0 (https://github.com/Venloud/MoneyPrinterTurbo; test renders)"}
-DEFAULT_ORDER = ["pexels", "pixabay", "commons"]
+DEFAULT_ORDER = ["library", "pexels", "pixabay", "commons"]  # library: no-op unless VANDAM_ASSET_LIBRARY is set
 LICENSES = {
     "nasa": "NASA media: public domain, not copyrighted (NASA images and media guidelines)",
     "pexels": "Pexels License: free to use, no attribution required",
     "pixabay": "Pixabay Content License: free to use, no attribution required",
     "commons": "Wikimedia Commons: {lic} (no attribution required)",
+    "library": "{lic} (shared local asset library)",
 }
 
 
@@ -125,7 +126,57 @@ def _commons(query: str, pin: str | None) -> list[dict]:
     return out
 
 
-SEARCH = {"nasa": _nasa, "pexels": _pexels, "pixabay": _pixabay, "commons": _commons}
+# ---------- shared local asset library (Venloud/vandam-assets), opt-in with VANDAM_ASSET_LIBRARY ----------
+# Kindled Iron never uses CC BY / SA / NC / ND, so only these licence keys come back from the library.
+LIBRARY_LICENSES = {"cc0", "pdm", "pexels", "pixabay", "mixkit", "coverr"}
+PROJECT = "kindled_iron"
+
+
+def library():
+    """The shared local asset library, or None when VANDAM_ASSET_LIBRARY is unset or vandam_assets is missing."""
+    root = os.environ.get("VANDAM_ASSET_LIBRARY")
+    if not root:
+        return None
+    try:
+        from vandam_assets import Library
+    except ImportError:
+        return None
+    return Library(root)
+
+
+def _library(query: str, pin: str | None) -> list[dict]:
+    """Video clips already on this computer whose licence Kindled Iron allows. pin = a library id."""
+    lib = library()
+    if not lib:
+        return []
+    if pin:
+        rec = lib.records().get(pin)
+        hits = [{**rec, "path": str(lib.path(rec))}] if rec and lib.path(rec).is_file() else []
+    else:
+        hits = lib.find(query, "video", PROJECT, limit=8,
+                        cooldown_videos=int(os.environ.get("VANDAM_ASSET_COOLDOWN", "10")))
+    return [{"source": "library", "id": h["id"], "file_url": Path(h["path"]).as_uri(),
+             "title": " ".join([h.get("title") or "", h.get("description") or "", " ".join(h.get("tags") or [])]).strip(),
+             "page": h.get("source_url", ""), "license_name": h.get("license", ""), "provider": h.get("provider", "")}
+            for h in hits if h.get("license_key") in LIBRARY_LICENSES]
+
+
+def save_to_library(c: dict, clip: Path, query: str, video: str | None) -> None:
+    """After a clip is used: keep it with its rights record so the next video looks here first. Never raises."""
+    lib = library()
+    if not lib or c.get("source") not in ("pexels", "pixabay", "nasa", "commons"):
+        return
+    try:
+        lib.add(clip, {"kind": "video", "provider": c["source"], "source_url": c.get("page") or c["file_url"],
+                       "download_url": c["file_url"], "title": c.get("title", "")[:200], "description": query,
+                       "tags": sorted({w for w in (query + " " + c.get("title", "")).lower().replace("-", " ").split()
+                                       if w.isalpha() and len(w) > 2}),
+                       "license": LICENSES[c["source"]].format(lic=c.get("license_name", ""))}, PROJECT, video)
+    except Exception:  # noqa: BLE001 - the library is a cache; a failure never stops a render
+        pass
+
+
+SEARCH = {"library": _library, "nasa": _nasa, "pexels": _pexels, "pixabay": _pixabay, "commons": _commons}
 
 
 def _download(url: str) -> Path:
@@ -190,6 +241,7 @@ def fetch(scene: dict, work: Path, log) -> dict:
             log(f"inset {ev['id']}: no clip found for {ev.get('query')!r}, skipped")
             continue
         c, start, frames = hit
+        save_to_library(c, _download(c["file_url"]), ev.get("query", ""), work.name)
         found[ev["id"]] = {"frames": frames, "fps": fps, "clip_dur": round(len(frames) / fps, 3)}
         sources.append({"inset": ev["id"], "query": ev.get("query"), "source": c["source"], "id": c["id"], "title": c["title"],
                         "page": c["page"], "file_url": c["file_url"],

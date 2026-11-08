@@ -337,11 +337,11 @@ def diagram_frame(s: dict, work: Path, n: int, log):
                             "license": "owner-supplied", "start": 0.0, "end": 0.04, "crop": None, "fit": "whole, uniform scale"}
 
 
-def _source(spec: dict, key: str, got: dict, log):
+def _source(spec: dict, key: str, got: dict, log, video: str | None = None):
     if key in got:
         return got[key]
-    pin = spec.get("pexels") or spec.get("pixabay")   # a pinned Pexels / Pixabay ID, or "query": the first Pexels hit
-    search = insets_mod._pixabay if spec.get("pixabay") and not spec.get("pexels") else insets_mod._pexels
+    pin = spec.get("library") or spec.get("pexels") or spec.get("pixabay")   # a pinned ID, or "query": the first Pexels hit
+    search = insets_mod._library if spec.get("library") else         insets_mod._pixabay if spec.get("pixabay") and not spec.get("pexels") else insets_mod._pexels
     try:
         cands = search(spec.get("query", ""), pin)
     except Exception as e:  # noqa: BLE001
@@ -354,6 +354,7 @@ def _source(spec: dict, key: str, got: dict, log):
     f = insets_mod._download(c["file_url"])
     length = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration",
                                             "-of", "csv=p=0", str(f)]).decode().strip() or 0)
+    insets_mod.save_to_library(c, f, spec.get("label") or spec.get("query", ""), video)
     got[key] = (c, f, length)
     return got[key]
 
@@ -367,7 +368,7 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
     placeholder = os.environ.get("KI_BOX_PLACEHOLDER") == "1"
     sources, got, cursor, used = [], {}, {}, {}
     def clip_aspect(key: str, crop=None) -> float:
-        c, f, length = _source(clips[key], key, got, log)
+        c, f, length = _source(clips[key], key, got, log, work.name)
         from kindled_iron.private_media import image_size
         sz = image_size(f) or (16, 9)
         crop = crop or clips[key].get("crop")
@@ -380,7 +381,7 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
         if placeholder:
             out_dir = work / "box" / f"{key}_{n}{side}"
             return _placeholder(key, max(1.0, want), w, h, out_dir), {}
-        c, f, length = _source(spec, key, got, log)
+        c, f, length = _source(spec, key, got, log, work.name)
         pin = spec.get("pexels") or spec.get("pixabay") or c["id"]
         st = float(start) if start is not None else cursor.get(pin, float(spec.get("start", 0.3)))
         dur = min(want, length - 0.1)
@@ -402,7 +403,7 @@ def fetch(scene: dict, segs: list[dict], work: Path, log) -> list[dict]:
         if len(frames) < 20:
             raise SystemExit(f"FAIL: required clip {key} (Pexels {pin}) gave only {len(frames)} frames")
         return frames, {"clip": key, "source": c.get("source", "pexels"), "id": c["id"], "page": c["page"], "file_url": c["file_url"],
-                        "license": insets_mod.LICENSES[c.get("source", "pexels")], "start": rng[0], "end": rng[1], "crop": crop}
+                        "license": insets_mod.LICENSES[c.get("source", "pexels")].format(lic=c.get("license_name", "")), "start": rng[0], "end": rng[1], "crop": crop}
     for n, s in enumerate(segs):
         seconds = s["t1"] - s["t0"]
         s["geom"] = {"x": BX, "y": BY, "w": W, "h": H}

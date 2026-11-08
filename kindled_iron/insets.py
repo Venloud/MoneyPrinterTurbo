@@ -133,20 +133,10 @@ def _openverse(query: str, pin: str | None) -> list[dict]:
     """Public domain / CC0 still images from Openverse (20 requests/min, 200/day without a key). Search cached 7 days."""
     if os.environ.get("KI_OPENVERSE") != "1" or not query:
         return []
-    cache = Path(os.environ.get("KI_CLIP_CACHE", Path.home() / ".cache" / "kindled_iron" / "clips")) / "openverse"
-    cache.mkdir(parents=True, exist_ok=True)
-    f = cache / (hashlib.sha256(query.lower().encode()).hexdigest()[:20] + ".json")
-    if f.exists() and f.stat().st_mtime > time.time() - 7 * 86400:
-        data = json.loads(f.read_text(encoding="utf-8"))
-    else:
-        q = urllib.parse.urlencode({"q": query[:200], "license": ",".join(OPENVERSE_LICENSES), "mature": "false",
-                                    "page_size": 12})
-        data = _json(f"https://api.openverse.org/v1/images/?{q}")  # a 429 raises and fetch() moves on
-        if not isinstance(data.get("results"), list):
-            raise ValueError("Openverse response has no results list")
-        f.write_text(json.dumps(data), encoding="utf-8")
+    from . import openverse_assets as ov
+    hits = ov.search("images", query, OPENVERSE_LICENSES, filters={"page_size": 12})
     out = []
-    for r in data["results"]:
+    for r in hits:
         lic = str(r.get("license") or "").lower()
         if lic not in OPENVERSE_LICENSES or r.get("mature") or not r.get("url") or min(r.get("width") or 0, r.get("height") or 0) < 400:
             continue

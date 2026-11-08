@@ -14,7 +14,7 @@ from kindled_iron import insets
 def hit(i, lic, **kw):
     return {"id": f"ov{i}", "title": f"Stoic bust {i}", "url": f"https://img.example/{i}.jpg",
             "foreign_landing_url": f"https://src.example/{i}", "creator": f"maker{i}", "license": lic,
-            "license_version": "1.0", "license_url": f"https://creativecommons.org/{lic}", "width": 1200, "height": 900, **kw}
+            "license_version": "1.0", "license_url": "https://creativecommons.org/" + {"cc0": "publicdomain/zero/1.0/", "pdm": "publicdomain/mark/1.0/"}.get(lic, "licenses/by-nc/1.0/"), "width": 1200, "height": 900, **kw}
 
 
 BODY = {"results": [hit(1, "by"), hit(2, "cc0"), hit(3, "by-sa"), hit(4, "pdm", mature=True),
@@ -37,18 +37,16 @@ class OpenverseInsets(unittest.TestCase):
             j.assert_not_called()
 
     def test_cc0_and_public_domain_only(self):
-        with patch.object(insets, "_json", return_value=BODY) as j:
+        with patch("kindled_iron.openverse_assets.search", return_value=BODY["results"]) as j:
             got = insets._openverse("marcus aurelius statue", None)
-            self.assertIn("license=cc0%2Cpdm", j.call_args.args[0])
+            self.assertEqual(j.call_args.args[:3], ("images", "marcus aurelius statue", insets.OPENVERSE_LICENSES))
         self.assertEqual([g["id"] for g in got], ["ov2", "ov6"], "CC BY, SA, mature and tiny images are refused")
         self.assertTrue(all(g["still"] and g["page"] and g["creator"] for g in got))
         self.assertEqual(got[1]["license_name"], "Public Domain Mark 1.0")
-        with patch.object(insets, "_json") as j:  # second search is cached
-            self.assertEqual(len(insets._openverse("marcus aurelius statue", None)), 2)
-            j.assert_not_called()
+        # Shared client cache/cooldown contracts are tested in test_openverse_assets.py.
 
     def test_invalid_response(self):
-        with patch.object(insets, "_json", return_value={"detail": "throttled"}):
+        with patch("kindled_iron.openverse_assets.search", side_effect=ValueError("invalid response")):
             with self.assertRaises(ValueError):
                 insets._openverse("broken", None)
 
@@ -63,7 +61,7 @@ class OpenverseInsets(unittest.TestCase):
         def down(url, ext=".mp4"):
             return img
 
-        with patch.object(insets, "_json", return_value=BODY), patch("kindled_iron.openverse_assets.acquire", return_value=(img, {"source_verified": True})), \
+        with patch("kindled_iron.openverse_assets.search", return_value=BODY["results"]), patch("kindled_iron.openverse_assets.acquire", return_value=(img, {"source_verified": True})), \
                 patch.dict(insets.SEARCH, {"pexels": lambda q, p: (_ for _ in ()).throw(RuntimeError("no key"))}), \
                 patch.object(insets, "contact_sheet"):
             found = insets.fetch(scene, self.tmp / "work", lambda *a: None)

@@ -196,6 +196,7 @@ def _frames(clip: Path, start: float, dur: float, w: int, h: int, fps: int, out_
 
 def fetch(scene: dict, work: Path, log) -> dict:
     """Returns {inset_id: {"frames": [...], "fps": 30, "clip_dur": s} } and writes sources.json."""
+    work.mkdir(parents=True, exist_ok=True)
     found, sources = {}, []
     wanted = [ev for b in scene["beats"] for ev in b.get("events", []) if ev.get("do") == "draw" and ev.get("type") == "inset"
               and "frames" not in ev]

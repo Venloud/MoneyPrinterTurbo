@@ -63,7 +63,7 @@ class OpenverseInsets(unittest.TestCase):
         def down(url, ext=".mp4"):
             return img
 
-        with patch.object(insets, "_json", return_value=BODY), patch.object(insets, "_download", side_effect=down), \
+        with patch.object(insets, "_json", return_value=BODY), patch("kindled_iron.openverse_assets.acquire", return_value=(img, {"source_verified": True})), \
                 patch.dict(insets.SEARCH, {"pexels": lambda q, p: (_ for _ in ()).throw(RuntimeError("no key"))}), \
                 patch.object(insets, "contact_sheet"):
             found = insets.fetch(scene, self.tmp / "work", lambda *a: None)
